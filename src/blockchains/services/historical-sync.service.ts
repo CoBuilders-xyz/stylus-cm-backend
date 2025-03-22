@@ -136,11 +136,13 @@ export class HistoricalEventSyncService {
           blockNumber: event.blockNumber,
           isSynced: true,
           eventData: hasArgs
-            ? JSON.parse(
-                JSON.stringify(event.args, (_, v) =>
-                  typeof v === 'bigint' ? v.toString() : v,
+            ? (JSON.parse(
+                JSON.stringify(
+                  event.args,
+                  (_, v): string | boolean | number | object | null =>
+                    typeof v === 'bigint' ? v.toString() : v,
                 ),
-              )
+              ) as Record<string, any>)
             : {}, // Store all event arguments as JSON
         };
       }),
