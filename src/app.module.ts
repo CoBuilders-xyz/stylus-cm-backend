@@ -2,8 +2,56 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
+// nestjs modules
+import { ScheduleModule } from '@nestjs/schedule';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
+
+// app modules
+import { UsersModule } from './users/users.module';
+import { TasksModule } from './tasks/tasks.module';
+import { ContractsModule } from './contracts/contracts.module';
+import { BlockchainsModule } from './blockchains/blockchains.module';
+
+// entities
+import { User } from './users/entities/user.entity';
+import { Blockchain } from './blockchains/entities/blockchain.entity';
+import { Contract } from './contracts/entities/contract.entity';
+import { BlockchainEvent } from './blockchains/entities/blockchain-event.entity';
+import { BlockchainMetric } from './blockchains/entities/blockchain-metric.entity';
+import { BlockchainDataPoll } from './blockchains/entities/blockchain-data-poll.entity';
+
+const appModules = [
+  UsersModule,
+  ContractsModule,
+  BlockchainsModule,
+  TasksModule,
+];
+const entities = [
+  User,
+  Blockchain,
+  Contract,
+  BlockchainEvent,
+  BlockchainMetric,
+  BlockchainDataPoll,
+];
+
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }), // In charge of loading environment variables. Required for the rest.
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.POSTGRES_HOST,
+      port: parseInt(process.env.POSTGRES_PORT || '5432'),
+      username: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+      database: process.env.POSTGRES_DB,
+      entities: entities,
+      synchronize: true,
+    }),
+    ScheduleModule.forRoot(),
+    ...appModules,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
