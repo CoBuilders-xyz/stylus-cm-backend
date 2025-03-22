@@ -11,6 +11,7 @@ import { BlockchainEvent } from '../entities/blockchain-event.entity';
 import { ethers } from 'ethers';
 import { abi } from '../../constants/abis/cacheManager/cacheManager.json';
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class HistoricalEventSyncService
@@ -29,6 +30,9 @@ export class HistoricalEventSyncService
     'SetDecayRate',
     'Initialized',
   ];
+
+  // Config for the periodic resync
+  private readonly RESYNC_BLOCKS_BACK: number = 100;
 
   constructor(
     @InjectRepository(Blockchain)
@@ -198,7 +202,7 @@ export class HistoricalEventSyncService
     eventType: string,
   ): Promise<void> {
     try {
-      await this.insertEvents(blockchain, [eventLog], provider);
+      await this.insertEvents(blockchain, [eventLog], provider, true);
       await this.updateLastSyncedBlock(blockchain, eventLog.blockNumber);
       this.logger.log(
         `Processed real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
@@ -412,21 +416,82 @@ export class HistoricalEventSyncService
     blockchain: Blockchain,
     events: (ethers.Log | ethers.EventLog)[],
     provider: ethers.JsonRpcProvider,
+    isRealTime: boolean = false,
   ) {
     if (events.length === 0) return;
 
+    // Function to safely extract transaction hash
+    function getTransactionHash(event: ethers.Log | ethers.EventLog): string {
+      // First try ethers v6 style properties
+      if (
+        'transactionHash' in event &&
+        typeof event.transactionHash === 'string'
+      ) {
+        return event.transactionHash;
+      }
+
+      // Then try ethers v5 (with safe type handling)
+      try {
+        const eventAsAny = event as unknown;
+        const record = eventAsAny as Record<string, unknown>;
+        if (record && 'hash' in record && typeof record.hash === 'string') {
+          return record.hash;
+        }
+      } catch {
+        // Silently handle any errors in type conversion
+      }
+
+      return '';
+    }
+
+    // Function to safely extract log index
+    function getLogIndex(event: ethers.Log | ethers.EventLog): number {
+      // First try ethers v6 style
+      if ('logIndex' in event && typeof event.logIndex === 'number') {
+        return event.logIndex;
+      }
+
+      // Then try ethers v5 (with safe type handling)
+      try {
+        const eventAsAny = event as unknown;
+        const record = eventAsAny as Record<string, unknown>;
+        if (record && 'index' in record && typeof record.index === 'number') {
+          return record.index;
+        }
+      } catch {
+        // Silently handle any errors in type conversion
+      }
+
+      return 0;
+    }
+
+    // Create event records with unique identifiers
     const blockchainEvents = await Promise.all(
       events.map(async (event) => {
         const hasFragment = 'fragment' in event;
         const hasArgs = 'args' in event;
         const block = await provider.getBlock(event.blockNumber);
+
+        // Get transaction hash and log index safely
+        const transactionHash = getTransactionHash(event);
+        const logIndex = getLogIndex(event);
+
+        if (!transactionHash) {
+          this.logger.warn(
+            `Event without transaction hash found at block ${event.blockNumber}`,
+          );
+        }
+
         return {
-          blockchain: blockchain, // Make sure blockchain is set properly
-          contractName: 'CacheManager', // Example contract name
+          blockchain: blockchain,
+          contractName: 'CacheManager',
           contractAddress: event.address,
           eventName: hasFragment ? event.fragment.name : '',
-          blockTimestamp: new Date(block ? block.timestamp * 1000 : 0), // Convert to Date
+          blockTimestamp: new Date(block ? block.timestamp * 1000 : 0),
           blockNumber: event.blockNumber,
+          transactionHash: transactionHash,
+          logIndex: logIndex,
+          isRealTime: isRealTime,
           isSynced: true,
           eventData: hasArgs
             ? (JSON.parse(
@@ -436,10 +501,234 @@ export class HistoricalEventSyncService
                     typeof v === 'bigint' ? v.toString() : v,
                 ),
               ) as Record<string, any>)
-            : {}, // Store all event arguments as JSON
+            : {},
         };
       }),
     );
-    await this.eventSyncRepository.insert(blockchainEvents);
+
+    // Split events into smaller batches to avoid large transactions
+    const BATCH_SIZE = 50; // Smaller batch size for better error isolation
+    const eventBatches: (typeof blockchainEvents)[] = [];
+
+    for (let i = 0; i < blockchainEvents.length; i += BATCH_SIZE) {
+      eventBatches.push(blockchainEvents.slice(i, i + BATCH_SIZE));
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Process each event individually to prevent transaction aborts from affecting other events
+    for (const batch of eventBatches) {
+      for (const eventData of batch) {
+        // Each event gets its own transaction
+        const queryRunner =
+          this.eventSyncRepository.manager.connection.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+          // Try to insert the event
+          await queryRunner.manager.insert(BlockchainEvent, eventData);
+
+          await queryRunner.commitTransaction();
+          this.logger.debug(
+            `Inserted event ${eventData.eventName} with tx hash ${eventData.transactionHash} and log index ${eventData.logIndex}`,
+          );
+          successCount++;
+        } catch (insertError: unknown) {
+          // Handle duplicate key error more safely
+          if (insertError instanceof Error) {
+            const pgError = insertError as { code?: string };
+
+            // Check for duplicate key violation
+            if (pgError.code === '23505') {
+              await queryRunner.rollbackTransaction();
+
+              // Start a new transaction for the update operation
+              await queryRunner.startTransaction();
+
+              try {
+                // If this is a real-time event, update the flag in the existing record
+                if (isRealTime) {
+                  await queryRunner.manager
+                    .createQueryBuilder()
+                    .update(BlockchainEvent)
+                    .set({ isRealTime: true })
+                    .where({
+                      transactionHash: eventData.transactionHash,
+                      logIndex: eventData.logIndex,
+                      blockchain: { id: blockchain.id },
+                      eventName: eventData.eventName,
+                    })
+                    .execute();
+
+                  await queryRunner.commitTransaction();
+                  this.logger.debug(
+                    `Updated real-time flag for event ${eventData.eventName} with tx hash ${eventData.transactionHash}`,
+                  );
+                  successCount++;
+                } else {
+                  await queryRunner.commitTransaction();
+                  this.logger.debug(
+                    `Skipped duplicate event ${eventData.eventName} with tx hash ${eventData.transactionHash}`,
+                  );
+                  successCount++; // Count as success since skipping a duplicate is expected
+                }
+              } catch (updateError) {
+                // If update fails, roll back and count as error
+                await queryRunner.rollbackTransaction();
+                this.logger.error(
+                  `Failed to update real-time flag for event ${eventData.eventName} with tx hash ${eventData.transactionHash}: ${
+                    updateError instanceof Error
+                      ? updateError.message
+                      : String(updateError)
+                  }`,
+                );
+                errorCount++;
+              }
+            } else {
+              // For other database errors, log and count as error
+              await queryRunner.rollbackTransaction();
+              this.logger.error(
+                `Error inserting event ${eventData.eventName} with tx hash ${eventData.transactionHash}: ${
+                  insertError.message
+                }`,
+              );
+              errorCount++;
+            }
+          } else {
+            // For non-Error exceptions
+            await queryRunner.rollbackTransaction();
+            this.logger.error(
+              `Unknown error inserting event: ${String(insertError)}`,
+            );
+            errorCount++;
+          }
+        } finally {
+          // Always release the query runner
+          await queryRunner.release();
+        }
+      }
+    }
+
+    // Log overall results
+    this.logger.log(
+      `Finished processing ${blockchainEvents.length} events for blockchain ${blockchain.id}: ${successCount} successful, ${errorCount} errors`,
+    );
+  }
+
+  // Run every hour to catch events that might have been missed
+  @Cron('0 * * * *')
+  async periodicEventResync() {
+    this.logger.log('Starting periodic event resync to catch missed events');
+
+    const blockchains = await this.blockchainRepository.find();
+    for (const blockchain of blockchains) {
+      try {
+        if (!blockchain.rpcUrl || !blockchain.cacheManagerAddress) {
+          this.logger.warn(
+            `Skipping blockchain ${blockchain.id} due to missing RPC URL or contract address.`,
+          );
+          continue;
+        }
+
+        // Get provider
+        let provider = this.providers.get(blockchain.id);
+        if (!provider) {
+          provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
+          this.providers.set(blockchain.id, provider);
+        }
+
+        // Get current latest block
+        const latestBlock = await provider.getBlockNumber();
+
+        // Calculate starting block for resync - look back RESYNC_BLOCKS_BACK blocks
+        const lastSyncedBlock = await this.getLastSyncedBlock(blockchain);
+        const resyncStartBlock = Math.max(
+          0,
+          lastSyncedBlock - this.RESYNC_BLOCKS_BACK,
+        );
+
+        // Only proceed if we have blocks to resync
+        if (resyncStartBlock >= latestBlock) {
+          this.logger.log(`No blocks to resync for ${blockchain.id}`);
+          continue;
+        }
+
+        // Perform targeted resync
+        await this.resyncBlockRange(
+          blockchain,
+          provider,
+          resyncStartBlock,
+          latestBlock,
+        );
+
+        this.logger.log(
+          `Completed periodic resync for blockchain ${blockchain.id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Error during periodic resync for blockchain ${blockchain.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+  }
+
+  // Resync a specific range of blocks to catch missed events
+  private async resyncBlockRange(
+    blockchain: Blockchain,
+    provider: ethers.JsonRpcProvider,
+    fromBlock: number,
+    toBlock: number,
+  ) {
+    this.logger.log(
+      `Resyncing events for ${blockchain.id} from block ${fromBlock} to ${toBlock}`,
+    );
+
+    const cacheManagerContract = new ethers.Contract(
+      blockchain.cacheManagerAddress,
+      abi as ethers.InterfaceAbi,
+      provider,
+    );
+
+    let allEvents: (ethers.Log | ethers.EventLog)[] = [];
+
+    // Query for each event type in the range
+    for (const eventType of this.eventTypes) {
+      try {
+        const eventFilter = cacheManagerContract.filters[eventType]();
+        const events = await cacheManagerContract.queryFilter(
+          eventFilter,
+          fromBlock,
+          toBlock,
+        );
+
+        if (events.length > 0) {
+          this.logger.log(
+            `Found ${events.length} ${eventType} events to resync from block ${fromBlock} to ${toBlock}`,
+          );
+          allEvents = [...allEvents, ...events];
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error fetching ${eventType} events during resync: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    if (allEvents.length === 0) {
+      this.logger.log(`No events found to resync in the given block range`);
+      return;
+    }
+
+    // Process the events - they'll be deduplicated in insertEvents
+    await this.insertEvents(blockchain, allEvents, provider);
+
+    // Don't update lastSyncedBlock as this is a backup sync
+    // and the main sync process should manage that
   }
 }
