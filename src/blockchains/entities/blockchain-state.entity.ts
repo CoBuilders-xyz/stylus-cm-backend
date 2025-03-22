@@ -8,7 +8,7 @@ import {
 import { Blockchain } from './blockchain.entity';
 
 @Entity()
-export class BlockchainDataPoll {
+export class BlockchainState {
   @PrimaryGeneratedColumn()
   id: number;
 

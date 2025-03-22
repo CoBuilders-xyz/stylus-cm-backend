@@ -20,7 +20,7 @@ import { Blockchain } from './blockchains/entities/blockchain.entity';
 import { Contract } from './contracts/entities/contract.entity';
 import { BlockchainEvent } from './blockchains/entities/blockchain-event.entity';
 import { BlockchainMetric } from './blockchains/entities/blockchain-metric.entity';
-import { BlockchainDataPoll } from './blockchains/entities/blockchain-data-poll.entity';
+import { BlockchainState } from './blockchains/entities/blockchain-state.entity';
 
 const appModules = [
   UsersModule,
@@ -34,7 +34,7 @@ const entities = [
   Contract,
   BlockchainEvent,
   BlockchainMetric,
-  BlockchainDataPoll,
+  BlockchainState,
 ];
 
 @Module({

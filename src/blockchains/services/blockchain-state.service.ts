@@ -3,19 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Blockchain } from '../entities/blockchain.entity';
-import { BlockchainDataPoll } from '../entities/blockchain-data-poll.entity';
+import { BlockchainState } from '../entities/blockchain-state.entity';
 import { ethers } from 'ethers';
 import { abi } from '../../constants/abis/cacheManager/cacheManager.json';
 
 @Injectable()
-export class RealTimeMetricsService {
-  private readonly logger = new Logger(RealTimeMetricsService.name);
+export class BlockchainStateService {
+  private readonly logger = new Logger(BlockchainStateService.name);
 
   constructor(
     @InjectRepository(Blockchain)
     private readonly blockchainRepository: Repository<Blockchain>,
-    @InjectRepository(BlockchainDataPoll)
-    private readonly blockchainDataPollRepository: Repository<BlockchainDataPoll>,
+    @InjectRepository(BlockchainState)
+    private readonly BlockchainStateRepository: Repository<BlockchainState>,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES)
@@ -100,7 +100,7 @@ export class RealTimeMetricsService {
       blockNumber: block?.number,
       blockTimestamp: new Date(Number(block?.timestamp) * 1000),
     });
-    const newPoll = this.blockchainDataPollRepository.create({
+    const newPoll = this.BlockchainStateRepository.create({
       blockchain,
       minBid: '0',
       decayRate: decayRate.toString(),
@@ -112,9 +112,7 @@ export class RealTimeMetricsService {
       totalContractsCached: entries.length.toString(),
     });
 
-    await this.blockchainDataPollRepository.save(newPoll);
+    await this.BlockchainStateRepository.save(newPoll);
     this.logger.log(`Metrics saved for blockchain ${blockchain.id}`);
-
-    this.logger.log(`Eviction Risk`);
   }
 }

@@ -14,10 +14,8 @@ import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 
 @Injectable()
-export class HistoricalEventSyncService
-  implements OnModuleInit, OnModuleDestroy
-{
-  private readonly logger = new Logger(HistoricalEventSyncService.name);
+export class BlockchainEventService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(BlockchainEventService.name);
   private contractListeners: Map<string, ethers.Contract> = new Map();
   private providers: Map<string, ethers.JsonRpcProvider> = new Map();
   // Define event types to be monitored
