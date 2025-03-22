@@ -34,9 +34,6 @@ export class BlockchainEvent {
   @Column({ type: 'bigint', nullable: true })
   blockNumber: number;
 
-  @Column({ type: 'boolean', default: false })
-  isSynced: boolean;
-
   @Column('jsonb')
   eventData: Record<string, any>; // Flexible JSONB storage for different event types
 }

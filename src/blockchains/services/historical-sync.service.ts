@@ -5,6 +5,8 @@ import { Blockchain } from '../entities/blockchain.entity';
 import { BlockchainEvent } from '../entities/blockchain-event.entity';
 import { ethers } from 'ethers';
 import { abi } from '../../constants/abis/cacheManager/cacheManager.json';
+import { ConfigService } from '@nestjs/config';
+
 @Injectable()
 export class HistoricalEventSyncService {
   private readonly logger = new Logger(HistoricalEventSyncService.name);
@@ -14,10 +16,21 @@ export class HistoricalEventSyncService {
     private readonly blockchainRepository: Repository<Blockchain>,
     @InjectRepository(BlockchainEvent)
     private readonly eventSyncRepository: Repository<BlockchainEvent>,
+    private readonly configService: ConfigService,
   ) {}
 
   async onModuleInit() {
     this.logger.log('Starting initial historical event sync on load...');
+    const config = this.configService.get('blockchains') as Blockchain[];
+    for (const blockchain of config) {
+      const existingBlockchain = await this.blockchainRepository.findOne({
+        where: { chainId: blockchain.chainId, rpcUrl: blockchain.rpcUrl },
+      });
+      if (!existingBlockchain) {
+        await this.blockchainRepository.insert(blockchain);
+      }
+    }
+
     await this.syncHistoricalEvents();
   }
 
@@ -74,6 +87,17 @@ export class HistoricalEventSyncService {
       `Fetching events for blockchain ${blockchain.id} from block ${lastSyncedBlock} to ${latestBlock}...`,
     );
 
+    // Define all event types to be pulled
+    const eventTypes = [
+      'InsertBid',
+      'DeleteBid',
+      'Pause',
+      'Unpause',
+      'SetCacheSize',
+      'SetDecayRate',
+      'Initialized',
+    ];
+
     for (
       let startingBlock = lastSyncedBlock;
       startingBlock < latestBlock;
@@ -84,35 +108,75 @@ export class HistoricalEventSyncService {
         `Querying events from ${startingBlock} to ${endBlock}...`,
       );
 
-      const eventFilter = cacheManagerContract.filters.InsertBid();
-      const events = await cacheManagerContract.queryFilter(
-        eventFilter,
-        startingBlock,
-        endBlock,
-      );
-      console.log(events);
-      if (events.length === 0) {
+      // Loop through all event types and fetch their events
+      let allEvents: (ethers.Log | ethers.EventLog)[] = [];
+
+      for (const eventType of eventTypes) {
+        const eventFilter = cacheManagerContract.filters[eventType]();
+        try {
+          const events = await cacheManagerContract.queryFilter(
+            eventFilter,
+            startingBlock,
+            endBlock,
+          );
+
+          if (events.length > 0) {
+            this.logger.log(
+              `Found ${events.length} ${eventType} events from ${startingBlock} to ${endBlock}`,
+            );
+            allEvents = [...allEvents, ...events];
+          }
+        } catch (error) {
+          this.logger.error(
+            `Error fetching ${eventType} events: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+
+      if (allEvents.length === 0) {
         this.logger.log(
           `No new events found from ${startingBlock} to ${endBlock}...`,
         );
+
+        // Update the lastSyncedBlock even if no events were found
+        await this.updateLastSyncedBlock(blockchain, endBlock);
         continue;
       }
 
-      await this.insertEvents(blockchain, events, provider);
+      await this.insertEvents(blockchain, allEvents, provider);
       this.logger.log(
-        `Saved ${events.length - 1} events from ${startingBlock} to ${endBlock}...`,
+        `Saved ${allEvents.length} events from ${startingBlock} to ${endBlock}...`,
       );
+
+      // Update the lastSyncedBlock after successfully processing events
+      await this.updateLastSyncedBlock(blockchain, endBlock);
     }
-    this.logger.log(`Finished historical event synchronization.`);
+
+    this.logger.log(
+      `Finished historical event synchronization for blockchain ${blockchain.id}.`,
+    );
   }
 
   async getLastSyncedBlock(blockchain: Blockchain): Promise<number> {
-    const lastSync = await this.eventSyncRepository.findOne({
-      where: { blockchain, isSynced: true },
-      order: { blockNumber: 'DESC' },
+    const lastSync = await this.blockchainRepository.findOne({
+      where: { id: blockchain.id },
     });
 
-    return parseInt(lastSync?.blockNumber.toString() || '0');
+    return lastSync?.lastSyncedBlock || 0;
+  }
+
+  async updateLastSyncedBlock(
+    blockchain: Blockchain,
+    blockNumber: number,
+  ): Promise<void> {
+    await this.blockchainRepository.update(
+      { id: blockchain.id },
+      { lastSyncedBlock: blockNumber },
+    );
+
+    this.logger.debug(
+      `Updated last synced block for blockchain ${blockchain.id} to ${blockNumber}`,
+    );
   }
 
   async insertEvents(

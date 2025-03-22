@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import config from './config/config';
 
 // nestjs modules
 import { ScheduleModule } from '@nestjs/schedule';
@@ -38,7 +39,7 @@ const entities = [
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }), // In charge of loading environment variables. Required for the rest.
+    ConfigModule.forRoot({ isGlobal: true, load: [config] }), // In charge of loading environment variables. Required for the rest.
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.POSTGRES_HOST,

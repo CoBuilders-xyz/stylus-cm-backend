@@ -30,4 +30,7 @@ export class Blockchain {
 
   @OneToMany(() => BlockchainMetric, (metric) => metric.blockchain)
   metrics: BlockchainMetric[];
+
+  @Column({ default: 0 })
+  lastSyncedBlock: number;
 }
