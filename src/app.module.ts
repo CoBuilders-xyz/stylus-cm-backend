@@ -32,9 +32,9 @@ const appModules = [
   BlockchainsModule,
   TasksModule,
   MetricsModule,
-  DataProcessingModule,
-  EventFetcherModule,
   StateFetcherModule,
+  EventFetcherModule,
+  DataProcessingModule,
 ];
 const entities = [
   Contract,

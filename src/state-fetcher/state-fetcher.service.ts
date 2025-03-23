@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Repository } from 'typeorm';
@@ -9,7 +9,7 @@ import { BlockchainState } from '../blockchains/entities/blockchain-state.entity
 import { abi } from '../constants/abis/cacheManager/cacheManager.json';
 
 @Injectable()
-export class StateFetcherService {
+export class StateFetcherService implements OnModuleInit {
   private readonly logger = new Logger(StateFetcherService.name);
 
   constructor(
@@ -18,6 +18,40 @@ export class StateFetcherService {
     @InjectRepository(BlockchainState)
     private readonly BlockchainStateRepository: Repository<BlockchainState>,
   ) {}
+
+  async onModuleInit() {
+    this.logger.log('Checking for initial blockchain state data...');
+    const blockchains = await this.blockchainRepository.find();
+
+    for (const blockchain of blockchains) {
+      if (!blockchain.rpcUrl || !blockchain.cacheManagerAddress) {
+        this.logger.warn(
+          `Cannot fetch initial state for blockchain ${blockchain.id} due to missing RPC URL or contract address.`,
+        );
+        continue;
+      }
+
+      try {
+        const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
+        await this.pollMetrics(blockchain, provider);
+        this.logger.log(
+          `Initial state fetched for blockchain ${blockchain.id}`,
+        );
+      } catch (error) {
+        if (error instanceof Error) {
+          this.logger.error(
+            `Error fetching initial state for blockchain ${blockchain.id}: ${error.message}`,
+          );
+        } else {
+          this.logger.error(
+            `Error fetching initial state for blockchain ${blockchain.id}: Unknown error`,
+          );
+        }
+      }
+    }
+
+    this.logger.log('Initial state check completed.');
+  }
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async handleCron() {
