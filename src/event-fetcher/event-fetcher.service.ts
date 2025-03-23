@@ -41,7 +41,6 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    this.logger.log('Starting initial historical event sync on load...');
     const config = this.configService.get('blockchains') as Blockchain[];
     for (const blockchain of config) {
       const existingBlockchain = await this.blockchainRepository.findOne({
@@ -271,7 +270,7 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
   }
 
   async syncHistoricalEvents() {
-    this.logger.debug('Starting historical event synchronization...');
+    this.logger.log('Starting historical event synchronization...');
 
     const blockchains = await this.blockchainRepository.find();
     for (const blockchain of blockchains) {

@@ -21,7 +21,6 @@ export class StateFetcherService {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async handleCron() {
-    this.logger.debug('Polling real-time blockchain metrics...');
     const blockchains = await this.blockchainRepository.find();
     for (const blockchain of blockchains) {
       if (!blockchain.rpcUrl || !blockchain.cacheManagerAddress) {
@@ -56,15 +55,6 @@ export class StateFetcherService {
     );
 
     const results = await Promise.all([
-      cacheManagerContract['getMinBid(uint64)'](
-        process.env.CONTRACT_SMALL_SIZE,
-      ) as Promise<ethers.BigNumberish>,
-      cacheManagerContract['getMinBid(uint64)'](
-        process.env.CONTRACT_MID_SIZE,
-      ) as Promise<ethers.BigNumberish>,
-      cacheManagerContract['getMinBid(uint64)'](
-        process.env.CONTRACT_LARGE_SIZE,
-      ) as Promise<ethers.BigNumberish>,
       cacheManagerContract.getEntries() as Promise<
         Array<{
           code: string;
@@ -79,20 +69,14 @@ export class StateFetcherService {
       provider.getBlock('latest'),
     ]);
 
-    const minBidSmallSize = results[0];
-    const minBidMidSize = results[1];
-    const minBidLargeSize = results[2];
-    const entries = results[3];
-    const decayRate = results[4];
-    const cacheSize = results[5];
-    const queueSize = results[6];
-    const isPaused = results[7];
-    const block = results[8];
+    const entries = results[0];
+    const decayRate = results[1];
+    const cacheSize = results[2];
+    const queueSize = results[3];
+    const isPaused = results[4];
+    const block = results[5];
 
-    this.logger.log({
-      minBidSmallSize,
-      minBidMidSize,
-      minBidLargeSize,
+    this.logger.verbose('Fetched smart contract state values', {
       entries: entries.length,
       decayRate,
       cacheSize,
@@ -101,6 +85,7 @@ export class StateFetcherService {
       blockNumber: block?.number,
       blockTimestamp: new Date(Number(block?.timestamp) * 1000),
     });
+
     const newPoll = this.BlockchainStateRepository.create({
       blockchain,
       minBid: '0',
@@ -114,6 +99,6 @@ export class StateFetcherService {
     });
 
     await this.BlockchainStateRepository.save(newPoll);
-    this.logger.log(`Metrics saved for blockchain ${blockchain.id}`);
+    this.logger.debug(`State values saved for blockchain ${blockchain.id}`);
   }
 }
