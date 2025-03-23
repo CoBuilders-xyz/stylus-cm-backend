@@ -85,7 +85,6 @@ export class EventStorageService {
           transactionHash: transactionHash,
           logIndex: logIndex,
           isRealTime: isRealTime,
-          isSynced: true,
           eventData: hasArgs(event) ? serializeEventArgs(event.args) : {},
         };
       }),
@@ -125,7 +124,7 @@ export class EventStorageService {
           await queryRunner.manager.insert(BlockchainEvent, eventData);
 
           await queryRunner.commitTransaction();
-          this.logger.debug(
+          this.logger.verbose(
             `Inserted event ${eventData.eventName} with tx hash ${eventData.transactionHash} and log index ${eventData.logIndex}`,
           );
           successCount++;

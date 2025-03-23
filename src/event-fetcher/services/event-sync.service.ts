@@ -160,14 +160,6 @@ export class EventSyncService {
     this.logger.log(`Querying events from ${fromBlock} to ${toBlock}...`);
     this.logger.debug(`Looking for event types: ${eventTypes.join(', ')}`);
 
-    // Check what event filters are supported
-    const availableFilters = Object.keys(contract.filters).filter(
-      (key) => typeof contract.filters[key] === 'function',
-    );
-    this.logger.debug(
-      `Available filters on contract: ${availableFilters.join(', ')}`,
-    );
-
     for (const eventType of eventTypes) {
       try {
         // Check if this event type exists in the contract
