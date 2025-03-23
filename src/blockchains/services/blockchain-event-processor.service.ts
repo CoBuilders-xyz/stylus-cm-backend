@@ -11,11 +11,37 @@ import { abi } from '../../constants/abis/cacheManager/cacheManager.json';
 interface ContractState {
   isCached: boolean;
   bid: number;
+  bidPlusDecay: number;
+  lastEvictionBid?: number;
   size: number;
   address?: string;
   name?: string;
   lastEventBlock?: number;
   lastEventName?: string;
+  totalBidInvestment: number;
+}
+
+// Adding this interface to track decay rate events
+interface DecayRateEvent {
+  blockNumber: number;
+  logIndex: number;
+  blockTimestamp: Date;
+  decayRate: string; // Decimal string value of the decay rate
+}
+
+// Interface for blockchain state
+interface BlockchainStateRecord {
+  id: number;
+  blockchainId: string;
+  minBid: string;
+  decayRate: string;
+  cacheSize: string;
+  queueSize: string;
+  isPaused: boolean;
+  totalContractsCached?: string;
+  blockNumber: number;
+  blockTimestamp: Date;
+  timestamp: Date;
 }
 
 // interface EventHistoryItem {
@@ -260,6 +286,64 @@ export class BlockchainEventProcessorService implements OnModuleInit {
     // Track contract states by codeHash
     const contractStates = new Map<string, ContractState>();
 
+    // Track decay rate events in chronological order
+    const decayRateEvents: DecayRateEvent[] = [];
+
+    // Get the current decay rate from blockchain state
+    let currentDecayRate: string = '0';
+    try {
+      const latestBlockchainState = await this.getLatestBlockchainState(
+        blockchain.id,
+      );
+      if (latestBlockchainState) {
+        currentDecayRate = latestBlockchainState.decayRate;
+        this.logger.debug(
+          `Got current decay rate from blockchain state: ${currentDecayRate}`,
+        );
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to get current decay rate from blockchain state: ${errorMessage}. Will attempt to find in events.`,
+      );
+    }
+
+    // First, filter out SetDecayRate events and store them
+    for (const event of events) {
+      if (event.eventName === 'SetDecayRate') {
+        try {
+          const eventDataArray = event.eventData as unknown[];
+          if (Array.isArray(eventDataArray) && eventDataArray.length > 0) {
+            const decayRate = String(eventDataArray[0]);
+            decayRateEvents.push({
+              blockNumber: event.blockNumber,
+              logIndex: event.logIndex,
+              blockTimestamp: event.blockTimestamp,
+              decayRate: decayRate,
+            });
+            this.logger.debug(
+              `Found SetDecayRate event: ${decayRate} at block ${event.blockNumber}, logIndex ${event.logIndex}`,
+            );
+          }
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `Error processing SetDecayRate event: ${errorMessage}`,
+          );
+        }
+      }
+    }
+
+    // Sort decay rate events by block number and log index
+    decayRateEvents.sort((a, b) => {
+      if (a.blockNumber !== b.blockNumber) {
+        return a.blockNumber - b.blockNumber;
+      }
+      return a.logIndex - b.logIndex;
+    });
+
     // Process events in chronological order (events are already sorted by blockNumber and logIndex)
     for (const event of events) {
       // Debug log the raw event data for the first few events
@@ -271,8 +355,19 @@ export class BlockchainEventProcessorService implements OnModuleInit {
 
       try {
         if (event.eventName === 'InsertBid') {
-          // Process InsertBid event
-          this.processInsertBidEvent(event, contractStates);
+          // Find the applicable decay rate for this event
+          const applicableDecayRate = this.findApplicableDecayRate(
+            event,
+            decayRateEvents,
+            currentDecayRate,
+          );
+
+          // Process InsertBid event with the applicable decay rate
+          this.processInsertBidEvent(
+            event,
+            contractStates,
+            applicableDecayRate,
+          );
         } else if (event.eventName === 'DeleteBid') {
           // Process DeleteBid event
           this.processDeleteBidEvent(event, contractStates);
@@ -289,12 +384,6 @@ export class BlockchainEventProcessorService implements OnModuleInit {
 
     // Now update or create contracts in the database
     for (const [codeHash, state] of contractStates.entries()) {
-      // Skip entries without a valid address
-      if (!state.address) {
-        this.logger.debug(`Skipping contract ${codeHash} with no address`);
-        continue;
-      }
-
       try {
         // Try to find existing contract
         const contract = await this.contractRepository.findOne({
@@ -307,15 +396,35 @@ export class BlockchainEventProcessorService implements OnModuleInit {
         if (contract) {
           // Update existing contract
           contract.lastBid = state.bid;
+          contract.bidPlusDecay = state.bidPlusDecay;
+          // Set lastEvictionBid if available
+          if (state.lastEvictionBid !== undefined) {
+            contract.lastEvictionBid = state.lastEvictionBid;
+          }
           contract.size = state.size;
           // Set isCached based on the last event type for this contract
           contract.isCached = state.isCached;
+          // Update total bid investment
+          contract.totalBidInvestment = state.totalBidInvestment;
           await this.contractRepository.save(contract);
           this.logger.debug(
             `Updated contract ${codeHash} in the database, cached status: ${state.isCached}` +
-              ` (last event: ${state.lastEventName} at block ${state.lastEventBlock})`,
+              ` (last event: ${state.lastEventName} at block ${state.lastEventBlock})` +
+              `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}` +
+              (state.lastEvictionBid !== undefined
+                ? `, lastEvictionBid: ${state.lastEvictionBid}`
+                : '') +
+              `, total investment: ${state.totalBidInvestment}`,
           );
         } else {
+          // Can only create a new contract if we have an address
+          if (!state.address) {
+            this.logger.warn(
+              `Cannot create new contract ${codeHash} without an address. This contract may have only had DeleteBid events.`,
+            );
+            continue;
+          }
+
           // Create new contract
           const newContract = this.contractRepository.create({
             blockchain,
@@ -324,13 +433,21 @@ export class BlockchainEventProcessorService implements OnModuleInit {
             name: `Contract-${codeHash.substring(0, 8)}`,
             size: state.size,
             lastBid: state.bid,
+            bidPlusDecay: state.bidPlusDecay,
+            lastEvictionBid: state.lastEvictionBid,
             isCached: state.isCached, // Set the initial cached status
+            totalBidInvestment: state.totalBidInvestment, // Set initial total bid investment
           });
 
           await this.contractRepository.save(newContract);
           this.logger.debug(
             `Created new contract ${codeHash} in the database, cached status: ${state.isCached}` +
-              ` (last event: ${state.lastEventName} at block ${state.lastEventBlock})`,
+              ` (last event: ${state.lastEventName} at block ${state.lastEventBlock})` +
+              `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}` +
+              (state.lastEvictionBid !== undefined
+                ? `, lastEvictionBid: ${state.lastEvictionBid}`
+                : '') +
+              `, total investment: ${state.totalBidInvestment}`,
           );
         }
       } catch (error: unknown) {
@@ -586,9 +703,70 @@ export class BlockchainEventProcessorService implements OnModuleInit {
   //     }
   //   }
 
+  /**
+   * Find the applicable decay rate for an event based on the most recent SetDecayRate event
+   */
+  private findApplicableDecayRate(
+    event: BlockchainEvent,
+    decayRateEvents: DecayRateEvent[],
+    currentDecayRate: string,
+  ): string {
+    // Find the latest decay rate event that happened before this event
+    let applicableDecayRate = currentDecayRate;
+
+    for (let i = decayRateEvents.length - 1; i >= 0; i--) {
+      const decayEvent = decayRateEvents[i];
+
+      // Use the most recent decay rate event that's earlier than the current event
+      if (
+        decayEvent.blockNumber < event.blockNumber ||
+        (decayEvent.blockNumber === event.blockNumber &&
+          decayEvent.logIndex < event.logIndex)
+      ) {
+        applicableDecayRate = decayEvent.decayRate;
+        this.logger.debug(
+          `Using decay rate ${applicableDecayRate} from block ${decayEvent.blockNumber}, logIndex ${decayEvent.logIndex} ` +
+            `for event at block ${event.blockNumber}, logIndex ${event.logIndex}`,
+        );
+        break;
+      }
+    }
+
+    return applicableDecayRate;
+  }
+
+  /**
+   * Get the latest blockchain state
+   */
+  private async getLatestBlockchainState(
+    blockchainId: string,
+  ): Promise<BlockchainStateRecord | null> {
+    try {
+      // This is a simplified query - you may need to adjust it based on your actual entity structure
+      const result: unknown = await this.blockchainRepository.query(
+        `SELECT bs.* FROM blockchain_state bs
+         WHERE bs."blockchainId" = $1
+         ORDER BY bs."blockNumber" DESC, bs."id" DESC
+         LIMIT 1`,
+        [blockchainId],
+      );
+
+      // Type guard to check if result is an array with at least one element
+      if (Array.isArray(result) && result.length > 0) {
+        return result[0] as BlockchainStateRecord;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.error(`Failed to get latest blockchain state: ${error}`);
+      throw error;
+    }
+  }
+
   private processInsertBidEvent(
     event: BlockchainEvent,
     contractStates: Map<string, ContractState>,
+    decayRate: string = '0',
   ): void {
     // Based on the logs, we know that eventData is an array:
     // [codeHash, address, bid, size]
@@ -611,7 +789,39 @@ export class BlockchainEventProcessorService implements OnModuleInit {
       return;
     }
 
-    const bid = bidValue ? parseFloat(ethers.formatEther(bidValue)) : 0;
+    // Store the original bid value (including decay)
+    const bidPlusDecay = parseFloat(ethers.formatEther(bidValue));
+
+    // Calculate the actual bid by subtracting the decay amount
+    // The contract adds (timestamp * decay) to user's payment, so we need to subtract it
+    let actualBidInWei: bigint;
+    try {
+      const bidInWei = BigInt(bidValue);
+      const decayRateInWei = BigInt(decayRate);
+      const timestampInSeconds = Math.floor(
+        event.blockTimestamp.getTime() / 1000,
+      );
+      const decayAmount = BigInt(timestampInSeconds) * decayRateInWei;
+
+      // Make sure bid is at least decayAmount to avoid underflow
+      actualBidInWei =
+        bidInWei > decayAmount ? bidInWei - decayAmount : BigInt(0);
+
+      this.logger.debug(
+        `Calculated actual bid: bidValue=${bidValue}, decayRate=${decayRate}, ` +
+          `timestamp=${timestampInSeconds}, decayAmount=${decayAmount}, actualBid=${actualBidInWei}`,
+      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Error calculating actual bid value, using original value: ${errorMessage}`,
+      );
+      actualBidInWei = BigInt(bidValue);
+    }
+
+    // Convert to ETH
+    const bid = parseFloat(ethers.formatEther(actualBidInWei.toString()));
     const existingState = contractStates.get(codeHash);
 
     // More precise event ordering logic
@@ -622,21 +832,35 @@ export class BlockchainEventProcessorService implements OnModuleInit {
     );
 
     if (shouldUpdate) {
+      // Calculate total bid investment - only add if this is a new bid, not an update to an existing one
+      // If last event was DeleteBid or no previous event, add the bid to total
+      const previousTotal = existingState?.totalBidInvestment || 0;
+      let totalBidInvestment = previousTotal;
+
+      // Only add to total if this is a new bid after a DeleteBid or no previous bid
+      if (!existingState || existingState.lastEventName === 'DeleteBid') {
+        totalBidInvestment += bid;
+      }
+
       // Create or update contract state, marking as cached since this is an InsertBid event
       contractStates.set(codeHash, {
         isCached: true, // InsertBid means the contract is cached
         bid,
+        bidPlusDecay, // Store the original bid value (including decay)
         size,
         address,
         lastEventBlock: event.blockNumber,
         lastEventName: 'InsertBid',
+        totalBidInvestment,
       });
 
       this.logger.debug(
-        `InsertBid: Contract ${codeHash} inserted with bid ${bid} at address ${address} at block ${event.blockNumber}` +
+        `InsertBid: Contract ${codeHash} inserted with actual bid ${bid} ETH, original bid (including decay) ${bidPlusDecay} ETH ` +
+          `at address ${address} at block ${event.blockNumber}` +
           (event.logIndex !== undefined
             ? ` (logIndex: ${event.logIndex})`
-            : ''),
+            : '') +
+          `, total investment: ${totalBidInvestment}`,
       );
     } else {
       this.logger.debug(
@@ -666,14 +890,17 @@ export class BlockchainEventProcessorService implements OnModuleInit {
 
     const codeHash = String(eventDataArray[0]);
     const bidValue = String(eventDataArray[1]);
-    const size = Number(eventDataArray[2]);
+    // Not used, but kept for completeness and future reference
+    // const size = Number(eventDataArray[2]);
 
     if (!codeHash) {
       this.logger.warn(`Missing codehash in DeleteBid event`);
       return;
     }
 
-    const bid = bidValue ? parseFloat(ethers.formatEther(bidValue)) : 0;
+    // Parse the eviction bid value from the DeleteBid event
+    const evictionBid = parseFloat(ethers.formatEther(bidValue));
+
     const existingState = contractStates.get(codeHash);
 
     // More precise event ordering logic
@@ -684,21 +911,34 @@ export class BlockchainEventProcessorService implements OnModuleInit {
     );
 
     if (shouldUpdate) {
+      if (!existingState) {
+        this.logger.warn(
+          `Received DeleteBid for contract ${codeHash} without prior InsertBid. This should not happen.`,
+        );
+        return;
+      }
+
       // Update contract state, marking as not cached since this is a DeleteBid event
+      // IMPORTANT: Keep existing values for bid, bidPlusDecay, and totalBidInvestment
       contractStates.set(codeHash, {
         isCached: false, // DeleteBid means the contract is no longer cached
-        bid: existingState?.bid || bid,
-        size: existingState?.size || size,
-        address: existingState?.address,
+        bid: existingState.bid, // Keep existing bid value
+        bidPlusDecay: existingState.bidPlusDecay, // Keep existing bidPlusDecay value
+        lastEvictionBid: evictionBid, // Store the eviction bid value
+        size: existingState.size, // Keep existing size
+        address: existingState.address,
         lastEventBlock: event.blockNumber,
         lastEventName: 'DeleteBid',
+        totalBidInvestment: existingState.totalBidInvestment, // Keep existing total investment
       });
 
       this.logger.debug(
         `DeleteBid: Contract ${codeHash} removed from cache at block ${event.blockNumber}` +
           (event.logIndex !== undefined
             ? ` (logIndex: ${event.logIndex})`
-            : ''),
+            : '') +
+          `, keeping bid: ${existingState.bid}, bidPlusDecay: ${existingState.bidPlusDecay}, totalBidInvestment: ${existingState.totalBidInvestment}` +
+          `, lastEvictionBid: ${evictionBid}`,
       );
     } else {
       this.logger.debug(

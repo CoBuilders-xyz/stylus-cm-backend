@@ -13,6 +13,7 @@ import { UsersModule } from './users/users.module';
 import { TasksModule } from './tasks/tasks.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { BlockchainsModule } from './blockchains/blockchains.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 // entities
 import { User } from './users/entities/user.entity';
@@ -27,14 +28,15 @@ const appModules = [
   ContractsModule,
   BlockchainsModule,
   TasksModule,
+  MetricsModule,
 ];
 const entities = [
-  User,
-  Blockchain,
   Contract,
+  Blockchain,
   BlockchainEvent,
   BlockchainMetric,
   BlockchainState,
+  User,
 ];
 
 @Module({

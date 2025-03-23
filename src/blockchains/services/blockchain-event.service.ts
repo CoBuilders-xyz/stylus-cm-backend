@@ -318,7 +318,6 @@ export class BlockchainEventService implements OnModuleInit, OnModuleDestroy {
     // Get last processed block for this blockchain
     const lastSyncedBlock = await this.getLastSyncedBlock(blockchain);
     const latestBlock = await provider.getBlockNumber();
-    const BATCH_SIZE = parseInt(process.env.EVENTS_FILTER_BATCH_SIZE || '5000'); // Adjust based on network performance
 
     if (lastSyncedBlock >= latestBlock) {
       this.logger.log(`Blockchain ${blockchain.id} is already up to date.`);
@@ -332,56 +331,50 @@ export class BlockchainEventService implements OnModuleInit, OnModuleDestroy {
     // Loop through all event types and fetch their events
     let allEvents: (ethers.Log | ethers.EventLog)[] = [];
 
-    for (
-      let startingBlock = lastSyncedBlock;
-      startingBlock < latestBlock;
-      startingBlock += BATCH_SIZE
-    ) {
-      const endBlock = Math.min(startingBlock + BATCH_SIZE - 1, latestBlock);
-      this.logger.log(
-        `Querying events from ${startingBlock} to ${endBlock}...`,
-      );
+    const startingBlock = lastSyncedBlock;
 
-      for (const eventType of this.eventTypes) {
-        const eventFilter = cacheManagerContract.filters[eventType]();
-        try {
-          const events = await cacheManagerContract.queryFilter(
-            eventFilter,
-            startingBlock,
-            endBlock,
-          );
+    this.logger.log(
+      `Querying events from ${startingBlock} to ${latestBlock}...`,
+    );
 
-          if (events.length > 0) {
-            this.logger.log(
-              `Found ${events.length} ${eventType} events from ${startingBlock} to ${endBlock}`,
-            );
-            allEvents = [...allEvents, ...events];
-          }
-        } catch (error) {
-          this.logger.error(
-            `Error fetching ${eventType} events: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }
-
-      if (allEvents.length === 0) {
-        this.logger.log(
-          `No new events found from ${startingBlock} to ${endBlock}...`,
+    for (const eventType of this.eventTypes) {
+      const eventFilter = cacheManagerContract.filters[eventType]();
+      try {
+        const events = await cacheManagerContract.queryFilter(
+          eventFilter,
+          startingBlock,
+          latestBlock,
         );
 
-        // Update the lastSyncedBlock even if no events were found
-        await this.updateLastSyncedBlock(blockchain, endBlock);
-        continue;
+        if (events.length > 0) {
+          this.logger.log(
+            `Found ${events.length} ${eventType} events from ${startingBlock} to ${latestBlock}`,
+          );
+          allEvents = [...allEvents, ...events];
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error fetching ${eventType} events: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
+    }
 
-      await this.insertEvents(blockchain, allEvents, provider);
+    if (allEvents.length === 0) {
       this.logger.log(
-        `Saved ${allEvents.length} events from ${startingBlock} to ${endBlock}...`,
+        `No new events found from ${startingBlock} to ${latestBlock}...`,
       );
 
-      // Update the lastSyncedBlock after successfully processing events
-      await this.updateLastSyncedBlock(blockchain, endBlock);
+      // Update the lastSyncedBlock even if no events were found
+      await this.updateLastSyncedBlock(blockchain, latestBlock);
     }
+
+    await this.insertEvents(blockchain, allEvents, provider);
+    this.logger.log(
+      `Saved ${allEvents.length} events from ${startingBlock} to ${latestBlock}...`,
+    );
+
+    // Update the lastSyncedBlock after successfully processing events
+    await this.updateLastSyncedBlock(blockchain, latestBlock);
 
     this.logger.log(
       `Finished historical event synchronization for blockchain ${blockchain.id}.`,
