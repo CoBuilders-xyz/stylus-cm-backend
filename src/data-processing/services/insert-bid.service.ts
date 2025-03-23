@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
-import { ContractState } from '../interfaces/contract-state.interface';
+import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
 import {
   calculateActualBid,
   calculateBidPlusDecay,
@@ -21,7 +21,7 @@ export class InsertBidService {
    */
   processInsertBidEvent(
     event: BlockchainEvent,
-    contractStates: Map<string, ContractState>,
+    contractStates: Map<string, ContractBytecodeState>,
     decayRate: string = '0',
   ): void {
     // Based on the logs, we know that eventData is an array:

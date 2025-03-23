@@ -3,11 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
-import { ContractState } from '../interfaces/contract-state.interface';
+import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
 import { InsertBidService } from './insert-bid.service';
 import { DeleteBidService } from './delete-bid.service';
 import { DecayRateService } from './decay-rate.service';
-import { ContractService } from './contract.service';
+import { ContractBytecodeService } from './contract-bytecode.service';
 import { findApplicableDecayRate } from '../utils/event-utils';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class EventProcessorService {
     private readonly insertBidService: InsertBidService,
     private readonly deleteBidService: DeleteBidService,
     private readonly decayRateService: DecayRateService,
-    private readonly contractService: ContractService,
+    private readonly contractBytecodeService: ContractBytecodeService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -158,7 +158,7 @@ export class EventProcessorService {
     }
 
     // Verify contracts at the end of processing if needed
-    await this.contractService.verifyContractCacheStatus(blockchain);
+    await this.contractBytecodeService.verifyContractCacheStatus(blockchain);
   }
 
   /**
@@ -279,7 +279,7 @@ export class EventProcessorService {
     this.logger.log(`Processing events by type: ${eventTypeSummary}`);
 
     // Track contract states by codeHash
-    const contractStates = new Map<string, ContractState>();
+    const contractStates = new Map<string, ContractBytecodeState>();
 
     // Extract and sort decay rate events
     const decayRateEvents =
@@ -372,7 +372,10 @@ export class EventProcessorService {
     }
 
     // Update or create contracts in the database
-    await this.contractService.updateContracts(blockchain, contractStates);
+    await this.contractBytecodeService.updateContracts(
+      blockchain,
+      contractStates,
+    );
 
     this.logger.log(
       `Processed ${events.length} events and updated ${contractStates.size} contracts for blockchain ${blockchain.name}`,
