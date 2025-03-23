@@ -69,29 +69,46 @@ export class ContractService {
     contract: Contract,
     state: ContractState,
   ): Promise<void> {
-    // Update existing contract
-    contract.lastBid = state.bid;
-    contract.bidPlusDecay = state.bidPlusDecay;
-    // Set lastEvictionBid if available
-    if (state.lastEvictionBid !== undefined) {
-      contract.lastEvictionBid = state.lastEvictionBid;
-    }
-    contract.size = state.size;
-    // Set isCached based on the last event type for this contract
-    contract.isCached = state.isCached;
-    // Update total bid investment
-    contract.totalBidInvestment = state.totalBidInvestment;
-    await this.contractRepository.save(contract);
+    // Check the lastEventName to determine how to update the contract
+    if (state.lastEventName === 'DeleteBid') {
+      // For DeleteBid events, only update isCached and lastEvictionBid
+      // Preserve existing values for lastBid, bidPlusDecay, totalBidInvestment, and size
+      contract.isCached = false; // Always set to false for DeleteBid
+      if (state.lastEvictionBid !== undefined) {
+        contract.lastEvictionBid = state.lastEvictionBid;
+      }
+      // Do not update size, bid, bidPlusDecay, or totalBidInvestment fields
 
-    this.logger.debug(
-      `Updated contract ${contract.bytecodeHash} in the database, cached status: ${state.isCached}` +
-        ` (last event at block ${state.lastEventBlock})` +
-        `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}` +
-        (state.lastEvictionBid !== undefined
-          ? `, lastEvictionBid: ${state.lastEvictionBid}`
-          : '') +
-        `, total investment: ${state.totalBidInvestment}`,
-    );
+      this.logger.debug(
+        `Updated contract ${contract.bytecodeHash} in the database for DeleteBid, cached status: false` +
+          ` (last event at block ${state.lastEventBlock})` +
+          `, lastEvictionBid: ${state.lastEvictionBid}` +
+          `, preserving bid: ${contract.lastBid}, bidPlusDecay: ${contract.bidPlusDecay}, size: ${contract.size}, totalBidInvestment: ${contract.totalBidInvestment}`,
+      );
+    } else {
+      // For other events (like InsertBid), update all fields
+      contract.lastBid = state.bid;
+      contract.bidPlusDecay = state.bidPlusDecay;
+      contract.size = state.size; // Update size for InsertBid events
+      // Set lastEvictionBid if available
+      if (state.lastEvictionBid !== undefined) {
+        contract.lastEvictionBid = state.lastEvictionBid;
+      }
+      contract.isCached = state.isCached;
+      contract.totalBidInvestment = state.totalBidInvestment;
+
+      this.logger.debug(
+        `Updated contract ${contract.bytecodeHash} in the database, cached status: ${state.isCached}` +
+          ` (last event at block ${state.lastEventBlock})` +
+          `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}, size: ${state.size}` +
+          (state.lastEvictionBid !== undefined
+            ? `, lastEvictionBid: ${state.lastEvictionBid}`
+            : '') +
+          `, total investment: ${state.totalBidInvestment}`,
+      );
+    }
+
+    await this.contractRepository.save(contract);
   }
 
   /**
@@ -114,7 +131,7 @@ export class ContractService {
       return;
     }
 
-    // Create new contract
+    // Create new contract with appropriate values based on event type
     const newContract = this.contractRepository.create({
       blockchain,
       address: state.address,
@@ -123,22 +140,39 @@ export class ContractService {
       size: state.size,
       lastBid: state.bid,
       bidPlusDecay: state.bidPlusDecay,
-      lastEvictionBid: state.lastEvictionBid,
       isCached: state.isCached, // Set the initial cached status
       totalBidInvestment: state.totalBidInvestment, // Set initial total bid investment
     });
 
+    // Only set lastEvictionBid for DeleteBid events
+    if (
+      state.lastEventName === 'DeleteBid' &&
+      state.lastEvictionBid !== undefined
+    ) {
+      newContract.lastEvictionBid = state.lastEvictionBid;
+      this.logger.debug(
+        `Setting lastEvictionBid to ${state.lastEvictionBid} for new contract ${codeHash} created from DeleteBid event`,
+      );
+    }
+
     await this.contractRepository.save(newContract);
 
-    this.logger.debug(
-      `Created new contract ${codeHash} in the database, cached status: ${state.isCached}` +
-        ` (last event at block ${state.lastEventBlock})` +
-        `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}` +
-        (state.lastEvictionBid !== undefined
-          ? `, lastEvictionBid: ${state.lastEvictionBid}`
-          : '') +
-        `, total investment: ${state.totalBidInvestment}`,
-    );
+    // Log creation details with appropriate message based on event type
+    const logMessage =
+      state.lastEventName === 'DeleteBid'
+        ? `Created new contract ${codeHash} in the database from DeleteBid event, cached status: ${state.isCached}` +
+          ` (last event at block ${state.lastEventBlock})` +
+          `, lastEvictionBid: ${state.lastEvictionBid}` +
+          `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}, total investment: ${state.totalBidInvestment}`
+        : `Created new contract ${codeHash} in the database, cached status: ${state.isCached}` +
+          ` (last event at block ${state.lastEventBlock})` +
+          `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}` +
+          (state.lastEvictionBid !== undefined
+            ? `, lastEvictionBid: ${state.lastEvictionBid}`
+            : '') +
+          `, total investment: ${state.totalBidInvestment}`;
+
+    this.logger.debug(logMessage);
   }
 
   /**
