@@ -4,6 +4,7 @@ import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { EventStorageService } from './event-storage.service';
 import { ProviderManager } from '../utils/provider.util';
 import { EthersEvent } from '../interfaces/event.interface';
+import { safeContractCall } from '../utils/contract-call.util';
 
 @Injectable()
 export class EventSyncService {
@@ -63,7 +64,28 @@ export class EventSyncService {
     // Get last processed block for this blockchain
     const lastSyncedBlock =
       await this.eventStorageService.getLastSyncedBlock(blockchain);
-    const latestBlock = await provider.getBlockNumber();
+
+    // Use safe contract call to get the latest block number
+    let latestBlock = 0; // Default to 0 if not available
+    try {
+      const blockNumber = await safeContractCall<number>(
+        provider as unknown as ethers.Contract,
+        'getBlockNumber',
+        [],
+        { retries: 3, retryDelay: 2000 },
+      );
+
+      if (blockNumber !== undefined) {
+        latestBlock = blockNumber;
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to get latest block number for blockchain ${blockchain.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return;
+    }
 
     if (lastSyncedBlock >= latestBlock) {
       this.logger.log(`Blockchain ${blockchain.id} is already up to date.`);
@@ -128,23 +150,69 @@ export class EventSyncService {
     toBlock: number,
   ): Promise<EthersEvent[]> {
     let allEvents: EthersEvent[] = [];
+    const eventTypeCount: Record<string, number> = {};
+
+    // Initialize counts for each event type
+    eventTypes.forEach((type) => {
+      eventTypeCount[type] = 0;
+    });
 
     this.logger.log(`Querying events from ${fromBlock} to ${toBlock}...`);
+    this.logger.debug(`Looking for event types: ${eventTypes.join(', ')}`);
+
+    // Check what event filters are supported
+    const availableFilters = Object.keys(contract.filters).filter(
+      (key) => typeof contract.filters[key] === 'function',
+    );
+    this.logger.debug(
+      `Available filters on contract: ${availableFilters.join(', ')}`,
+    );
 
     for (const eventType of eventTypes) {
-      const eventFilter = contract.filters[eventType]();
       try {
-        const events = await contract.queryFilter(
-          eventFilter,
-          fromBlock,
-          toBlock,
+        // Check if this event type exists in the contract
+        if (!contract.filters[eventType]) {
+          this.logger.warn(
+            `Event type ${eventType} does not exist in the contract filters`,
+          );
+          continue;
+        }
+
+        // Log the event filter we're creating
+        this.logger.debug(`Creating filter for event type: ${eventType}`);
+
+        // Safely get the filter for this event
+        const eventFilter = contract.filters[eventType]();
+
+        // Use safe contract call to query the filter
+        this.logger.debug(
+          `Querying ${eventType} events from block ${fromBlock} to ${toBlock}...`,
+        );
+        const events = await safeContractCall<EthersEvent[]>(
+          contract,
+          'queryFilter',
+          [eventFilter, fromBlock, toBlock],
+          {
+            retries: 3,
+            retryDelay: 2000,
+            fallbackValue: [],
+          },
         );
 
-        if (events.length > 0) {
+        if (events && events.length > 0) {
           this.logger.log(
             `Found ${events.length} ${eventType} events from ${fromBlock} to ${toBlock}`,
           );
+
+          // Update count for this event type
+          eventTypeCount[eventType] = events.length;
+
+          // Add to all events
           allEvents = [...allEvents, ...events];
+        } else {
+          this.logger.debug(
+            `No ${eventType} events found from block ${fromBlock} to ${toBlock}`,
+          );
         }
       } catch (error) {
         this.logger.error(
@@ -153,6 +221,12 @@ export class EventSyncService {
       }
     }
 
+    // Log the counts by event type
+    const eventCountsStr = Object.entries(eventTypeCount)
+      .map(([type, count]) => `${type}: ${count}`)
+      .join(', ');
+
+    this.logger.log(`Total events by type: ${eventCountsStr}`);
     return allEvents;
   }
 

@@ -95,12 +95,36 @@ export class EventListenerService {
       }
     };
 
-    // Register the event listener
-    contract.on(eventType, eventHandler);
+    try {
+      // Remove existing listeners first to avoid duplicates
+      try {
+        contract.removeAllListeners(eventType);
+        this.logger.debug(
+          `Removed existing listeners for ${eventType} on blockchain ${blockchain.id}`,
+        );
+      } catch (removeError) {
+        this.logger.warn(
+          `Failed to remove existing listeners for ${eventType} on blockchain ${blockchain.id}: ${
+            removeError instanceof Error
+              ? removeError.message
+              : String(removeError)
+          }`,
+        );
+      }
 
-    this.logger.log(
-      `Subscribed to ${eventType} events for blockchain ${blockchain.id}`,
-    );
+      // Register the event listener with error handling
+      contract.on(eventType, eventHandler);
+
+      this.logger.log(
+        `Subscribed to ${eventType} events for blockchain ${blockchain.id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to set up event listener for ${eventType} on blockchain ${blockchain.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   /**

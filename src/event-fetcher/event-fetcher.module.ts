@@ -8,6 +8,7 @@ import { EventListenerService } from './services/event-listener.service';
 import { EventSyncService } from './services/event-sync.service';
 import { EventSchedulerService } from './services/event-scheduler.service';
 import { EventConfigService } from './services/event-config.service';
+import { StateFetcherService } from './services/state-fetcher.service';
 import { ProviderManager } from './utils/provider.util';
 
 @Module({
@@ -19,8 +20,9 @@ import { ProviderManager } from './utils/provider.util';
     EventSyncService,
     EventSchedulerService,
     EventConfigService,
+    StateFetcherService,
     ProviderManager,
   ],
-  exports: [EventFetcherService],
+  exports: [EventFetcherService, StateFetcherService],
 })
 export class EventFetcherModule {}
