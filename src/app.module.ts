@@ -14,6 +14,9 @@ import { TasksModule } from './tasks/tasks.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { BlockchainsModule } from './blockchains/blockchains.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { DataProcesingModule } from './data-procesing/data-procesing.module';
+import { EventFetcherModule } from './event-fetcher/event-fetcher.module';
+import { StateFetcherModule } from './state-fetcher/state-fetcher.module';
 
 // entities
 import { User } from './users/entities/user.entity';
@@ -29,6 +32,9 @@ const appModules = [
   BlockchainsModule,
   TasksModule,
   MetricsModule,
+  DataProcesingModule,
+  EventFetcherModule,
+  StateFetcherModule,
 ];
 const entities = [
   Contract,

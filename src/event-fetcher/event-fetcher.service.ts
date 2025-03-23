@@ -1,21 +1,21 @@
 import {
   Injectable,
   Logger,
-  OnModuleInit,
   OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere } from 'typeorm';
-import { Blockchain } from '../entities/blockchain.entity';
-import { BlockchainEvent } from '../entities/blockchain-event.entity';
-import { ethers } from 'ethers';
-import { abi } from '../../constants/abis/cacheManager/cacheManager.json';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ethers } from 'ethers';
 import { Cron } from '@nestjs/schedule';
+import { FindOptionsWhere, Repository } from 'typeorm';
+import { abi } from '../constants/abis/cacheManager/cacheManager.json';
+import { Blockchain } from '../blockchains/entities/blockchain.entity';
+import { BlockchainEvent } from '../blockchains/entities/blockchain-event.entity';
 
 @Injectable()
-export class BlockchainEventService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(BlockchainEventService.name);
+export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(EventFetcherService.name);
   private contractListeners: Map<string, ethers.Contract> = new Map();
   private providers: Map<string, ethers.JsonRpcProvider> = new Map();
   // Define event types to be monitored
