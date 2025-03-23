@@ -12,7 +12,7 @@ import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 
 @Entity()
 @Index(['blockchain', 'address'], { unique: true })
-export class Contract {
+export class ContractBytecode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
