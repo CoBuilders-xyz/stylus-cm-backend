@@ -54,31 +54,39 @@ export class RealTimeMetricsService {
       provider,
     );
 
-    const [
-      minBidSmallSize,
-      minBidMidSize,
-      minBidLargeSize,
-      entries,
-      decayRate,
-      cacheSize,
-      queueSize,
-      isPaused,
-      block,
-    ] = await Promise.all([
+    const results = await Promise.all([
       cacheManagerContract['getMinBid(uint64)'](
         process.env.CONTRACT_SMALL_SIZE,
-      ),
-      cacheManagerContract['getMinBid(uint64)'](process.env.CONTRACT_MID_SIZE),
+      ) as Promise<ethers.BigNumberish>,
+      cacheManagerContract['getMinBid(uint64)'](
+        process.env.CONTRACT_MID_SIZE,
+      ) as Promise<ethers.BigNumberish>,
       cacheManagerContract['getMinBid(uint64)'](
         process.env.CONTRACT_LARGE_SIZE,
-      ),
-      cacheManagerContract.getEntries(),
-      cacheManagerContract.decay(),
-      cacheManagerContract.cacheSize(),
-      cacheManagerContract.queueSize(),
-      cacheManagerContract.isPaused(),
+      ) as Promise<ethers.BigNumberish>,
+      cacheManagerContract.getEntries() as Promise<
+        Array<{
+          code: string;
+          size: ethers.BigNumberish;
+          bid: ethers.BigNumberish;
+        }>
+      >,
+      cacheManagerContract.decay() as Promise<ethers.BigNumberish>,
+      cacheManagerContract.cacheSize() as Promise<ethers.BigNumberish>,
+      cacheManagerContract.queueSize() as Promise<ethers.BigNumberish>,
+      cacheManagerContract.isPaused() as Promise<boolean>,
       provider.getBlock('latest'),
     ]);
+
+    const minBidSmallSize = results[0];
+    const minBidMidSize = results[1];
+    const minBidLargeSize = results[2];
+    const entries = results[3];
+    const decayRate = results[4];
+    const cacheSize = results[5];
+    const queueSize = results[6];
+    const isPaused = results[7];
+    const block = results[8];
 
     this.logger.log({
       minBidSmallSize,
@@ -95,13 +103,13 @@ export class RealTimeMetricsService {
     const newPoll = this.blockchainDataPollRepository.create({
       blockchain,
       minBid: '0',
-      decayRate,
-      cacheSize,
-      queueSize,
+      decayRate: decayRate.toString(),
+      cacheSize: cacheSize.toString(),
+      queueSize: queueSize.toString(),
       isPaused,
       blockNumber: block?.number,
       blockTimestamp: new Date(Number(block?.timestamp) * 1000),
-      totalContractsCached: entries.length,
+      totalContractsCached: entries.length.toString(),
     });
 
     await this.blockchainDataPollRepository.save(newPoll);
