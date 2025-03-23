@@ -1,15 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Blockchain } from '../entities/blockchain.entity';
-import { BlockchainState } from '../entities/blockchain-state.entity';
+import { Repository } from 'typeorm';
 import { ethers } from 'ethers';
-import { abi } from '../../constants/abis/cacheManager/cacheManager.json';
+
+import { Blockchain } from '../blockchains/entities/blockchain.entity';
+import { BlockchainState } from '../blockchains/entities/blockchain-state.entity';
+import { abi } from '../constants/abis/cacheManager/cacheManager.json';
 
 @Injectable()
-export class BlockchainStateService {
-  private readonly logger = new Logger(BlockchainStateService.name);
+export class StateFetcherService {
+  private readonly logger = new Logger(StateFetcherService.name);
 
   constructor(
     @InjectRepository(Blockchain)
@@ -18,7 +19,7 @@ export class BlockchainStateService {
     private readonly BlockchainStateRepository: Repository<BlockchainState>,
   ) {}
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_10_SECONDS)
   async handleCron() {
     this.logger.debug('Polling real-time blockchain metrics...');
     const blockchains = await this.blockchainRepository.find();

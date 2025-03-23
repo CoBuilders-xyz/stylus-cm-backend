@@ -1,12 +1,12 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, FindOptionsWhere } from 'typeorm';
-import { Blockchain } from '../entities/blockchain.entity';
-import { BlockchainEvent } from '../entities/blockchain-event.entity';
-import { Contract } from '../../contracts/entities/contract.entity';
 import { Interval } from '@nestjs/schedule';
+import { InjectRepository } from '@nestjs/typeorm';
 import { ethers } from 'ethers';
-import { abi } from '../../constants/abis/cacheManager/cacheManager.json';
+import { FindOptionsWhere, In, Repository } from 'typeorm';
+import { abi } from '../constants/abis/cacheManager/cacheManager.json';
+import { Blockchain } from '../blockchains/entities/blockchain.entity';
+import { BlockchainEvent } from '../blockchains/entities/blockchain-event.entity';
+import { Contract } from '../contracts/entities/contract.entity';
 
 interface ContractState {
   isCached: boolean;
@@ -52,8 +52,8 @@ interface BlockchainStateRecord {
 // }
 
 @Injectable()
-export class BlockchainEventProcessorService implements OnModuleInit {
-  private readonly logger = new Logger(BlockchainEventProcessorService.name);
+export class DataProcessingService implements OnModuleInit {
+  private readonly logger = new Logger(DataProcessingService.name);
   private isInitialProcessingComplete = false;
 
   // Track problematic contracts for analysis

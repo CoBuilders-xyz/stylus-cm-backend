@@ -9,10 +9,6 @@ import { BlockchainState } from './entities/blockchain-state.entity';
 import { BlockchainEvent } from './entities/blockchain-event.entity';
 import { Contract } from '../contracts/entities/contract.entity';
 
-// services
-import { BlockchainStateService } from './services/blockchain-state.service';
-import { BlockchainEventProcessorService } from './services/blockchain-event-processor.service';
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -23,10 +19,6 @@ import { BlockchainEventProcessorService } from './services/blockchain-event-pro
     ]),
   ],
   controllers: [BlockchainsController],
-  providers: [
-    BlockchainsService,
-    BlockchainStateService,
-    BlockchainEventProcessorService,
-  ],
+  providers: [BlockchainsService],
 })
 export class BlockchainsModule {}
