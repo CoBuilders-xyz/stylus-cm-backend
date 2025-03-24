@@ -53,7 +53,7 @@ export class StateFetcherService implements OnModuleInit {
     this.logger.log('Initial state check completed.');
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
     const blockchains = await this.blockchainRepository.find();
     for (const blockchain of blockchains) {
