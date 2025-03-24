@@ -7,6 +7,8 @@ import config from './config/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
+import { JwtModule } from '@nestjs/jwt';
 
 // app modules
 import { UsersModule } from './users/users.module';
@@ -59,6 +61,12 @@ const entities = [
       synchronize: true,
     }),
     ScheduleModule.forRoot(),
+    CacheModule.register({ ttl: 5000 }),
+    JwtModule.register({
+      global: true,
+      secret: 'THIS IS THE SUPER SECRET', // TODO Change Secret make it env
+      signOptions: { expiresIn: '1d' }, // TODO Change expiration time make it env
+    }),
     ...appModules,
   ],
   controllers: [AppController],
