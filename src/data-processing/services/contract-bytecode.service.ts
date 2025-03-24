@@ -11,8 +11,8 @@ import { abi } from '../../constants/abis/arbWasmCache/arbWasmCache.json';
 export class ContractBytecodeService {
   private readonly logger = new Logger(ContractBytecodeService.name);
 
-  // Track problematic contracts for analysis
-  private problematicContracts = new Set<string>();
+  // Track problematic contracts bytecodes for analysis
+  private problematicContractBytecodes = new Set<string>();
 
   constructor(
     @InjectRepository(ContractBytecode)
@@ -20,19 +20,19 @@ export class ContractBytecodeService {
   ) {}
 
   /**
-   * Update or create contracts in the database based on their current states
+   * Update or create contract bytecodes in the database based on their current states
    *
-   * @param blockchain The blockchain the contracts belong to
-   * @param contractStates Map of contract states to persist
+   * @param blockchain The blockchain the contract bytecodes belong to
+   * @param contractBytecodeStates Map of contract bytecode states to persist
    */
-  async updateContracts(
+  async updateContractBytecodes(
     blockchain: Blockchain,
-    contractStates: Map<string, ContractBytecodeState>,
+    contractBytecodeStates: Map<string, ContractBytecodeState>,
   ): Promise<void> {
-    // Process each contract state
-    for (const [codeHash, state] of contractStates.entries()) {
+    // Process each contract bytecode state
+    for (const [codeHash, state] of contractBytecodeStates.entries()) {
       try {
-        // Try to find existing contract
+        // Try to find existing contract bytecode
         const contractBytecode = await this.contractBytecodeRepository.findOne({
           where: {
             blockchain: { id: blockchain.id },
@@ -41,21 +41,21 @@ export class ContractBytecodeService {
         });
 
         if (contractBytecode) {
-          await this.updateExistingContract(contractBytecode, state);
+          await this.updateExistingContractBytecode(contractBytecode, state);
         } else {
-          await this.createNewContract(blockchain, codeHash, state);
+          await this.createNewContractBytecode(blockchain, codeHash, state);
         }
       } catch (error: unknown) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         this.logger.error(
-          `Error updating/creating contract ${codeHash}: ${errorMessage}`,
+          `Error updating/creating contract bytecode ${codeHash}: ${errorMessage}`,
         );
       }
     }
 
     this.logger.log(
-      `Updated ${contractStates.size} contracts for blockchain ${blockchain.name}`,
+      `Updated ${contractBytecodeStates.size} contract bytecodes for blockchain ${blockchain.name}`,
     );
   }
 
@@ -65,7 +65,7 @@ export class ContractBytecodeService {
    * @param contract The contract entity to update
    * @param state The current state of the contract
    */
-  private async updateExistingContract(
+  private async updateExistingContractBytecode(
     contractBytecode: ContractBytecode,
     state: ContractBytecodeState,
   ): Promise<void> {
@@ -80,7 +80,7 @@ export class ContractBytecodeService {
       // Do not update size, bid, bidPlusDecay, or totalBidInvestment fields
 
       this.logger.debug(
-        `Updated contract ${contractBytecode.bytecodeHash} in the database for DeleteBid, cached status: false` +
+        `Updated contract bytecode ${contractBytecode.bytecodeHash} in the database for DeleteBid, cached status: false` +
           ` (last event at block ${state.lastEventBlock})` +
           `, lastEvictionBid: ${state.lastEvictionBid}` +
           `, preserving bid: ${contractBytecode.lastBid}, bidPlusDecay: ${contractBytecode.bidPlusDecay}, size: ${contractBytecode.size}, totalBidInvestment: ${contractBytecode.totalBidInvestment}`,
@@ -98,7 +98,7 @@ export class ContractBytecodeService {
       contractBytecode.totalBidInvestment = state.totalBidInvestment;
 
       this.logger.debug(
-        `Updated contract ${contractBytecode.bytecodeHash} in the database, cached status: ${state.isCached}` +
+        `Updated contract bytecode ${contractBytecode.bytecodeHash} in the database, cached status: ${state.isCached}` +
           ` (last event at block ${state.lastEventBlock})` +
           `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}, size: ${state.size}` +
           (state.lastEvictionBid !== undefined
@@ -118,15 +118,15 @@ export class ContractBytecodeService {
    * @param codeHash The bytecode hash of the contract
    * @param state The current state of the contract
    */
-  private async createNewContract(
+  private async createNewContractBytecode(
     blockchain: Blockchain,
     codeHash: string,
     state: ContractBytecodeState,
   ): Promise<void> {
-    // Can only create a new contract if we have an address
+    // Can only create a new contract bytecode if we have an address
     if (!state.address) {
       this.logger.warn(
-        `Cannot create new contract bytecode ${codeHash} without an address. This contract may have only had DeleteBid events.`,
+        `Cannot create new contract bytecode ${codeHash} without an address. This contract bytecode may have only had DeleteBid events.`,
       );
       return;
     }
@@ -134,9 +134,7 @@ export class ContractBytecodeService {
     // Create new contract bytecode with appropriate values based on event type
     const newContractBytecode = this.contractBytecodeRepository.create({
       blockchain,
-      address: state.address,
       bytecodeHash: codeHash,
-      name: `Contract-${codeHash.substring(0, 8)}`,
       size: state.size,
       lastBid: state.bid,
       bidPlusDecay: state.bidPlusDecay,
@@ -151,7 +149,7 @@ export class ContractBytecodeService {
     ) {
       newContractBytecode.lastEvictionBid = state.lastEvictionBid;
       this.logger.debug(
-        `Setting lastEvictionBid to ${state.lastEvictionBid} for new contract ${codeHash} created from DeleteBid event`,
+        `Setting lastEvictionBid to ${state.lastEvictionBid} for new contract bytecode ${codeHash} created from DeleteBid event`,
       );
     }
 
@@ -160,11 +158,11 @@ export class ContractBytecodeService {
     // Log creation details with appropriate message based on event type
     const logMessage =
       state.lastEventName === 'DeleteBid'
-        ? `Created new contract ${codeHash} in the database from DeleteBid event, cached status: ${state.isCached}` +
+        ? `Created new contract bytecode ${codeHash} in the database from DeleteBid event, cached status: ${state.isCached}` +
           ` (last event at block ${state.lastEventBlock})` +
           `, lastEvictionBid: ${state.lastEvictionBid}` +
           `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}, total investment: ${state.totalBidInvestment}`
-        : `Created new contract ${codeHash} in the database, cached status: ${state.isCached}` +
+        : `Created new contract bytecode ${codeHash} in the database, cached status: ${state.isCached}` +
           ` (last event at block ${state.lastEventBlock})` +
           `, bid: ${state.bid}, bidPlusDecay: ${state.bidPlusDecay}` +
           (state.lastEvictionBid !== undefined
@@ -176,15 +174,17 @@ export class ContractBytecodeService {
   }
 
   /**
-   * Verifies the cache status of all contracts against the on-chain data
+   * Verifies the cache status of all contract bytecodes against the on-chain data
    * This is a safety net to ensure our database is accurate
    *
-   * @param blockchain The blockchain to verify contracts for
+   * @param blockchain The blockchain to verify contract bytecodes for
    */
-  async verifyContractCacheStatus(blockchain: Blockchain): Promise<void> {
+  async verifyContractBytecodeCacheStatus(
+    blockchain: Blockchain,
+  ): Promise<void> {
     try {
       this.logger.log(
-        `Verifying contract cache status for blockchain ${blockchain.name} against on-chain data`,
+        `Verifying contract bytecode cache status for blockchain ${blockchain.name} against on-chain data`,
       );
 
       // Connect to the blockchain
@@ -209,12 +209,14 @@ export class ContractBytecodeService {
         } as FindOptionsWhere<ContractBytecode>,
       });
 
-      this.logger.log(`Verifying ${contractBytecodes.length} contracts...`);
+      this.logger.log(
+        `Verifying ${contractBytecodes.length} contract bytecodes...`,
+      );
 
-      // For each contract, check its cached status on-chain
+      // For each contract bytecode, check its cached status on-chain
       for (const contractBytecode of contractBytecodes) {
         try {
-          // Call the ArbWasmCache contract to check if the contract is cached
+          // Call the ArbWasmCache contract to check if the contract bytecode is cached
           const isCachedOnChain: boolean = await arbWasmCache.codehashIsCached(
             contractBytecode.bytecodeHash,
           );
@@ -223,36 +225,38 @@ export class ContractBytecodeService {
           // update the database
           if (contractBytecode.isCached !== isCachedOnChain) {
             this.logger.warn(
-              `Contract ${contractBytecode.bytecodeHash} cache status mismatch: DB=${contractBytecode.isCached}, Chain=${isCachedOnChain}`,
+              `Contract bytecode ${contractBytecode.bytecodeHash} cache status mismatch: DB=${contractBytecode.isCached}, Chain=${isCachedOnChain}`,
             );
 
-            // Add to problematic contracts for further analysis
-            this.problematicContracts.add(contractBytecode.bytecodeHash);
+            // Add to problematic contract bytecodes for further analysis
+            this.problematicContractBytecodes.add(
+              contractBytecode.bytecodeHash,
+            );
 
-            // Update the contract status in the database
+            // Update the contract bytecode status in the database
             contractBytecode.isCached = isCachedOnChain;
             await this.contractBytecodeRepository.save(contractBytecode);
 
             this.logger.log(
-              `Updated contract ${contractBytecode.bytecodeHash} cached status to ${isCachedOnChain}`,
+              `Updated contract bytecode ${contractBytecode.bytecodeHash} cached status to ${isCachedOnChain}`,
             );
           }
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           this.logger.error(
-            `Error verifying contract ${contractBytecode.bytecodeHash}: ${errorMessage}`,
+            `Error verifying contract bytecode ${contractBytecode.bytecodeHash}: ${errorMessage}`,
           );
         }
       }
 
       this.logger.log(
-        `Verification complete. Problematic contracts: ${this.problematicContracts.size}`,
+        `Verification complete. Problematic contract bytecodes: ${this.problematicContractBytecodes.size}`,
       );
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error verifying contracts: ${errorMessage}`);
+      this.logger.error(`Error verifying contract bytecodes: ${errorMessage}`);
     }
   }
 }
