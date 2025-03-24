@@ -157,8 +157,10 @@ export class EventProcessorService {
       );
     }
 
-    // Verify contracts at the end of processing if needed
-    await this.contractBytecodeService.verifyContractCacheStatus(blockchain);
+    // Verify contract bytecodes at the end of processing if needed
+    await this.contractBytecodeService.verifyContractBytecodeCacheStatus(
+      blockchain,
+    );
   }
 
   /**
@@ -278,8 +280,8 @@ export class EventProcessorService {
 
     this.logger.log(`Processing events by type: ${eventTypeSummary}`);
 
-    // Track contract states by codeHash
-    const contractStates = new Map<string, ContractBytecodeState>();
+    // Track contract bytecode states by codeHash
+    const contractBytecodeStates = new Map<string, ContractBytecodeState>();
 
     // Extract and sort decay rate events
     const decayRateEvents =
@@ -335,22 +337,22 @@ export class EventProcessorService {
           // Process InsertBid event with the applicable decay rate
           this.insertBidService.processInsertBidEvent(
             event,
-            contractStates,
+            contractBytecodeStates,
             applicableDecayRate,
           );
 
-          // Get the contract hash from the event data for logging
+          // Get the contract bytecode hash from the event data for logging
           const eventDataArray = event.eventData as unknown[];
           if (Array.isArray(eventDataArray) && eventDataArray.length > 0) {
             const codeHash = String(eventDataArray[0]);
-            // Check if the contract state was updated successfully
-            if (contractStates.has(codeHash)) {
+            // Check if the contract bytecode state was updated successfully
+            if (contractBytecodeStates.has(codeHash)) {
               this.logger.debug(
-                `Successfully processed InsertBid for contract ${codeHash} at block ${event.blockNumber}`,
+                `Successfully processed InsertBid for contract bytecode ${codeHash} at block ${event.blockNumber}`,
               );
             } else {
               this.logger.warn(
-                `Failed to update contract state for InsertBid event for contract ${codeHash} at block ${event.blockNumber}`,
+                `Failed to update contract bytecode state for InsertBid event for contract bytecode ${codeHash} at block ${event.blockNumber}`,
               );
             }
           }
@@ -358,7 +360,7 @@ export class EventProcessorService {
           // Process DeleteBid event - now async
           await this.deleteBidService.processDeleteBidEvent(
             event,
-            contractStates,
+            contractBytecodeStates,
           );
         }
       } catch (error: unknown) {
@@ -372,13 +374,13 @@ export class EventProcessorService {
     }
 
     // Update or create contracts in the database
-    await this.contractBytecodeService.updateContracts(
+    await this.contractBytecodeService.updateContractBytecodes(
       blockchain,
-      contractStates,
+      contractBytecodeStates,
     );
 
     this.logger.log(
-      `Processed ${events.length} events and updated ${contractStates.size} contracts for blockchain ${blockchain.name}`,
+      `Processed ${events.length} events and updated ${contractBytecodeStates.size} contract bytecodes for blockchain ${blockchain.name}`,
     );
   }
 }
