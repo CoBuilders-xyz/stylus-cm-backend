@@ -13,15 +13,15 @@ export class InsertBidService {
   private readonly logger = new Logger(InsertBidService.name);
 
   /**
-   * Process an InsertBid event and update the contract state map
+   * Process an InsertBid event and update the contract bytecode state map
    *
    * @param event The InsertBid event to process
-   * @param contractStates Map of contract states to update
+   * @param contractBytecodeStates Map of contract bytecode states to update
    * @param decayRate Current decay rate to apply
    */
   processInsertBidEvent(
     event: BlockchainEvent,
-    contractStates: Map<string, ContractBytecodeState>,
+    contractBytecodeStates: Map<string, ContractBytecodeState>,
     decayRate: string = '0',
   ): void {
     // Based on the logs, we know that eventData is an array:
@@ -57,15 +57,15 @@ export class InsertBidService {
       `Calculated values: actual bid = ${bid}, bidPlusDecay = ${bidPlusDecay}, using decay rate: ${decayRate}`,
     );
 
-    const existingState = contractStates.get(codeHash);
+    const existingState = contractBytecodeStates.get(codeHash);
 
     if (existingState) {
       this.logger.debug(
-        `Found existing state for contract ${codeHash}: cached=${existingState.isCached}, lastEvent=${existingState.lastEventName} at block ${existingState.lastEventBlock}`,
+        `Found existing state for contract bytecode ${codeHash}: cached=${existingState.isCached}, lastEvent=${existingState.lastEventName} at block ${existingState.lastEventBlock}`,
       );
     } else {
       this.logger.debug(
-        `No existing state found for contract ${codeHash}, creating new entry`,
+        `No existing state found for contract bytecode ${codeHash}, creating new entry`,
       );
     }
 
@@ -77,7 +77,7 @@ export class InsertBidService {
 
     if (shouldUpdate) {
       this.logger.debug(
-        `Will update contract state for ${codeHash} as event from block ${event.blockNumber} is newer than existing state from block ${existingState?.lastEventBlock || 'none'}`,
+        `Will update contract bytecode state for ${codeHash} as event from block ${event.blockNumber} is newer than existing state from block ${existingState?.lastEventBlock || 'none'}`,
       );
 
       // Calculate total bid investment - only add if this is a new bid, not an update to an existing one
@@ -91,9 +91,9 @@ export class InsertBidService {
         isNewBid,
       );
 
-      // Create or update contract state, marking as cached since this is an InsertBid event
-      contractStates.set(codeHash, {
-        isCached: true, // InsertBid means the contract is cached
+      // Create or update contract bytecode state, marking as cached since this is an InsertBid event
+      contractBytecodeStates.set(codeHash, {
+        isCached: true, // InsertBid means the contract bytecode is cached
         bid,
         bidPlusDecay,
         size,
@@ -104,7 +104,7 @@ export class InsertBidService {
       });
 
       this.logger.debug(
-        `InsertBid: Contract ${codeHash} inserted with actual bid ${bid} ETH, original bid (including decay) ${bidPlusDecay} ETH ` +
+        `InsertBid: Contract bytecode ${codeHash} inserted with actual bid ${bid} ETH, original bid (including decay) ${bidPlusDecay} ETH ` +
           `at address ${address} at block ${event.blockNumber}` +
           (event.logIndex !== undefined
             ? ` (logIndex: ${event.logIndex})`
@@ -113,7 +113,7 @@ export class InsertBidService {
       );
     } else {
       this.logger.debug(
-        `Skipping older InsertBid event for ${codeHash} at block ${event.blockNumber}` +
+        `Skipping older InsertBid event for contract bytecode ${codeHash} at block ${event.blockNumber}` +
           (event.logIndex !== undefined
             ? ` (logIndex: ${event.logIndex})`
             : '') +
