@@ -27,6 +27,9 @@ import { ContractBytecode } from './contracts/entities/contract-bytecode.entity'
 import { BlockchainEvent } from './blockchains/entities/blockchain-event.entity';
 import { BlockchainMetric } from './blockchains/entities/blockchain-metric.entity';
 import { BlockchainState } from './blockchains/entities/blockchain-state.entity';
+import { Contract } from './contracts/entities/contract.entity';
+import { ContractMetric } from './contracts/entities/contract-metric.entity';
+import { ContractBytecodeMetric } from './contracts/entities/contract-bytecode.metric.entity';
 
 const appModules = [
   UsersModule,
@@ -45,6 +48,9 @@ const entities = [
   BlockchainMetric,
   BlockchainState,
   User,
+  Contract,
+  ContractMetric,
+  ContractBytecodeMetric,
 ];
 
 @Module({
@@ -61,7 +67,7 @@ const entities = [
       synchronize: true,
     }),
     ScheduleModule.forRoot(),
-    CacheModule.register({ ttl: 5000 }),
+    CacheModule.register(),
     JwtModule.register({
       global: true,
       secret: 'THIS IS THE SUPER SECRET', // TODO Change Secret make it env

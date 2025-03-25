@@ -53,4 +53,10 @@ export class UsersController {
   verify(@Body() body: { address: string; signature: string }) {
     return this.authService.verifySignature(body.address, body.signature);
   }
+
+  // Testing Purposes Only
+  @Post('nonce/sign')
+  sign(@Body() body: { pk: string; message: string }) {
+    return this.authService.signMessage(body.pk, body.message);
+  }
 }
