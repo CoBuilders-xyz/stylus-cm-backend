@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
-import { ContractState } from '../interfaces/contract-state.interface';
+import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
 import { ethers } from 'ethers';
 import { isMoreRecentEvent } from '../utils/event-utils';
 
@@ -16,14 +16,14 @@ export class DeleteBidService {
   ) {}
 
   /**
-   * Process a DeleteBid event and update the contract state map
+   * Process a DeleteBid event and update the contract bytecode state map
    *
    * @param event The DeleteBid event to process
-   * @param contractStates Map of contract states to update
+   * @param contractBytecodeStates Map of contract bytecode states to update
    */
   async processDeleteBidEvent(
     event: BlockchainEvent,
-    contractStates: Map<string, ContractState>,
+    contractBytecodeStates: Map<string, ContractBytecodeState>,
   ): Promise<void> {
     // Based on the logs, DeleteBid event data is an array:
     // [codeHash, bid, size]
@@ -49,9 +49,9 @@ export class DeleteBidService {
     // Parse the eviction bid value from the DeleteBid event
     const evictionBid = parseFloat(ethers.formatEther(bidValue));
 
-    let existingState = contractStates.get(codeHash);
+    let existingState = contractBytecodeStates.get(codeHash);
 
-    // If no existingState in memory, try to find the contract in the database
+    // If no existingState in memory, try to find the contract bytecode in the database
     if (!existingState) {
       try {
         // Make sure we have a valid blockchain object
@@ -101,10 +101,10 @@ export class DeleteBidService {
 
         // Log the event data for debugging
         this.logger.debug(
-          `Looking up previous InsertBid for contract ${codeHash} for blockchain ${event.blockchain.id}`,
+          `Looking up previous InsertBid for contract bytecode ${codeHash} for blockchain ${event.blockchain.id}`,
         );
 
-        // Look for the most recent InsertBid event for this contract
+        // Look for the most recent InsertBid event for this contract bytecode
         // We need to craft a better query since the eventData is stored as a JSON array
         // and we need to match the contract hash as the first element
         const previousInsertBid = await this.blockchainEventRepository
@@ -122,7 +122,7 @@ export class DeleteBidService {
 
         if (previousInsertBid) {
           this.logger.debug(
-            `Found previous InsertBid for contract ${codeHash} at block ${previousInsertBid.blockNumber}`,
+            `Found previous InsertBid for contract bytecode ${codeHash} at block ${previousInsertBid.blockNumber}`,
           );
 
           // Extract data from the found InsertBid event
@@ -135,7 +135,7 @@ export class DeleteBidService {
             const bidValue = String(insertBidDataArray[2]);
             const size = Number(insertBidDataArray[3]);
 
-            // Create a minimal state for this contract
+            // Create a minimal state for this contract bytecode
             existingState = {
               isCached: true,
               bid: parseFloat(ethers.formatEther(bidValue)),
@@ -148,7 +148,7 @@ export class DeleteBidService {
             };
 
             // Add to the contract states map
-            contractStates.set(codeHash, existingState);
+            contractBytecodeStates.set(codeHash, existingState);
           }
         }
       } catch (error) {
@@ -217,7 +217,7 @@ export class DeleteBidService {
               const bidValue = String(insertBidDataArray[2]);
               const size = Number(insertBidDataArray[3]);
 
-              // Create a minimal state for this contract
+              // Create a minimal state for this contract bytecode
               existingState = {
                 isCached: true,
                 bid: parseFloat(ethers.formatEther(bidValue)),
@@ -229,13 +229,13 @@ export class DeleteBidService {
                 totalBidInvestment: parseFloat(ethers.formatEther(bidValue)),
               };
 
-              // Add to the contract states map
-              contractStates.set(codeHash, existingState);
+              // Add to the contract bytecode states map
+              contractBytecodeStates.set(codeHash, existingState);
             }
           }
         } catch (fallbackError) {
           this.logger.error(
-            `Fallback query also failed for contract ${codeHash}: ${
+            `Fallback query also failed for contract bytecode ${codeHash}: ${
               fallbackError instanceof Error
                 ? fallbackError.message
                 : String(fallbackError)
@@ -254,11 +254,11 @@ export class DeleteBidService {
     if (shouldUpdate) {
       if (!existingState) {
         this.logger.warn(
-          `Received DeleteBid for contract ${codeHash} without prior InsertBid in memory. Attempting to create a minimal state.`,
+          `Received DeleteBid for contract bytecode ${codeHash} without prior InsertBid in memory. Attempting to create a minimal state.`,
         );
 
-        // Create a minimal contract state to track that this contract has been deleted
-        // This prevents issues with future DeleteBid events for the same contract
+        // Create a minimal contract bytecode state to track that this contract bytecode has been deleted
+        // This prevents issues with future DeleteBid events for the same contract bytecode
         existingState = {
           isCached: false,
           bid: 0, // No bid information available
@@ -271,19 +271,19 @@ export class DeleteBidService {
           totalBidInvestment: 0, // No investment information available
         };
 
-        // Add to contract states map to track this contract
-        contractStates.set(codeHash, existingState);
+        // Add to contract bytecode states map to track this contract bytecode
+        contractBytecodeStates.set(codeHash, existingState);
 
         this.logger.debug(
-          `Created minimal state for previously unknown contract ${codeHash} based on DeleteBid at block ${event.blockNumber}`,
+          `Created minimal state for previously unknown contract bytecode ${codeHash} based on DeleteBid at block ${event.blockNumber}`,
         );
         return;
       }
 
-      // Update contract state, marking as not cached since this is a DeleteBid event
+      // Update contract bytecode state, marking as not cached since this is a DeleteBid event
       // IMPORTANT: Keep existing values for bid, bidPlusDecay, and totalBidInvestment
-      contractStates.set(codeHash, {
-        isCached: false, // DeleteBid means the contract is no longer cached
+      contractBytecodeStates.set(codeHash, {
+        isCached: false, // DeleteBid means the contract bytecode is no longer cached
         bid: existingState.bid, // Keep existing bid value
         bidPlusDecay: existingState.bidPlusDecay, // Keep existing bidPlusDecay value
         lastEvictionBid: evictionBid, // Store the eviction bid value
@@ -295,7 +295,7 @@ export class DeleteBidService {
       });
 
       this.logger.debug(
-        `DeleteBid: Contract ${codeHash} removed from cache at block ${event.blockNumber}` +
+        `DeleteBid: Contract bytecode ${codeHash} removed from cache at block ${event.blockNumber}` +
           (event.logIndex !== undefined
             ? ` (logIndex: ${event.logIndex})`
             : '') +
@@ -304,7 +304,7 @@ export class DeleteBidService {
       );
     } else {
       this.logger.debug(
-        `Skipping older DeleteBid event for ${codeHash} at block ${event.blockNumber}` +
+        `Skipping older DeleteBid event for contract bytecode ${codeHash} at block ${event.blockNumber}` +
           (event.logIndex !== undefined
             ? ` (logIndex: ${event.logIndex})`
             : '') +

@@ -74,7 +74,7 @@ export class EventListenerService {
           return;
         }
 
-        this.logger.log(
+        this.logger.debug(
           `Received real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
         );
 
@@ -99,7 +99,7 @@ export class EventListenerService {
       // Remove existing listeners first to avoid duplicates
       try {
         contract.removeAllListeners(eventType);
-        this.logger.debug(
+        this.logger.verbose(
           `Removed existing listeners for ${eventType} on blockchain ${blockchain.id}`,
         );
       } catch (removeError) {

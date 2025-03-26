@@ -11,8 +11,8 @@ import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 // import { Alert } from './alert.entity';
 
 @Entity()
-@Index(['blockchain', 'address'], { unique: true })
-export class Contract {
+@Index(['blockchain', 'bytecodeHash'], { unique: true })
+export class ContractBytecode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -23,12 +23,6 @@ export class Contract {
     onDelete: 'CASCADE',
   })
   blockchain: Blockchain;
-
-  @Column()
-  name: string;
-
-  @Column()
-  address: string;
 
   @Column()
   bytecodeHash: string;
@@ -50,10 +44,4 @@ export class Contract {
 
   @Column('decimal', { precision: 18, scale: 6, default: 0 })
   totalBidInvestment: number;
-
-  // @Column('decimal', { precision: 18, scale: 6 })
-  // maxBid: number;
-
-  // @OneToMany(() => Alert, (alert) => alert.contract)
-  // alerts: Alert[];
 }

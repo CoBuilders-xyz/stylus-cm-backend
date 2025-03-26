@@ -1,8 +1,8 @@
 /**
- * Represents the state of a contract in the cache manager system.
- * Used to track contract state during event processing.
+ * Represents the state of a contract bytecode in the cache manager system.
+ * Used to track contract bytecode state during event processing.
  */
-export interface ContractState {
+export interface ContractBytecodeState {
   isCached: boolean;
   bid: number;
   bidPlusDecay: number;
