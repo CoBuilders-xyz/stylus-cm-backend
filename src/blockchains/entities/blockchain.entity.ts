@@ -16,6 +16,9 @@ export class Blockchain {
   @Column({})
   cacheManagerAddress: string;
 
+  @Column({})
+  arbWasmCacheAddress: string;
+
   @Column({ unique: true })
   chainId: number;
 
@@ -33,4 +36,17 @@ export class Blockchain {
 
   @Column({ default: 0 })
   lastSyncedBlock: number;
+
+  // Added fields to track the last processed caching event
+  @Column({ nullable: true })
+  lastProcessedEventId: string;
+
+  @Column({ default: 0 })
+  lastProcessedBlockNumber: number;
+
+  @Column({ default: 0 })
+  lastProcessedLogIndex: number;
+
+  @Column({ nullable: true })
+  lastProcessedTimestamp: Date;
 }

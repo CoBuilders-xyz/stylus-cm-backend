@@ -37,7 +37,22 @@ export class Contract {
   size: number;
 
   @Column('decimal', { precision: 18, scale: 6 })
-  maxBid: number;
+  lastBid: number;
+
+  @Column('decimal', { precision: 18, scale: 6, default: 0 })
+  bidPlusDecay: number;
+
+  @Column('decimal', { precision: 18, scale: 6, default: 0, nullable: true })
+  lastEvictionBid: number;
+
+  @Column({ default: false })
+  isCached: boolean;
+
+  @Column('decimal', { precision: 18, scale: 6, default: 0 })
+  totalBidInvestment: number;
+
+  // @Column('decimal', { precision: 18, scale: 6 })
+  // maxBid: number;
 
   // @OneToMany(() => Alert, (alert) => alert.contract)
   // alerts: Alert[];

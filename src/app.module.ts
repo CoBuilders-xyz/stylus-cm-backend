@@ -13,6 +13,10 @@ import { UsersModule } from './users/users.module';
 import { TasksModule } from './tasks/tasks.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { BlockchainsModule } from './blockchains/blockchains.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { DataProcessingModule } from './data-processing/data-processing.module';
+import { EventFetcherModule } from './event-fetcher/event-fetcher.module';
+import { StateFetcherModule } from './state-fetcher/state-fetcher.module';
 
 // entities
 import { User } from './users/entities/user.entity';
@@ -20,21 +24,25 @@ import { Blockchain } from './blockchains/entities/blockchain.entity';
 import { Contract } from './contracts/entities/contract.entity';
 import { BlockchainEvent } from './blockchains/entities/blockchain-event.entity';
 import { BlockchainMetric } from './blockchains/entities/blockchain-metric.entity';
-import { BlockchainDataPoll } from './blockchains/entities/blockchain-data-poll.entity';
+import { BlockchainState } from './blockchains/entities/blockchain-state.entity';
 
 const appModules = [
   UsersModule,
   ContractsModule,
   BlockchainsModule,
   TasksModule,
+  MetricsModule,
+  StateFetcherModule,
+  EventFetcherModule,
+  DataProcessingModule,
 ];
 const entities = [
-  User,
-  Blockchain,
   Contract,
+  Blockchain,
   BlockchainEvent,
   BlockchainMetric,
-  BlockchainDataPoll,
+  BlockchainState,
+  User,
 ];
 
 @Module({

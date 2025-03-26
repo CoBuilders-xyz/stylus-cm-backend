@@ -3,20 +3,22 @@ import { BlockchainsService } from './blockchains.service';
 import { BlockchainsController } from './blockchains.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+// entities
 import { Blockchain } from './entities/blockchain.entity';
-import { BlockchainDataPoll } from './entities/blockchain-data-poll.entity';
-import { RealTimeMetricsService } from './services/real-time-metrics.service';
-import { HistoricalEventSyncService } from './services/historical-sync.service';
+import { BlockchainState } from './entities/blockchain-state.entity';
 import { BlockchainEvent } from './entities/blockchain-event.entity';
+import { Contract } from '../contracts/entities/contract.entity';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Blockchain, BlockchainDataPoll, BlockchainEvent]),
+    TypeOrmModule.forFeature([
+      Blockchain,
+      BlockchainState,
+      BlockchainEvent,
+      Contract,
+    ]),
   ],
   controllers: [BlockchainsController],
-  providers: [
-    BlockchainsService,
-    RealTimeMetricsService,
-    HistoricalEventSyncService,
-  ],
+  providers: [BlockchainsService],
 })
 export class BlockchainsModule {}
