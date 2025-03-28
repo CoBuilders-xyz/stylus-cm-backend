@@ -8,13 +8,9 @@ export class ContractBytecodeMetric {
   id: string;
 
   // Many to one relationship with contract
-  @ManyToOne(
-    () => ContractBytecode,
-    (contractBytecode) => contractBytecode.contractBytecodeMetric,
-    {
-      onDelete: 'CASCADE',
-    },
-  )
+  @ManyToOne(() => ContractBytecode, {
+    onDelete: 'CASCADE',
+  })
   contractBytecode: ContractBytecode;
 
   @Column()

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { BlockchainsService } from './blockchains.service';
-import { BlockchainsController } from './blockchains.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // entities
@@ -18,7 +17,6 @@ import { ContractBytecode } from '../contracts/entities/contract-bytecode.entity
       ContractBytecode,
     ]),
   ],
-  controllers: [BlockchainsController],
   providers: [BlockchainsService],
 })
 export class BlockchainsModule {}

@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import config from './config/config';
 
 // nestjs modules
@@ -22,6 +20,7 @@ import { StateFetcherModule } from './state-fetcher/state-fetcher.module';
 
 // entities
 import { User } from './users/entities/user.entity';
+import { UserContract } from './contracts/entities/user-contract.entity';
 import { Blockchain } from './blockchains/entities/blockchain.entity';
 import { ContractBytecode } from './contracts/entities/contract-bytecode.entity';
 import { BlockchainEvent } from './blockchains/entities/blockchain-event.entity';
@@ -48,6 +47,7 @@ const entities = [
   BlockchainMetric,
   BlockchainState,
   User,
+  UserContract,
   Contract,
   ContractMetric,
   ContractBytecodeMetric,
@@ -64,7 +64,7 @@ const entities = [
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB,
       entities: entities,
-      synchronize: true,
+      synchronize: true, // TODO: Change synch to env variable
     }),
     ScheduleModule.forRoot(),
     CacheModule.register(),
@@ -75,7 +75,5 @@ const entities = [
     }),
     ...appModules,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

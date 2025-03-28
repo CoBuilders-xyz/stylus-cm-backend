@@ -8,7 +8,7 @@ export class ContractMetric {
   id: string;
 
   // Many to one relationship with contract
-  @ManyToOne(() => Contract, (contract) => contract.contractMetric, {
+  @ManyToOne(() => Contract, {
     onDelete: 'CASCADE',
   })
   contract: Contract;

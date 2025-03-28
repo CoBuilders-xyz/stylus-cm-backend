@@ -1,5 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
-import { Contract } from '../../contracts/entities/contract.entity';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class User {
@@ -14,7 +13,4 @@ export class User {
 
   @Column({ default: true })
   isActive: boolean;
-
-  @OneToMany(() => Contract, (contract) => contract.user)
-  contracts: Contract[];
 }

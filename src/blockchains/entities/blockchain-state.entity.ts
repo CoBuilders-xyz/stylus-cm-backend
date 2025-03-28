@@ -12,7 +12,7 @@ export class BlockchainState {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Blockchain, (blockchain) => blockchain.id, {
+  @ManyToOne(() => Blockchain, {
     onDelete: 'CASCADE',
   })
   blockchain: Blockchain;

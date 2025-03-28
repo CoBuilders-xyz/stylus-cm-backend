@@ -1,7 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
-import { BlockchainEvent } from './blockchain-event.entity';
-import { BlockchainMetric } from './blockchain-metric.entity';
-import { ContractBytecode } from '../../contracts/entities/contract-bytecode.entity';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 @Entity()
 export class Blockchain {
   @PrimaryGeneratedColumn('uuid')
@@ -24,18 +21,6 @@ export class Blockchain {
 
   @Column('jsonb', { nullable: true }) // Flexible field for extra metadata
   otherInfo: Record<string, any>;
-
-  @OneToMany(
-    () => ContractBytecode,
-    (contractBytecode) => contractBytecode.blockchain,
-  )
-  contracts: ContractBytecode[];
-
-  @OneToMany(() => BlockchainEvent, (event) => event.blockchain)
-  events: BlockchainEvent[];
-
-  @OneToMany(() => BlockchainMetric, (metric) => metric.blockchain)
-  metrics: BlockchainMetric[];
 
   @Column({ default: 0 })
   lastSyncedBlock: number;

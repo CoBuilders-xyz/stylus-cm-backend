@@ -1,16 +1,8 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthService } from './auth.service';
+import { VerifySignatureDto } from './dto/verify-signature.dto';
+import { GenerateNonceDto } from './dto/generate-nonce.dto';
 
 @Controller('users')
 export class UsersController {
@@ -19,38 +11,14 @@ export class UsersController {
     private readonly authService: AuthService,
   ) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(+id, updateUserDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
-  }
-
   @Get('nonce/:address')
-  generateNonce(@Param('address') address: string) {
-    return this.authService.generateNonce(address);
+  async generateNonce(@Param() params: GenerateNonceDto) {
+    const nonce = await this.authService.generateNonce(params.address);
+    return { nonce };
   }
 
-  @Post('nonce/verify')
-  verify(@Body() body: { address: string; signature: string }) {
+  @Post('signature/verify')
+  verifySignature(@Body() body: VerifySignatureDto) {
     return this.authService.verifySignature(body.address, body.signature);
   }
 

@@ -3,32 +3,19 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
-  // OneToMany,
   Index,
-  OneToMany,
 } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { Contract } from './contract.entity';
-import { ContractBytecodeMetric } from './contract-bytecode.metric.entity';
 @Entity()
 @Index(['blockchain', 'bytecodeHash'], { unique: true })
 export class ContractBytecode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Blockchain, (blockchain) => blockchain.contracts, {
+  @ManyToOne(() => Blockchain, {
     onDelete: 'CASCADE',
   })
   blockchain: Blockchain;
-
-  @OneToMany(() => Contract, (contract) => contract.contractBytecode)
-  contracts: Contract[];
-
-  @OneToMany(
-    () => ContractBytecodeMetric,
-    (contractBytecodeMetric) => contractBytecodeMetric.contractBytecode,
-  )
-  contractBytecodeMetric: ContractBytecodeMetric[];
 
   @Column()
   bytecodeHash: string;
