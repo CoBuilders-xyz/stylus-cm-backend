@@ -7,6 +7,7 @@ import { Blockchain } from './entities/blockchain.entity';
 import { BlockchainState } from './entities/blockchain-state.entity';
 import { BlockchainEvent } from './entities/blockchain-event.entity';
 import { ContractBytecode } from '../contracts/entities/contract-bytecode.entity';
+import { BlockchainsController } from './blockchains.controller';
 
 @Module({
   imports: [
@@ -18,5 +19,6 @@ import { ContractBytecode } from '../contracts/entities/contract-bytecode.entity
     ]),
   ],
   providers: [BlockchainsService],
+  controllers: [BlockchainsController],
 })
 export class BlockchainsModule {}

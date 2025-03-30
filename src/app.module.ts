@@ -20,7 +20,7 @@ import { StateFetcherModule } from './state-fetcher/state-fetcher.module';
 
 // entities
 import { User } from './users/entities/user.entity';
-import { UserContract } from './contracts/entities/user-contract.entity';
+import { UserContract } from './user-contracts/entities/user-contract.entity';
 import { Blockchain } from './blockchains/entities/blockchain.entity';
 import { ContractBytecode } from './contracts/entities/contract-bytecode.entity';
 import { BlockchainEvent } from './blockchains/entities/blockchain-event.entity';
@@ -29,6 +29,8 @@ import { BlockchainState } from './blockchains/entities/blockchain-state.entity'
 import { Contract } from './contracts/entities/contract.entity';
 import { ContractMetric } from './contracts/entities/contract-metric.entity';
 import { ContractBytecodeMetric } from './contracts/entities/contract-bytecode.metric.entity';
+import { UserContractsModule } from './user-contracts/user-contracts.module';
+import { AuthModule } from './auth/auth.module';
 
 const appModules = [
   UsersModule,
@@ -68,12 +70,9 @@ const entities = [
     }),
     ScheduleModule.forRoot(),
     CacheModule.register(),
-    JwtModule.register({
-      global: true,
-      secret: 'THIS IS THE SUPER SECRET', // TODO Change Secret make it env
-      signOptions: { expiresIn: '1d' }, // TODO Change expiration time make it env
-    }),
     ...appModules,
+    UserContractsModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

@@ -1,16 +1,16 @@
 import {
   Injectable,
   Logger,
-  HttpException,
-  HttpStatus,
   Inject,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
 import { JwtService } from '@nestjs/jwt';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-
 import { ethers } from 'ethers';
+import { UsersService } from 'src/users/users.service';
+import { Not } from 'typeorm';
 
 @Injectable()
 export class AuthService {
@@ -46,10 +46,7 @@ export class AuthService {
     // Get the stored nonce message from redis
     const nonceMessage = (await this.getNonce(address)) as string;
     if (!nonceMessage)
-      throw new HttpException(
-        'Nonce not found or expired',
-        HttpStatus.NOT_FOUND,
-      );
+      throw new NotFoundException('Nonce not found or expired');
 
     this.logger.debug(
       'Attempting to verify signature with message:',
@@ -60,12 +57,18 @@ export class AuthService {
     const recoveredAddress = ethers.verifyMessage(nonceMessage, signature);
 
     if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
-      this.logger.debug('Signature verification SUCCESSFUL!');
-      const token = await this.jwtService.signAsync({ address: address });
+      this.logger.debug('Signature verification successful!');
 
-      const user = await this.usersService.upsert(address);
+      const user = await this.usersService.findOrCreate(address);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
 
-      return { token, user };
+      const accessToken = await this.jwtService.signAsync({
+        userId: user.id,
+        userAddress: user.address,
+      });
+      return { accessToken };
     } else {
       this.logger.error(
         'Signature verification FAILED - addresses do not match',
@@ -73,9 +76,8 @@ export class AuthService {
       this.logger.error(`Expected: ${address.toLowerCase()}`);
       this.logger.error(`Recovered: ${recoveredAddress.toLowerCase()}`);
 
-      throw new HttpException(
+      throw new BadRequestException(
         `Error verifying signature: ${signature} for address: ${address}`,
-        HttpStatus.BAD_REQUEST,
       );
     }
   }
