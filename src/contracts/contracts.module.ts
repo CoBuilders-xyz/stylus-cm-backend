@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { ContractsService } from './contracts.service';
 import { ContractsController } from './contracts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ContractBytecode } from './entities/contract-bytecode.entity';
+import { Bytecode } from './entities/bytecode.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ContractBytecode])],
+  imports: [TypeOrmModule.forFeature([Bytecode])],
   controllers: [ContractsController],
   providers: [ContractsService],
 })

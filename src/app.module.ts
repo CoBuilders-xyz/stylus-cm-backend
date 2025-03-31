@@ -22,20 +22,20 @@ import { StateFetcherModule } from './state-fetcher/state-fetcher.module';
 import { User } from './users/entities/user.entity';
 import { UserContract } from './user-contracts/entities/user-contract.entity';
 import { Blockchain } from './blockchains/entities/blockchain.entity';
-import { ContractBytecode } from './contracts/entities/contract-bytecode.entity';
+import { Bytecode } from './contracts/entities/bytecode.entity';
 import { BlockchainEvent } from './blockchains/entities/blockchain-event.entity';
 import { BlockchainMetric } from './blockchains/entities/blockchain-metric.entity';
 import { BlockchainState } from './blockchains/entities/blockchain-state.entity';
 import { Contract } from './contracts/entities/contract.entity';
 import { ContractMetric } from './contracts/entities/contract-metric.entity';
-import { ContractBytecodeMetric } from './contracts/entities/contract-bytecode.metric.entity';
+import { ContractBytecodeMetric } from './contracts/entities/bytecode.metric.entity';
 import { UserContractsModule } from './user-contracts/user-contracts.module';
 import { AuthModule } from './auth/auth.module';
 
 const appModules = [
+  BlockchainsModule,
   UsersModule,
   ContractsModule,
-  BlockchainsModule,
   TasksModule,
   MetricsModule,
   StateFetcherModule,
@@ -43,7 +43,7 @@ const appModules = [
   DataProcessingModule,
 ];
 const entities = [
-  ContractBytecode,
+  Bytecode,
   Blockchain,
   BlockchainEvent,
   BlockchainMetric,

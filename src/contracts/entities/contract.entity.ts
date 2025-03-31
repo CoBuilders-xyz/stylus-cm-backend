@@ -6,11 +6,11 @@ import {
   Index,
 } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { ContractBytecode } from './contract-bytecode.entity';
+import { Bytecode } from './bytecode.entity';
 // import { Alert } from './alert.entity';
 
 @Entity()
-@Index(['blockchain'], { unique: true })
+@Index(['blockchain'])
 export class Contract {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -20,11 +20,23 @@ export class Contract {
   })
   blockchain: Blockchain;
 
-  @ManyToOne(() => ContractBytecode, {
+  @ManyToOne(() => Bytecode, {
     onDelete: 'CASCADE',
   })
-  contractBytecode: ContractBytecode;
+  bytecode: Bytecode;
 
   @Column()
   address: string;
+
+  @Column('varchar', { length: 78 })
+  lastBid: string;
+
+  @Column('varchar', { length: 78, default: '0' })
+  bidPlusDecay: string;
+
+  @Column('varchar', { length: 78, default: '0', nullable: true })
+  lastEvictionBid: string;
+
+  @Column('varchar', { length: 78, default: '0' })
+  totalBidInvestment: string;
 }

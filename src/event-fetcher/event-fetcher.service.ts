@@ -4,22 +4,24 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { EventConfigService } from './services/event-config.service';
+import { ConfigService } from '@nestjs/config';
 import { EventListenerService } from './services/event-listener.service';
 import { EventSyncService } from './services/event-sync.service';
 import { EventSchedulerService } from './services/event-scheduler.service';
 import { ProviderManager } from './utils/provider.util';
+import { BlockchainsService } from 'src/blockchains/blockchains.service';
 
 @Injectable()
 export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventFetcherService.name);
 
   constructor(
-    private readonly eventConfigService: EventConfigService,
     private readonly eventListenerService: EventListenerService,
+    private readonly blockchainService: BlockchainsService,
     private readonly eventSyncService: EventSyncService,
     private readonly eventSchedulerService: EventSchedulerService,
     private readonly providerManager: ProviderManager,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -29,8 +31,8 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('Initializing EventFetcherService...');
 
     // Initialize blockchain configurations
-    const blockchains = await this.eventConfigService.initializeBlockchains();
-    const eventTypes = this.eventConfigService.getEventTypes();
+    const blockchains = await this.blockchainService.findAll();
+    const eventTypes = this.configService.get('eventTypes');
 
     // Perform initial historical sync
     try {

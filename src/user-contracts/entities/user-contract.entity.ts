@@ -23,6 +23,6 @@ export class UserContract {
   @ManyToOne(() => User)
   user: User;
 
-  @ManyToOne(() => Blockchain, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Blockchain)
   blockchain: Blockchain;
 }

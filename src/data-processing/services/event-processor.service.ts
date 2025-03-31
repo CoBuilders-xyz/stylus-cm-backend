@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, MoreThan, Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
 import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
@@ -81,74 +81,38 @@ export class EventProcessorService {
     let events: BlockchainEvent[] = [];
 
     // Check if we've processed events for this blockchain before
-    if (blockchain.lastProcessedEventId) {
-      this.logger.log(
-        `Resuming processing from last processed event (Block: ${blockchain.lastProcessedBlockNumber}, LogIndex: ${blockchain.lastProcessedLogIndex})`,
-      );
+    this.logger.debug(
+      `Resuming processing from last processed  block: ${blockchain.lastProcessedBlockNumber})`,
+    );
 
-      // Use queryBuilder instead of raw query to ensure proper relation loading
-      events = await this.blockchainEventRepository
-        .createQueryBuilder('event')
-        .leftJoinAndSelect('event.blockchain', 'blockchain')
-        .where('blockchain.id = :blockchainId', { blockchainId: blockchain.id })
-        .andWhere('event.eventName IN (:...eventNames)', {
-          eventNames: ['InsertBid', 'DeleteBid'],
-        })
-        .andWhere(
-          '(event.blockNumber > :blockNumber OR (event.blockNumber = :blockNumber AND event.logIndex > :logIndex))',
-          {
-            blockNumber: blockchain.lastProcessedBlockNumber,
-            logIndex: blockchain.lastProcessedLogIndex,
-          },
-        )
-        .orderBy('event.blockNumber', 'ASC')
-        .addOrderBy('event.logIndex', 'ASC')
-        .getMany();
+    // Load all events for blockchain sorted by block number
+    events = await this.blockchainEventRepository.find({
+      where: {
+        blockchain: { id: blockchain.id },
+        blockNumber: MoreThan(blockchain.lastProcessedBlockNumber || 0),
+      },
+      order: { blockNumber: 'ASC', logIndex: 'ASC' },
+    });
 
-      // Log what events were returned and count by type
-      const eventsByType: Record<string, number> = {};
-      events.forEach((e) => {
-        eventsByType[e.eventName] = (eventsByType[e.eventName] || 0) + 1;
-      });
+    // Log what events were returned and count by type
+    const eventsByType: Record<string, number> = {};
+    events.forEach((e) => {
+      eventsByType[e.eventName] = (eventsByType[e.eventName] || 0) + 1;
+    });
 
-      const eventTypeSummary = Object.entries(eventsByType)
-        .map(([type, count]) => `${type}: ${count}`)
-        .join(', ');
+    const eventTypeSummary = Object.entries(eventsByType)
+      .map(([type, count]) => `${type}: ${count}`)
+      .join(', ');
 
-      this.logger.debug(`Query returned events by type: ${eventTypeSummary}`);
-    } else {
-      // If no events have been processed, get all events
-      events = await this.blockchainEventRepository
-        .createQueryBuilder('event')
-        .leftJoinAndSelect('event.blockchain', 'blockchain')
-        .where('blockchain.id = :blockchainId', { blockchainId: blockchain.id })
-        .andWhere('event.eventName IN (:...eventNames)', {
-          eventNames: ['InsertBid', 'DeleteBid'],
-        })
-        .orderBy('event.blockNumber', 'ASC')
-        .addOrderBy('event.logIndex', 'ASC')
-        .getMany();
-
-      // Log what events were found
-      const eventsByType: Record<string, number> = {};
-      events.forEach((e) => {
-        eventsByType[e.eventName] = (eventsByType[e.eventName] || 0) + 1;
-      });
-
-      const eventTypeSummary = Object.entries(eventsByType)
-        .map(([type, count]) => `${type}: ${count}`)
-        .join(', ');
-
-      this.logger.debug(
-        `Find query returned events by type: ${eventTypeSummary}`,
-      );
-    }
-
-    this.logger.log(`Found ${events.length} events to process`);
+    this.logger.debug(`Query returned events by type: ${eventTypeSummary}`);
 
     // Process the events
     if (events.length > 0) {
-      await this.processBlockchainEvents(blockchain, events);
+      for (const event of events) {
+        const eventProcessor =
+          this.processEvent[event.eventName] || this.processEvent.Default;
+        await eventProcessor(blockchain, event);
+      }
 
       // Update the last processed event in the blockchain record
       await this.updateLastProcessedEvent(
@@ -174,7 +138,7 @@ export class EventProcessorService {
     this.logger.log(`Processing new events for blockchain: ${blockchain.name}`);
 
     // We can only process new events if we have processed some events before
-    if (!blockchain.lastProcessedEventId) {
+    if (!blockchain.lastProcessedBlockNumber) {
       this.logger.log(
         `No events have been processed yet for blockchain ${blockchain.name}. Running full processing...`,
       );
@@ -194,7 +158,6 @@ export class EventProcessorService {
         '(event.blockNumber > :blockNumber OR (event.blockNumber = :blockNumber AND event.logIndex > :logIndex))',
         {
           blockNumber: blockchain.lastProcessedBlockNumber,
-          logIndex: blockchain.lastProcessedLogIndex,
         },
       )
       .orderBy('event.blockNumber', 'ASC')
@@ -240,15 +203,11 @@ export class EventProcessorService {
     lastEvent: BlockchainEvent,
   ): Promise<void> {
     try {
-      blockchain.lastProcessedEventId = lastEvent.id;
       blockchain.lastProcessedBlockNumber = lastEvent.blockNumber;
-      blockchain.lastProcessedLogIndex = lastEvent.logIndex || 0;
-
       await this.blockchainRepository.save(blockchain);
 
       this.logger.log(
-        `Updated last processed event for blockchain ${blockchain.name} to ` +
-          `event ${lastEvent.id} (Block: ${lastEvent.blockNumber}, LogIndex: ${lastEvent.logIndex}, EventName: ${lastEvent.eventName})`,
+        `Updated last processed block for blockchain ${blockchain.name} to ${lastEvent.blockNumber})`,
       );
     } catch (error: unknown) {
       const errorMessage =
@@ -327,19 +286,15 @@ export class EventProcessorService {
             `Processing InsertBid event from block ${event.blockNumber}, logIndex ${event.logIndex}, data: ${JSON.stringify(event.eventData)}`,
           );
 
-          // Find the applicable decay rate for this event
-          const applicableDecayRate = findApplicableDecayRate(
-            event,
-            decayRateEvents,
-            currentDecayRate,
-          );
+          // // Find the applicable decay rate for this event
+          // const applicableDecayRate = findApplicableDecayRate(
+          //   event,
+          //   decayRateEvents,
+          //   currentDecayRate,
+          // );
 
           // Process InsertBid event with the applicable decay rate
-          this.insertBidService.processInsertBidEvent(
-            event,
-            contractBytecodeStates,
-            applicableDecayRate,
-          );
+          this.insertBidService.processInsertBidEvent(blockchain, event);
 
           // Get the contract bytecode hash from the event data for logging
           const eventDataArray = event.eventData as unknown[];
@@ -383,4 +338,20 @@ export class EventProcessorService {
       `Processed ${events.length} events and updated ${contractBytecodeStates.size} contract bytecodes for blockchain ${blockchain.name}`,
     );
   }
+
+  private processEvent = {
+    InsertBid: (blockchain: Blockchain, event: BlockchainEvent) =>
+      this.insertBidService.processInsertBidEvent(blockchain, event),
+    // DeleteBid: (blockchain: Blockchain, event: BlockchainEvent) =>
+    //   this.deleteBidService.processDeleteBidEvent2(blockchain, event),
+    // SetDecayRate: (blockchain: Blockchain, event: BlockchainEvent) =>
+    //   this.decayRateService.processSetDecayRateEvent2(blockchain, event),
+    // SetCacheSize: (blockchain: Blockchain, event: BlockchainEvent) =>
+    //   this.contractBytecodeService.processSetCacheSizeEvent2(blockchain, event),
+    Default: (blockchain: Blockchain, event: BlockchainEvent) => {
+      this.logger.warn(
+        `No event processor found for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
+      );
+    },
+  };
 }

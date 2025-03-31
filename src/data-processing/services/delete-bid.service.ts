@@ -312,4 +312,6 @@ export class DeleteBidService {
       );
     }
   }
+
+  async processDeleteBidEvent2() {}
 }

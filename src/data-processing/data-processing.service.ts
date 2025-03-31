@@ -22,8 +22,7 @@ export class DataProcessingService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     this.logger.log('Initializing blockchain event processor...');
 
-    // Intentionally using setTimeout without await
-    // On startup, wait for a few seconds to ensure the database is synced before processing
+    // TODO: Make a check instead of timeout
     await new Promise<void>((resolve) => {
       setTimeout(() => {
         this.processAllEvents()
@@ -38,27 +37,6 @@ export class DataProcessingService implements OnModuleInit {
   }
 
   /**
-   * Scheduled task that runs every minute to process any new events.
-   * Only runs after the initial processing is complete.
-   */
-  @Interval(60000) // Run every minute
-  async scheduledEventProcessing(): Promise<void> {
-    // Only run scheduled processing after initial processing is complete
-    if (this.isInitialProcessingComplete) {
-      try {
-        // Process any new events that were created since last check
-        await this.processNewEvents();
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        this.logger.error(
-          `Error in scheduled event processing: ${errorMessage}`,
-        );
-      }
-    }
-  }
-
-  /**
    * Process all blockchain events across all blockchains.
    * This is used for the initial processing when the service starts.
    */
@@ -68,7 +46,6 @@ export class DataProcessingService implements OnModuleInit {
 
       // Delegate to the specialized EventProcessorService
       await this.eventProcessorService.processAllEvents();
-
       this.isInitialProcessingComplete = true;
       this.logger.log('Initial event processing completed successfully.');
     } catch (error: unknown) {
@@ -98,4 +75,26 @@ export class DataProcessingService implements OnModuleInit {
       throw error;
     }
   }
+
+  // Archive
+  // /**
+  //  * Scheduled task that runs every minute to process any new events.
+  //  * Only runs after the initial processing is complete.
+  //  */
+  // @Interval(60000) // Run every minute
+  // async scheduledEventProcessing(): Promise<void> {
+  //   // Only run scheduled processing after initial processing is complete
+  //   if (this.isInitialProcessingComplete) {
+  //     try {
+  //       // Process any new events that were created since last check
+  //       await this.processNewEvents();
+  //     } catch (error: unknown) {
+  //       const errorMessage =
+  //         error instanceof Error ? error.message : String(error);
+  //       this.logger.error(
+  //         `Error in scheduled event processing: ${errorMessage}`,
+  //       );
+  //     }
+  //   }
+  // }
 }

@@ -16,4 +16,13 @@ export default () => ({
     //   lastSyncedBlock: 0,
     // },
   ],
+  eventTypes: [
+    'InsertBid',
+    'DeleteBid',
+    'Pause',
+    'Unpause',
+    'SetCacheSize',
+    'SetDecayRate',
+    'Initialized',
+  ],
 });
