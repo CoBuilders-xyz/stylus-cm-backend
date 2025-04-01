@@ -5,6 +5,8 @@ import { UserContract } from '../user-contracts/entities/user-contract.entity';
 import { User } from 'src/users/entities/user.entity';
 import { ethers } from 'ethers';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
+import { Contract } from 'src/contracts/entities/contract.entity';
+
 @Injectable()
 export class UserContractsService {
   constructor(
@@ -12,6 +14,8 @@ export class UserContractsService {
     private userContractRepository: Repository<UserContract>,
     @InjectRepository(Blockchain)
     private blockchainRepository: Repository<Blockchain>,
+    @InjectRepository(Contract)
+    private contractRepository: Repository<Contract>,
   ) {}
 
   async createUserContract(
@@ -47,11 +51,17 @@ export class UserContractsService {
         'The provided address is not a smart contract on the selected blockchain',
       );
     }
+    const verifiedAddress = ethers.getAddress(address);
+    const nonEmptyName = name || verifiedAddress;
 
-    const nonEmptyName = name || address;
+    const contract = await this.contractRepository.findOne({
+      where: { blockchain, address: verifiedAddress },
+    });
+
     const newUserContract = this.userContractRepository.create({
       address,
       blockchain,
+      ...(contract ? { contract } : {}),
       user,
       name: nonEmptyName,
     });
@@ -60,8 +70,11 @@ export class UserContractsService {
   }
 
   async getUserContracts(user: User, blockchainId: string) {
+    //relate contract with bytecode as well
+
     return this.userContractRepository.find({
       where: { blockchain: { id: blockchainId }, user: { id: user.id } },
+      relations: ['contract', 'contract.bytecode'],
     });
   }
 }

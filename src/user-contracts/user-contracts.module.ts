@@ -4,9 +4,10 @@ import { UserContractsController } from './user-contracts.controller';
 import { UserContract } from './entities/user-contract.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
+import { Contract } from 'src/contracts/entities/contract.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserContract, Blockchain])],
+  imports: [TypeOrmModule.forFeature([UserContract, Blockchain, Contract])],
   providers: [UserContractsService],
   controllers: [UserContractsController],
 })

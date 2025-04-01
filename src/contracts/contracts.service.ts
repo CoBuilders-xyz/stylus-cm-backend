@@ -1,26 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { CreateContractDto } from './dto/create-contract.dto';
-import { UpdateContractDto } from './dto/update-contract.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Contract } from './entities/contract.entity';
 
 @Injectable()
 export class ContractsService {
-  create(createContractDto: CreateContractDto) {
-    return 'This action adds a new contract';
-  }
+  constructor(
+    @InjectRepository(Contract)
+    private readonly contractRepository: Repository<Contract>,
+  ) {}
 
   findAll() {
-    return `This action returns all contracts`;
+    return this.contractRepository.find({
+      relations: ['bytecode'],
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} contract`;
-  }
-
-  update(id: number, updateContractDto: UpdateContractDto) {
-    return `This action updates a #${id} contract`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} contract`;
+  findOne(id: string) {
+    return this.contractRepository.findOne({ where: { id } });
   }
 }

@@ -1,21 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { LessThanOrEqual, Repository } from 'typeorm';
+import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
+import { BlockchainState } from '../../blockchains/entities/blockchain-state.entity';
+import { Contract } from '../../contracts/entities/contract.entity';
 import { Bytecode } from '../../contracts/entities/bytecode.entity';
-import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
 import {
   calculateActualBid,
-  calculateBidPlusDecay,
   updateTotalBidInvestment,
 } from '../utils/bid-utils';
-import {
-  findApplicableDecayRate,
-  isMoreRecentEvent,
-} from '../utils/event-utils';
-import { Contract } from 'src/contracts/entities/contract.entity';
-import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
-import { LessThan, LessThanOrEqual, Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { BlockchainState } from 'src/blockchains/entities/blockchain-state.entity';
 @Injectable()
 export class InsertBidService {
   private readonly logger = new Logger(InsertBidService.name);

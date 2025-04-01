@@ -342,8 +342,8 @@ export class EventProcessorService {
   private processEvent = {
     InsertBid: (blockchain: Blockchain, event: BlockchainEvent) =>
       this.insertBidService.processInsertBidEvent(blockchain, event),
-    // DeleteBid: (blockchain: Blockchain, event: BlockchainEvent) =>
-    //   this.deleteBidService.processDeleteBidEvent2(blockchain, event),
+    DeleteBid: (blockchain: Blockchain, event: BlockchainEvent) =>
+      this.deleteBidService.processDeleteBidEvent2(blockchain, event),
     // SetDecayRate: (blockchain: Blockchain, event: BlockchainEvent) =>
     //   this.decayRateService.processSetDecayRateEvent2(blockchain, event),
     // SetCacheSize: (blockchain: Blockchain, event: BlockchainEvent) =>
