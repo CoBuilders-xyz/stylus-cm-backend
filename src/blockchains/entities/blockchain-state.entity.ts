@@ -17,16 +17,16 @@ export class BlockchainState {
   })
   blockchain: Blockchain;
 
-  @Column({ type: 'bigint' })
+  @Column('varchar', { length: 78, default: '0', nullable: true })
   minBid: string;
 
-  @Column({ type: 'bigint' })
+  @Column('varchar', { length: 78, default: '0', nullable: true })
   decayRate: string;
 
-  @Column({ type: 'bigint' })
+  @Column('varchar', { length: 78, default: '0', nullable: true })
   cacheSize: string;
 
-  @Column({ type: 'bigint' })
+  @Column('varchar', { length: 78, default: '0', nullable: true })
   queueSize: string;
 
   @Column({ type: 'boolean' })

@@ -21,7 +21,7 @@ export class Bytecode {
   bytecodeHash: string;
 
   @Column('varchar', { length: 78 })
-  size: number;
+  size: string;
 
   @Column('varchar', { length: 78 })
   lastBid: string;

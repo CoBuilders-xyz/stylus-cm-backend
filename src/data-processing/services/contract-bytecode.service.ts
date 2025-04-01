@@ -89,7 +89,7 @@ export class ContractBytecodeService {
       // For other events (like InsertBid), update all fields
       bytecode.lastBid = state.bid.toString();
       bytecode.bidPlusDecay = state.bidPlusDecay.toString();
-      bytecode.size = state.size; // Update size for InsertBid events
+      bytecode.size = state.size.toString(); // Update size for InsertBid events
       // Set lastEvictionBid if available
       if (state.lastEvictionBid !== undefined) {
         bytecode.lastEvictionBid = state.lastEvictionBid.toString();
