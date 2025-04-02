@@ -22,7 +22,10 @@ export class ProviderManager {
 
     let provider = this.providers.get(blockchain.id);
     if (!provider) {
-      provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
+      provider = new ethers.JsonRpcProvider(blockchain.rpcUrl, undefined, {
+        polling: true,
+        pollingInterval: 1000,
+      });
       this.providers.set(blockchain.id, provider);
       logger.debug(`Created new provider for blockchain ${blockchain.id}`);
     }

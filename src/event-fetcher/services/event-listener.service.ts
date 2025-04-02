@@ -41,9 +41,7 @@ export class EventListenerService {
 
       // Setup listeners for each event type
       for (const eventType of eventTypes) {
-        await Promise.resolve(
-          this.setupEventListener(blockchain, contract, eventType, provider),
-        );
+        this.setupEventListener(blockchain, contract, eventType, provider);
       }
 
       this.logger.log(
@@ -66,7 +64,7 @@ export class EventListenerService {
     contract: ethers.Contract,
     eventType: string,
     provider: ethers.JsonRpcProvider,
-  ): void {
+  ) {
     const eventHandler = (...args: any[]): void => {
       // Extract the event data from the arguments (last item)
       const eventObj: unknown = args[args.length - 1];
@@ -106,6 +104,7 @@ export class EventListenerService {
       // Remove existing listeners first to avoid duplicates
       try {
         contract.removeAllListeners(eventType);
+        // Don't try to remove 'error' listeners from contract
         this.logger.verbose(
           `Removed existing listeners for ${eventType} on blockchain ${blockchain.id}`,
         );
@@ -119,7 +118,6 @@ export class EventListenerService {
         );
       }
 
-      // Register the event listener with error handling
       contract.on(eventType, eventHandler);
 
       this.logger.log(

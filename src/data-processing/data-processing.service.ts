@@ -21,17 +21,12 @@ export class DataProcessingService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     this.logger.log('Initializing blockchain event processor...');
     // TODO: Make a check instead of timeout
-    await new Promise<void>((resolve) => {
-      setTimeout(() => {
-        this.processAllEvents()
-          .catch((err: Error) =>
-            this.logger.error(
-              `Failed during initial event processing: ${err.message}`,
-            ),
-          )
-          .finally(() => resolve());
-      }, 10000); // Wait 10 seconds before starting initial processing
-    });
+
+    this.processAllEvents().catch((err: Error) =>
+      this.logger.error(
+        `Failed during initial event processing: ${err.message}`,
+      ),
+    );
   }
 
   /**
