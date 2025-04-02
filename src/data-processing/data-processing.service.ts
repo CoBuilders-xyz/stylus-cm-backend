@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Interval } from '@nestjs/schedule';
 import { EventProcessorService } from './services/event-processor.service';
-
+import { OnEvent } from '@nestjs/event-emitter';
 /**
  * Main service for processing blockchain event data.
  * This service acts as a façade for the underlying specialized services,
@@ -21,7 +20,6 @@ export class DataProcessingService implements OnModuleInit {
    */
   async onModuleInit(): Promise<void> {
     this.logger.log('Initializing blockchain event processor...');
-
     // TODO: Make a check instead of timeout
     await new Promise<void>((resolve) => {
       setTimeout(() => {
@@ -34,6 +32,28 @@ export class DataProcessingService implements OnModuleInit {
           .finally(() => resolve());
       }, 10000); // Wait 10 seconds before starting initial processing
     });
+  }
+
+  /**
+   * Event handler for new blockchain events
+   * This is triggered whenever a new event is stored in the database
+   */
+  @OnEvent('blockchain.event.stored')
+  async handleNewBlockchainEvent(payload: {
+    blockchainId: string;
+    eventId: string;
+  }): Promise<void> {
+    if (!this.isInitialProcessingComplete) {
+      this.logger.debug(
+        `Skipping event processing for ${payload.eventId} as initial processing is not complete`,
+      );
+      return;
+    }
+
+    this.logger.log(
+      `Received notification of new blockchain event: ${payload.eventId}`,
+    );
+    await this.processNewEvent(payload.blockchainId, payload.eventId);
   }
 
   /**
@@ -60,12 +80,12 @@ export class DataProcessingService implements OnModuleInit {
    * Process new events that have appeared since the last processing run.
    * Used by the scheduled task to keep the database updated.
    */
-  async processNewEvents(): Promise<void> {
+  async processNewEvent(blockchainId: string, eventId: string): Promise<void> {
     try {
-      this.logger.log('Processing new events...');
+      this.logger.log('Processing new event...');
 
       // Delegate to the specialized EventProcessorService
-      await this.eventProcessorService.processNewEvents();
+      await this.eventProcessorService.processNewEvent(blockchainId, eventId);
 
       this.logger.log('New event processing completed successfully.');
     } catch (error: unknown) {
@@ -75,26 +95,4 @@ export class DataProcessingService implements OnModuleInit {
       throw error;
     }
   }
-
-  // Archive
-  // /**
-  //  * Scheduled task that runs every minute to process any new events.
-  //  * Only runs after the initial processing is complete.
-  //  */
-  // @Interval(60000) // Run every minute
-  // async scheduledEventProcessing(): Promise<void> {
-  //   // Only run scheduled processing after initial processing is complete
-  //   if (this.isInitialProcessingComplete) {
-  //     try {
-  //       // Process any new events that were created since last check
-  //       await this.processNewEvents();
-  //     } catch (error: unknown) {
-  //       const errorMessage =
-  //         error instanceof Error ? error.message : String(error);
-  //       this.logger.error(
-  //         `Error in scheduled event processing: ${errorMessage}`,
-  //       );
-  //     }
-  //   }
-  // }
 }

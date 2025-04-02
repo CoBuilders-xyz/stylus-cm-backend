@@ -50,16 +50,26 @@ export class EventProcessorService {
   /**
    * Process new events that have been created since the last processing
    */
-  async processNewEvents(): Promise<void> {
-    this.logger.log('Processing new events...');
-
+  async processNewEvent(blockchainId: string, eventId: string): Promise<void> {
     try {
-      // Get all blockchains
-      const blockchains = await this.blockchainRepository.find();
-
-      for (const blockchain of blockchains) {
-        await this.processBlockchainNewEvents(blockchain);
+      // Get the blockchain
+      const blockchain = await this.blockchainRepository.findOne({
+        where: { id: blockchainId },
+      });
+      if (!blockchain) {
+        this.logger.error(`Blockchain not found: ${blockchainId}`);
+        throw new Error(`Blockchain not found: ${blockchainId}`);
       }
+
+      const event = await this.blockchainEventRepository.findOne({
+        where: { id: eventId },
+      });
+      if (!event) {
+        this.logger.error(`Event not found: ${eventId}`);
+        throw new Error(`Event not found: ${eventId}`);
+      }
+
+      await this.processBlockchainNewEvent(blockchain, event);
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -132,8 +142,9 @@ export class EventProcessorService {
    *
    * @param blockchain The blockchain to process events for
    */
-  private async processBlockchainNewEvents(
+  private async processBlockchainNewEvent(
     blockchain: Blockchain,
+    event: BlockchainEvent,
   ): Promise<void> {
     this.logger.log(`Processing new events for blockchain: ${blockchain.name}`);
 
@@ -145,51 +156,15 @@ export class EventProcessorService {
       return this.processBlockchainAllEvents(blockchain);
     }
 
-    // Query to find events that are newer than the last processed event
-    // Using queryBuilder instead of raw query to ensure proper relation loading
-    const events = await this.blockchainEventRepository
-      .createQueryBuilder('event')
-      .leftJoinAndSelect('event.blockchain', 'blockchain')
-      .where('blockchain.id = :blockchainId', { blockchainId: blockchain.id })
-      .andWhere('event.eventName IN (:...eventNames)', {
-        eventNames: ['InsertBid', 'DeleteBid'],
-      })
-      .andWhere(
-        '(event.blockNumber > :blockNumber OR (event.blockNumber = :blockNumber AND event.logIndex > :logIndex))',
-        {
-          blockNumber: blockchain.lastProcessedBlockNumber,
-        },
-      )
-      .orderBy('event.blockNumber', 'ASC')
-      .addOrderBy('event.logIndex', 'ASC')
-      .getMany();
-
-    // Log what events were returned and count by type
-    const eventsByType: Record<string, number> = {};
-    events.forEach((e) => {
-      eventsByType[e.eventName] = (eventsByType[e.eventName] || 0) + 1;
-    });
-
-    const eventTypeSummary = Object.entries(eventsByType)
-      .map(([type, count]) => `${type}: ${count}`)
-      .join(', ');
-
     this.logger.debug(
-      `New events query returned events by type: ${eventTypeSummary}`,
+      `New event query returned event by type: ${event.eventName}`,
     );
+    const eventProcessor =
+      this.processEvent[event.eventName] || this.processEvent.Default;
+    await eventProcessor(blockchain, event);
 
-    this.logger.log(`Found ${events.length} new events to process`);
-
-    // Process the events
-    if (events.length > 0) {
-      await this.processBlockchainEvents(blockchain, events);
-
-      // Update the last processed event in the blockchain record
-      await this.updateLastProcessedEvent(
-        blockchain,
-        events[events.length - 1],
-      );
-    }
+    // Update the last processed event in the blockchain record
+    await this.updateLastProcessedEvent(blockchain, event);
   }
 
   /**
@@ -215,128 +190,6 @@ export class EventProcessorService {
       this.logger.error(`Error updating last processed event: ${errorMessage}`);
       throw error;
     }
-  }
-
-  /**
-   * Process events for a specific blockchain
-   *
-   * @param blockchain The blockchain to process events for
-   * @param events The events to process
-   */
-  private async processBlockchainEvents(
-    blockchain: Blockchain,
-    events: BlockchainEvent[],
-  ): Promise<void> {
-    // Count events by type for reporting
-    const eventTypeCount: Record<string, number> = {};
-    events.forEach((e) => {
-      eventTypeCount[e.eventName] = (eventTypeCount[e.eventName] || 0) + 1;
-    });
-
-    const eventTypeSummary = Object.entries(eventTypeCount)
-      .map(([type, count]) => `${type}: ${count}`)
-      .join(', ');
-
-    this.logger.log(`Processing events by type: ${eventTypeSummary}`);
-
-    // Track contract bytecode states by codeHash
-    const contractBytecodeStates = new Map<string, ContractBytecodeState>();
-
-    // Extract and sort decay rate events
-    const decayRateEvents =
-      this.decayRateService.extractDecayRateEvents(events);
-
-    // Get the current decay rate from blockchain state
-    let currentDecayRate: string = '0';
-    try {
-      // Use proper QueryRunner from DataSource
-      const queryRunner = this.dataSource.createQueryRunner();
-      try {
-        await queryRunner.connect();
-        const latestBlockchainState =
-          await this.decayRateService.getLatestBlockchainState(
-            blockchain.id,
-            queryRunner,
-          );
-
-        if (latestBlockchainState) {
-          currentDecayRate = latestBlockchainState.decayRate;
-          this.logger.debug(
-            `Got current decay rate from blockchain state: ${currentDecayRate}`,
-          );
-        }
-      } finally {
-        // Always release the query runner
-        await queryRunner.release();
-      }
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        `Failed to get current decay rate from blockchain state: ${errorMessage}. Will attempt to find in events.`,
-      );
-    }
-
-    // Process events in chronological order
-    for (const event of events) {
-      try {
-        if (event.eventName === 'InsertBid') {
-          // Log the InsertBid event that we're about to process
-          this.logger.debug(
-            `Processing InsertBid event from block ${event.blockNumber}, logIndex ${event.logIndex}, data: ${JSON.stringify(event.eventData)}`,
-          );
-
-          // // Find the applicable decay rate for this event
-          // const applicableDecayRate = findApplicableDecayRate(
-          //   event,
-          //   decayRateEvents,
-          //   currentDecayRate,
-          // );
-
-          // Process InsertBid event with the applicable decay rate
-          this.insertBidService.processInsertBidEvent(blockchain, event);
-
-          // Get the contract bytecode hash from the event data for logging
-          const eventDataArray = event.eventData as unknown[];
-          if (Array.isArray(eventDataArray) && eventDataArray.length > 0) {
-            const codeHash = String(eventDataArray[0]);
-            // Check if the contract bytecode state was updated successfully
-            if (contractBytecodeStates.has(codeHash)) {
-              this.logger.debug(
-                `Successfully processed InsertBid for contract bytecode ${codeHash} at block ${event.blockNumber}`,
-              );
-            } else {
-              this.logger.warn(
-                `Failed to update contract bytecode state for InsertBid event for contract bytecode ${codeHash} at block ${event.blockNumber}`,
-              );
-            }
-          }
-        } else if (event.eventName === 'DeleteBid') {
-          // Process DeleteBid event - now async
-          await this.deleteBidService.processDeleteBidEvent(
-            event,
-            contractBytecodeStates,
-          );
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        this.logger.error(
-          `Error processing event ${event.eventName}: ${errorMessage}`,
-        );
-        this.logger.error(`Event data: ${JSON.stringify(event.eventData)}`);
-      }
-    }
-
-    // Update or create contracts in the database
-    await this.contractBytecodeService.updateContractBytecodes(
-      blockchain,
-      contractBytecodeStates,
-    );
-
-    this.logger.log(
-      `Processed ${events.length} events and updated ${contractBytecodeStates.size} contract bytecodes for blockchain ${blockchain.name}`,
-    );
   }
 
   private processEvent = {

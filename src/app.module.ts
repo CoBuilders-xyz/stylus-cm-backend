@@ -31,6 +31,7 @@ import { ContractMetric } from './contracts/entities/contract-metric.entity';
 import { ContractBytecodeMetric } from './contracts/entities/bytecode.metric.entity';
 import { UserContractsModule } from './user-contracts/user-contracts.module';
 import { AuthModule } from './auth/auth.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 const appModules = [
   BlockchainsModule,
@@ -70,6 +71,7 @@ const entities = [
     }),
     ScheduleModule.forRoot(),
     CacheModule.register(),
+    EventEmitterModule.forRoot(),
     ...appModules,
     UserContractsModule,
     AuthModule,
