@@ -24,7 +24,7 @@ export class ProviderManager {
     if (!provider) {
       provider = new ethers.JsonRpcProvider(blockchain.rpcUrl, undefined, {
         polling: true,
-        pollingInterval: 1000,
+        pollingInterval: 10000,
       });
       this.providers.set(blockchain.id, provider);
       logger.debug(`Created new provider for blockchain ${blockchain.id}`);

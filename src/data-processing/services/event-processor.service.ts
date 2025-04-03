@@ -92,7 +92,7 @@ export class EventProcessorService {
 
     // Check if we've processed events for this blockchain before
     this.logger.debug(
-      `Resuming processing from last processed  block: ${blockchain.lastProcessedBlockNumber})`,
+      `Resuming processing from last processed  block: ${blockchain.lastProcessedBlockNumber}`,
     );
 
     // Load all events for blockchain sorted by block number
@@ -131,10 +131,10 @@ export class EventProcessorService {
       );
     }
 
-    // Verify contract bytecodes at the end of processing if needed
-    await this.contractBytecodeService.verifyContractBytecodeCacheStatus(
-      blockchain,
-    );
+    // // Verify contract bytecodes at the end of processing if needed
+    // await this.contractBytecodeService.verifyContractBytecodeCacheStatus(
+    //   blockchain,
+    // );
   }
 
   /**
