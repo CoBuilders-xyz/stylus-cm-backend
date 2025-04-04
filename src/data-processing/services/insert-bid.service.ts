@@ -1,16 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { LessThanOrEqual, Repository } from 'typeorm';
+import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
-import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
+import { BlockchainState } from '../../blockchains/entities/blockchain-state.entity';
+import { Contract } from '../../contracts/entities/contract.entity';
+import { Bytecode } from '../../contracts/entities/bytecode.entity';
 import {
   calculateActualBid,
-  calculateBidPlusDecay,
   updateTotalBidInvestment,
 } from '../utils/bid-utils';
-import { isMoreRecentEvent } from '../utils/event-utils';
-
 @Injectable()
 export class InsertBidService {
   private readonly logger = new Logger(InsertBidService.name);
+
+  constructor(
+    @InjectRepository(Bytecode)
+    private readonly bytecodeRepository: Repository<Bytecode>,
+    @InjectRepository(Contract)
+    private readonly contractRepository: Repository<Contract>,
+    @InjectRepository(BlockchainState)
+    private readonly blockchainStateRepository: Repository<BlockchainState>,
+    @InjectRepository(BlockchainEvent)
+    private readonly blockchainEventRepository: Repository<BlockchainEvent>,
+  ) {}
 
   /**
    * Process an InsertBid event and update the contract bytecode state map
@@ -19,13 +32,11 @@ export class InsertBidService {
    * @param contractBytecodeStates Map of contract bytecode states to update
    * @param decayRate Current decay rate to apply
    */
-  processInsertBidEvent(
-    event: BlockchainEvent,
-    contractBytecodeStates: Map<string, ContractBytecodeState>,
-    decayRate: string = '0',
-  ): void {
-    // Based on the logs, we know that eventData is an array:
-    // [codeHash, address, bid, size]
+  async processInsertBidEvent(blockchain: Blockchain, event: BlockchainEvent) {
+    this.logger.debug(
+      `Processing InsertBid event for blockchain ${blockchain.name}`,
+    );
+
     const eventDataArray = event.eventData as unknown[];
 
     if (!Array.isArray(eventDataArray) || eventDataArray.length < 4) {
@@ -35,90 +46,97 @@ export class InsertBidService {
       return;
     }
 
-    const codeHash = String(eventDataArray[0]);
+    const bytecodeHash = String(eventDataArray[0]);
     const address = String(eventDataArray[1]);
     const bidValue = String(eventDataArray[2]);
-    const size = Number(eventDataArray[3]);
+    const size = String(eventDataArray[3]);
 
-    this.logger.debug(
-      `Processing InsertBid for contract ${codeHash} at address ${address} with bid ${bidValue} and size ${size}`,
-    );
-
-    if (!codeHash) {
-      this.logger.warn(`Missing codehash in InsertBid event`);
-      return;
-    }
-
-    // Calculate bid values
-    const bidPlusDecay = calculateBidPlusDecay(bidValue);
-    const bid = calculateActualBid(bidValue, decayRate, event.blockTimestamp);
-
-    this.logger.debug(
-      `Calculated values: actual bid = ${bid}, bidPlusDecay = ${bidPlusDecay}, using decay rate: ${decayRate}`,
-    );
-
-    const existingState = contractBytecodeStates.get(codeHash);
-
-    if (existingState) {
-      this.logger.debug(
-        `Found existing state for contract bytecode ${codeHash}: cached=${existingState.isCached}, lastEvent=${existingState.lastEventName} at block ${existingState.lastEventBlock}`,
-      );
-    } else {
-      this.logger.debug(
-        `No existing state found for contract bytecode ${codeHash}, creating new entry`,
-      );
-    }
-
-    // Check if this event is more recent than what we have
-    const shouldUpdate = isMoreRecentEvent(
-      event,
-      existingState?.lastEventBlock,
-    );
-
-    if (shouldUpdate) {
-      this.logger.debug(
-        `Will update contract bytecode state for ${codeHash} as event from block ${event.blockNumber} is newer than existing state from block ${existingState?.lastEventBlock || 'none'}`,
-      );
-
-      // Calculate total bid investment - only add if this is a new bid, not an update to an existing one
-      // If last event was DeleteBid or no previous event, add the bid to total
-      const previousTotal = existingState?.totalBidInvestment || 0;
-      const isNewBid =
-        !existingState || existingState.lastEventName === 'DeleteBid';
-      const totalBidInvestment = updateTotalBidInvestment(
-        previousTotal,
-        bid,
-        isNewBid,
-      );
-
-      // Create or update contract bytecode state, marking as cached since this is an InsertBid event
-      contractBytecodeStates.set(codeHash, {
-        isCached: true, // InsertBid means the contract bytecode is cached
-        bid,
-        bidPlusDecay,
-        size,
-        address,
-        lastEventBlock: event.blockNumber,
-        lastEventName: 'InsertBid',
-        totalBidInvestment,
+    const blockchainState = await this.blockchainStateRepository.findOne({
+      where: { blockchain: { id: blockchain.id } },
+      order: { blockNumber: 'DESC' },
+    });
+    const lastBidDecayRate = blockchainState?.decayRate ?? '0';
+    // find decay rate events until event.blockNumber
+    const mostRecentDecayRateEvent =
+      await this.blockchainEventRepository.findOne({
+        where: {
+          blockchain: { id: blockchain.id },
+          blockNumber: LessThanOrEqual(event.blockNumber),
+          eventName: 'SetDecayRate',
+        },
+        order: { blockNumber: 'DESC' },
       });
+    // Find the applicable decay rate for this event
+    const applicableDecayRate = mostRecentDecayRateEvent
+      ? mostRecentDecayRateEvent.eventData[0]
+      : lastBidDecayRate;
 
+    const actualBid = calculateActualBid(
+      bidValue,
+      applicableDecayRate,
+      event.blockTimestamp,
+    );
+    this.logger.debug(
+      `Processing InsertBid for bytecode ${bytecodeHash} at address ${address} with bid ${bidValue} and size ${size}`,
+    );
+
+    // If no codehash in bytecode db, create new entry
+    const existingBytecode = await this.bytecodeRepository.findOne({
+      where: { blockchain, bytecodeHash },
+    });
+
+    let bytecode = new Bytecode();
+    if (!existingBytecode) {
       this.logger.debug(
-        `InsertBid: Contract bytecode ${codeHash} inserted with actual bid ${bid} ETH, original bid (including decay) ${bidPlusDecay} ETH ` +
-          `at address ${address} at block ${event.blockNumber}` +
-          (event.logIndex !== undefined
-            ? ` (logIndex: ${event.logIndex})`
-            : '') +
-          `, total investment: ${totalBidInvestment}`,
+        `No bytecode found for ${bytecodeHash}, creating new entry`,
       );
+      bytecode.blockchain = blockchain;
+      bytecode.bytecodeHash = bytecodeHash;
+      bytecode.size = size;
+      bytecode.lastBid = actualBid;
+      bytecode.bidPlusDecay = bidValue;
+      bytecode.totalBidInvestment = actualBid;
+      bytecode.isCached = true;
     } else {
-      this.logger.debug(
-        `Skipping older InsertBid event for contract bytecode ${codeHash} at block ${event.blockNumber}` +
-          (event.logIndex !== undefined
-            ? ` (logIndex: ${event.logIndex})`
-            : '') +
-          ` (already have event from block ${existingState?.lastEventBlock})`,
+      this.logger.debug(`Bytecode found for ${bytecodeHash}, updating entry`);
+      bytecode = existingBytecode;
+      bytecode.lastBid = actualBid;
+      bytecode.bidPlusDecay = bidValue;
+      bytecode.totalBidInvestment = updateTotalBidInvestment(
+        existingBytecode.totalBidInvestment,
+        actualBid,
+      );
+      bytecode.isCached = true;
+    }
+    await this.bytecodeRepository.save(bytecode);
+
+    // If no address in contract db, create new entry
+    const existingContract = await this.contractRepository.findOne({
+      where: { blockchain, address },
+    });
+
+    let contract = new Contract();
+    if (!existingContract) {
+      this.logger.debug(`No contract found for ${address}, creating new entry`);
+      contract.blockchain = blockchain;
+      contract.address = address;
+      contract.bytecode = bytecode;
+      contract.lastBid = actualBid;
+      contract.bidPlusDecay = bidValue;
+      contract.totalBidInvestment = actualBid;
+    } else {
+      this.logger.debug(`Contract found for ${address}, updating entry`);
+      contract = existingContract;
+      contract.lastBid = actualBid;
+      contract.bidPlusDecay = bidValue;
+      contract.totalBidInvestment = updateTotalBidInvestment(
+        existingContract.totalBidInvestment,
+        actualBid,
       );
     }
+
+    await this.contractRepository.save(contract);
+
+    // If address in contract db, update bid, bidPlusDecay, size, totalBidInvestment, cacheStatus
   }
 }

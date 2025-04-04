@@ -4,6 +4,10 @@ import { EventStorageService } from './event-storage.service';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { ProviderManager } from '../utils/provider.util';
 import { EthersEvent } from '../interfaces/event.interface';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
 
 @Injectable()
 export class EventListenerService {
@@ -12,6 +16,9 @@ export class EventListenerService {
   constructor(
     private readonly eventStorageService: EventStorageService,
     private readonly providerManager: ProviderManager,
+    private readonly eventEmitter: EventEmitter2,
+    @InjectRepository(BlockchainEvent)
+    private readonly blockchainEventRepository: Repository<BlockchainEvent>,
   ) {}
 
   /**
@@ -191,6 +198,23 @@ export class EventListenerService {
         blockchain,
         eventLog.blockNumber,
       );
+
+      const event = await this.blockchainEventRepository.findOne({
+        where: {
+          blockchain: { id: blockchain.id },
+          blockNumber: eventLog.blockNumber,
+          logIndex: eventLog.index,
+        },
+      });
+      if (!event) {
+        this.logger.warn(`No event found for blockchain ${blockchain.id}`);
+        return;
+      }
+
+      this.eventEmitter.emit('blockchain.event.stored', {
+        blockchainId: blockchain.id,
+        eventId: event.id,
+      });
 
       this.logger.log(
         `Processed real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,

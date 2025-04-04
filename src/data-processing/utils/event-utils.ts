@@ -43,25 +43,20 @@ export function isMoreRecentEvent(
  */
 export function findApplicableDecayRate(
   event: BlockchainEvent,
-  decayRateEvents: DecayRateEvent[],
+  decayRateEvent: BlockchainEvent,
   currentDecayRate: string,
 ): string {
   // Start with the current decay rate
   let applicableDecayRate = currentDecayRate;
-
   // Find the most recent decay rate event that happened before or at the same time as the given event
-  for (const decayEvent of decayRateEvents) {
-    // Skip decay events that happened after our target event
-    if (
-      decayEvent.blockNumber > event.blockNumber ||
-      (decayEvent.blockNumber === event.blockNumber &&
-        decayEvent.logIndex > event.logIndex)
-    ) {
-      continue;
-    }
-
+  // Skip decay events that happened after our target event
+  if (
+    decayRateEvent.blockNumber > event.blockNumber ||
+    (decayRateEvent.blockNumber === event.blockNumber &&
+      decayRateEvent.logIndex > event.logIndex)
+  ) {
     // Update the applicable decay rate
-    applicableDecayRate = decayEvent.decayRate;
+    applicableDecayRate = decayRateEvent.eventData[0];
   }
 
   return applicableDecayRate;

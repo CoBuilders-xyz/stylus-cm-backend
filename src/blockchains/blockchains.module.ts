@@ -6,7 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Blockchain } from './entities/blockchain.entity';
 import { BlockchainState } from './entities/blockchain-state.entity';
 import { BlockchainEvent } from './entities/blockchain-event.entity';
-import { ContractBytecode } from '../contracts/entities/contract-bytecode.entity';
+import { Bytecode } from '../contracts/entities/bytecode.entity';
 import { BlockchainsController } from './blockchains.controller';
 
 @Module({
@@ -15,9 +15,10 @@ import { BlockchainsController } from './blockchains.controller';
       Blockchain,
       BlockchainState,
       BlockchainEvent,
-      ContractBytecode,
+      Bytecode,
     ]),
   ],
+  exports: [BlockchainsService],
   providers: [BlockchainsService],
   controllers: [BlockchainsController],
 })

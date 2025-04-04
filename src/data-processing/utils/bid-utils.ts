@@ -12,7 +12,7 @@ export function calculateActualBid(
   bidValue: string,
   decayRate: string,
   blockTimestamp: Date,
-): number {
+): string {
   try {
     const bidInWei = BigInt(bidValue);
     const decayRateInWei = BigInt(decayRate);
@@ -24,11 +24,11 @@ export function calculateActualBid(
       bidInWei > decayAmount ? bidInWei - decayAmount : BigInt(0);
 
     // Convert to ETH
-    return parseFloat(ethers.formatEther(actualBidInWei.toString()));
+    return actualBidInWei.toString();
   } catch (error) {
     // If there's an error, log it and use the original value
     console.warn(`Error calculating actual bid value: ${error}`);
-    return parseFloat(ethers.formatEther(bidValue));
+    return bidValue;
   }
 }
 
@@ -56,13 +56,10 @@ export function calculateBidPlusDecay(bidValue: string): number {
  * @returns The updated total bid investment
  */
 export function updateTotalBidInvestment(
-  currentTotal: number,
-  bid: number,
-  isNewBid: boolean,
-): number {
-  // Only add to total if this is a new bid after a DeleteBid or no previous bid
-  if (isNewBid) {
-    return currentTotal + bid;
-  }
-  return currentTotal;
+  currentTotal: string,
+  bid: string,
+): string {
+  const currentInWei = BigInt(currentTotal);
+  const bidInWei = BigInt(bid);
+  return (currentInWei + bidInWei).toString();
 }

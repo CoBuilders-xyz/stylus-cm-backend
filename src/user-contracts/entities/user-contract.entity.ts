@@ -17,12 +17,12 @@ export class UserContract {
   // @Column({ nullable: true })
   // maxBid: number;
 
-  // @ManyToOne(() => Contract, { nullable: true })
-  // contract: Contract;
+  @ManyToOne(() => Contract, { nullable: true })
+  contract: Contract;
 
   @ManyToOne(() => User)
   user: User;
 
-  @ManyToOne(() => Blockchain, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Blockchain)
   blockchain: Blockchain;
 }

@@ -9,9 +9,13 @@ import { EventSyncService } from './services/event-sync.service';
 import { EventSchedulerService } from './services/event-scheduler.service';
 import { EventConfigService } from './services/event-config.service';
 import { ProviderManager } from './utils/provider.util';
+import { BlockchainsModule } from 'src/blockchains/blockchains.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Blockchain, BlockchainEvent])],
+  imports: [
+    TypeOrmModule.forFeature([Blockchain, BlockchainEvent]),
+    BlockchainsModule,
+  ],
   providers: [
     EventFetcherService,
     EventStorageService,

@@ -8,7 +8,7 @@ import {
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 @Entity()
 @Index(['blockchain', 'bytecodeHash'], { unique: true })
-export class ContractBytecode {
+export class Bytecode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -20,21 +20,21 @@ export class ContractBytecode {
   @Column()
   bytecodeHash: string;
 
-  @Column()
-  size: number;
+  @Column('varchar', { length: 78 })
+  size: string;
 
-  @Column('decimal', { precision: 18, scale: 6 })
-  lastBid: number;
+  @Column('varchar', { length: 78 })
+  lastBid: string;
 
-  @Column('decimal', { precision: 18, scale: 6, default: 0 })
-  bidPlusDecay: number;
+  @Column('varchar', { length: 78, default: '0' })
+  bidPlusDecay: string;
 
-  @Column('decimal', { precision: 18, scale: 6, default: 0, nullable: true })
-  lastEvictionBid: number;
+  @Column('varchar', { length: 78, default: '0', nullable: true })
+  lastEvictionBid: string;
 
   @Column({ default: false })
   isCached: boolean;
 
-  @Column('decimal', { precision: 18, scale: 6, default: 0 })
-  totalBidInvestment: number;
+  @Column('varchar', { length: 78, default: '0' })
+  totalBidInvestment: string;
 }
