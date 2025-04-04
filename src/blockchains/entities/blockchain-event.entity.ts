@@ -16,7 +16,7 @@ export class BlockchainEvent {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Blockchain, (blockchain) => blockchain.events, {
+  @ManyToOne(() => Blockchain, {
     onDelete: 'CASCADE',
   })
   blockchain: Blockchain;

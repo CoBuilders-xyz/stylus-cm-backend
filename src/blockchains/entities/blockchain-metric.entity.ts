@@ -14,7 +14,7 @@ export class BlockchainMetric {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Blockchain, (blockchain) => blockchain.metrics, {
+  @ManyToOne(() => Blockchain, {
     onDelete: 'CASCADE',
   })
   blockchain: Blockchain;

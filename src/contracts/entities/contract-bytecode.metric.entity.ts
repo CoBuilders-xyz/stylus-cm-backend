@@ -1,17 +1,17 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
 
-import { Contract } from './contract.entity';
+import { ContractBytecode } from './contract-bytecode.entity';
 
 @Entity()
-export class ContractMetric {
+export class ContractBytecodeMetric {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   // Many to one relationship with contract
-  @ManyToOne(() => Contract, {
+  @ManyToOne(() => ContractBytecode, {
     onDelete: 'CASCADE',
   })
-  contract: Contract;
+  contractBytecode: ContractBytecode;
 
   @Column()
   type: string;

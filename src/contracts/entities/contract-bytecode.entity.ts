@@ -3,23 +3,16 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
-  // OneToMany,
   Index,
 } from 'typeorm';
-// import { User } from '../../users/entities/user.entity';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-// import { Alert } from './alert.entity';
-
 @Entity()
 @Index(['blockchain', 'bytecodeHash'], { unique: true })
 export class ContractBytecode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // @ManyToOne(() => User, (user) => user.contracts, { onDelete: 'CASCADE' })
-  // user: User;
-
-  @ManyToOne(() => Blockchain, (blockchain) => blockchain.contracts, {
+  @ManyToOne(() => Blockchain, {
     onDelete: 'CASCADE',
   })
   blockchain: Blockchain;

@@ -1,26 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { CreateBlockchainDto } from './dto/create-blockchain.dto';
-import { UpdateBlockchainDto } from './dto/update-blockchain.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Blockchain } from './entities/blockchain.entity';
 
 @Injectable()
 export class BlockchainsService {
-  create(createBlockchainDto: CreateBlockchainDto) {
-    return 'This action adds a new blockchain';
-  }
-
+  constructor(
+    @InjectRepository(Blockchain)
+    private blockchainRepository: Repository<Blockchain>,
+  ) {}
   findAll() {
-    return `This action returns all blockchains`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} blockchain`;
-  }
-
-  update(id: number, updateBlockchainDto: UpdateBlockchainDto) {
-    return `This action updates a #${id} blockchain`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} blockchain`;
+    return this.blockchainRepository.find(); // TODO Add interceptor to only share the necessary data
   }
 }
