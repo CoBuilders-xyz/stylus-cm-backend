@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { ContractsService } from './contracts.service';
 import { Contract } from './entities/contract.entity';
+import { PaginationDto } from '../common/dto/pagination.dto';
+import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
 
 // Define the response type interface that includes calculated fields
 export interface ContractResponse extends Contract {
@@ -21,8 +23,9 @@ export class ContractsController {
   @Get('')
   findAll(
     @Query('blockchainId') blockchainId: string,
-  ): Promise<ContractResponse[]> {
-    return this.contractsService.findAll(blockchainId);
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginationResponse<ContractResponse>> {
+    return this.contractsService.findAll(blockchainId, paginationDto);
   }
 
   @Get(':id')
