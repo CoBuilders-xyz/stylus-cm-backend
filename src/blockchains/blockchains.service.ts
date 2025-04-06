@@ -47,15 +47,22 @@ export class BlockchainsService {
     return this.blockchainRepository.find(); // TODO Add interceptor to only share the necessary data
   }
 
-  async getBlockchainData(id: string) {
-    // count bytecodes cached
+  async getBlockchainData(blockchainId: string) {
+    // Bytecode Data
+    const netBytecodesTrends = await this.getNetBytecodesTrends(
+      'M',
+      blockchainId,
+    );
     const bytecodeCount = await this.bytecodeRepository.count({
-      where: { blockchain: { id }, isCached: true },
+      where: { blockchain: { id: blockchainId }, isCached: true },
     });
+    const bytecodeCountDiffWithLastPeriod =
+      netBytecodesTrends[netBytecodesTrends.length - 1].currentTotal -
+      netBytecodesTrends[netBytecodesTrends.length - 2].currentTotal;
 
     // Get queue size from blockchain state
     const blockchainState = await this.blockchainStateRepository.findOne({
-      where: { blockchain: { id } },
+      where: { blockchain: { id: blockchainId } },
       order: { blockNumber: 'DESC' },
     });
 
@@ -65,20 +72,42 @@ export class BlockchainsService {
 
     const { queueSize, cacheSize } = blockchainState;
 
-    const bidPlacementTrends = await this.getBidPlacementTrends('D', id);
-    const bidPlacementTrendsWeek = await this.getBidPlacementTrends('W', id);
-    const bidPlacementTrendsMonth = await this.getBidPlacementTrends('M', id);
-    const bidPlacementTrendsYear = await this.getBidPlacementTrends('Y', id);
-    const netBytecodesTrends = await this.getNetBytecodesTrends('M', id);
+    const bidPlacementTrends = await this.getBidPlacementTrends(
+      'D',
+      blockchainId,
+    );
+    const bidPlacementTrendsWeek = await this.getBidPlacementTrends(
+      'W',
+      blockchainId,
+    );
+    const bidPlacementTrendsMonth = await this.getBidPlacementTrends(
+      'M',
+      blockchainId,
+    );
+    const bidPlacementTrendsYear = await this.getBidPlacementTrends(
+      'Y',
+      blockchainId,
+    );
 
     // Get average bids for different size ranges
-    const averageBidAll = await this.getAverageBid('D', id, 0); // All sizes
-    const averageBidSmall = await this.getAverageBid('D', id, 800, 0); // 0-800KB
-    const averageBidMedium = await this.getAverageBid('D', id, 1600, 800); // 800-1600KB
-    const averageBidLarge = await this.getAverageBid('D', id, 0, 1600); // >1600KB
+    const averageBidAll = await this.getAverageBid('D', blockchainId, 0); // All sizes
+    const averageBidSmall = await this.getAverageBid('D', blockchainId, 800, 0); // 0-800KB
+    const averageBidMedium = await this.getAverageBid(
+      'D',
+      blockchainId,
+      1600,
+      800,
+    ); // 800-1600KB
+    const averageBidLarge = await this.getAverageBid(
+      'D',
+      blockchainId,
+      0,
+      1600,
+    ); // >1600KB
 
     return {
       bytecodeCount,
+      bytecodeCountDiffWithLastPeriod,
       queueSize,
       cacheSize,
       bidPlacementTrends,
@@ -95,10 +124,55 @@ export class BlockchainsService {
     };
   }
 
-  async getBidPlacementTrends(timespan: string, blockchainId?: string) {
+  async getTotalBytecodes(blockchainId: string) {
+    // Bytecode Data
+    const netBytecodesTrends = await this.getNetBytecodesTrends(
+      'M',
+      blockchainId,
+    );
+    const bytecodeCount = await this.bytecodeRepository.count({
+      where: { blockchain: { id: blockchainId }, isCached: true },
+    });
+    const bytecodeCountDiffWithLastMonth =
+      netBytecodesTrends[netBytecodesTrends.length - 1].currentTotal -
+      netBytecodesTrends[netBytecodesTrends.length - 2].currentTotal;
+
+    return {
+      bytecodeCount,
+      bytecodeCountDiffWithLastMonth,
+    };
+  }
+
+  async getCacheStats(blockchainId: string) {
+    const blockchainState = await this.blockchainStateRepository.findOne({
+      where: { blockchain: { id: blockchainId } },
+      order: { blockNumber: 'DESC' },
+    });
+
+    if (!blockchainState) {
+      throw new Error('Blockchain state not found');
+    }
+
+    const { queueSize, cacheSize } = blockchainState;
+
+    const cacheFilledPercentage = (Number(queueSize) / Number(cacheSize)) * 100;
+
+    const queueSizeMB = Number(queueSize) / 1000 / 1000;
+    const cacheSizeMB = Number(cacheSize) / 1000 / 1000;
+
+    return {
+      queueSize,
+      cacheSize,
+      queueSizeMB,
+      cacheSizeMB,
+      cacheFilledPercentage,
+    };
+  }
+
+  async getBidPlacementTrends(timespan: string, blockchainId: string) {
     // Will filter insertBid events and group them by different timespans D, W, M, Y
 
-    const timespans = ['D', 'W', 'M', 'Y'];
+    const timespans = ['D', 'W', 'M', 'Y']; // TODO Add to Validator instead of here.
     if (!timespans.includes(timespan)) {
       throw new Error('Invalid timespan');
     }
@@ -116,16 +190,11 @@ export class BlockchainsService {
       .where('event.eventName = :eventName', { eventName: 'InsertBid' })
       .andWhere('event.blockTimestamp >= :timestamp', {
         timestamp: backTraceTimestamp,
+      })
+      .innerJoin('event.blockchain', 'blockchain')
+      .andWhere('blockchain.id = :blockchainId', {
+        blockchainId,
       });
-
-    // Add blockchain filter if provided
-    if (blockchainId) {
-      queryBuilder = queryBuilder
-        .innerJoin('event.blockchain', 'blockchain')
-        .andWhere('blockchain.id = :blockchainId', {
-          blockchainId,
-        });
-    }
 
     const result = await queryBuilder
       .groupBy('period')
@@ -138,7 +207,7 @@ export class BlockchainsService {
     }));
   }
 
-  async getNetBytecodesTrends(timespan: string, blockchainId?: string) {
+  async getNetBytecodesTrends(timespan: string, blockchainId: string) {
     const timespans = ['D', 'W', 'M', 'Y'];
     if (!timespans.includes(timespan)) {
       throw new Error('Invalid timespan');
@@ -160,16 +229,11 @@ export class BlockchainsService {
       })
       .andWhere('event.blockTimestamp >= :timestamp', {
         timestamp: backTraceTimestamp,
+      })
+      .innerJoin('event.blockchain', 'blockchain')
+      .andWhere('blockchain.id = :blockchainId', {
+        blockchainId,
       });
-
-    // Add blockchain filter if provided
-    if (blockchainId) {
-      queryBuilder = queryBuilder
-        .innerJoin('event.blockchain', 'blockchain')
-        .andWhere('blockchain.id = :blockchainId', {
-          blockchainId,
-        });
-    }
 
     const events = await queryBuilder
       .groupBy(
@@ -228,7 +292,7 @@ export class BlockchainsService {
     timespan: string,
     blockchainId: string,
     maxSizeKB: number = 0,
-    minSizeKB?: number,
+    minSizeKB: number = 0,
   ) {
     // Will filter insertBid events and group them by different timespans D, W, M, Y
     const timespans = ['D', 'W', 'M', 'Y'];
@@ -246,10 +310,12 @@ export class BlockchainsService {
     };
 
     // Create size conditions if needed
+    // If both are 0, no size condition, bring all.
+
     let sizeCondition = '';
     const sizeParams: Record<string, number> = {};
 
-    if (maxSizeKB > 0 && minSizeKB && minSizeKB > 0) {
+    if (maxSizeKB > 0 && minSizeKB > 0) {
       // Between minSize and maxSize
       sizeCondition =
         'CAST(event."eventData"->>3 AS DECIMAL) >= :minSize AND CAST(event."eventData"->>3 AS DECIMAL) <= :maxSize';
@@ -259,16 +325,15 @@ export class BlockchainsService {
       // Up to maxSize
       sizeCondition = 'CAST(event."eventData"->>3 AS DECIMAL) <= :maxSize';
       sizeParams.maxSize = maxSizeKB * 1024; // Convert KB to bytes
-    } else if (minSizeKB && minSizeKB > 0) {
+    } else if (minSizeKB > 0) {
       // Greater than or equal to minSize
       sizeCondition = 'CAST(event."eventData"->>3 AS DECIMAL) >= :minSize';
       sizeParams.minSize = minSizeKB * 1024; // Convert KB to bytes
     }
 
     // Get the most recent blockchain state to use as fallback for decay rate
-    const whereClause = blockchainId
-      ? { blockchain: { id: blockchainId } }
-      : {};
+    const whereClause = { blockchain: { id: blockchainId } };
+
     const latestBlockchainState = await this.blockchainStateRepository.findOne({
       where: whereClause,
       order: { blockNumber: 'DESC' },
@@ -307,16 +372,11 @@ export class BlockchainsService {
       })
       .andWhere('event.blockTimestamp >= :timestamp', {
         timestamp: baseConditions.timestamp,
+      })
+      .innerJoin('event.blockchain', 'blockchain')
+      .andWhere('blockchain.id = :blockchainId', {
+        blockchainId,
       });
-
-    // Add blockchain filter if provided
-    if (blockchainId) {
-      eventsQueryBuilder = eventsQueryBuilder
-        .innerJoin('event.blockchain', 'blockchain')
-        .andWhere('blockchain.id = :blockchainId', {
-          blockchainId,
-        });
-    }
 
     // Add size filter if needed
     if (sizeCondition) {
