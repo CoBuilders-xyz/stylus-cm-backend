@@ -10,6 +10,7 @@ import { Contract } from './entities/contract.entity';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
 import { ContractSortingDto } from './dto/contract-sorting.dto';
+import { SearchDto } from '../common/dto/search.dto';
 
 // Define the response type interface that includes calculated fields
 export interface ContractResponse extends Contract {
@@ -26,11 +27,13 @@ export class ContractsController {
     @Query('blockchainId') blockchainId: string,
     @Query() paginationDto: PaginationDto,
     @Query() sortingDto: ContractSortingDto,
+    @Query() searchDto: SearchDto,
   ): Promise<PaginationResponse<ContractResponse>> {
     return this.contractsService.findAll(
       blockchainId,
       paginationDto,
       sortingDto,
+      searchDto,
     );
   }
 

@@ -8,6 +8,7 @@ import { PaginationResponse } from '../common/interfaces/pagination-response.int
 import { ContractResponse } from './contracts.controller';
 import { SortDirection } from '../common/dto/sort.dto';
 import { ContractSortingDto } from './dto/contract-sorting.dto';
+import { SearchDto } from '../common/dto/search.dto';
 
 @Injectable()
 export class ContractsService {
@@ -21,6 +22,7 @@ export class ContractsService {
     blockchainId: string,
     paginationDto: PaginationDto,
     sortingDto: ContractSortingDto,
+    searchDto: SearchDto,
   ): Promise<PaginationResponse<ContractResponse>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
@@ -34,8 +36,11 @@ export class ContractsService {
       .skip(skip)
       .take(limit);
 
-    // Apply sorting based on sortingDto
-    if (sortingDto.sortBy) {
+    if (searchDto.search) {
+      queryBuilder.andWhere('contract.address LIKE :search', {
+        search: `%${searchDto.search}%`,
+      });
+    } else if (sortingDto.sortBy) {
       sortingDto.sortBy.forEach((field, index) => {
         const direction =
           sortingDto.sortDirection?.[index] || SortDirection.DESC;
