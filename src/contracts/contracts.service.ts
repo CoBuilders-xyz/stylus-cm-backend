@@ -6,6 +6,8 @@ import { ContractsUtilsService } from './contracts.utils.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
 import { ContractResponse } from './contracts.controller';
+import { BaseSortingDto, SortDirection } from '../common/dto/sort.dto';
+import { ContractSortField } from './dto/contract-sorting.dto';
 
 @Injectable()
 export class ContractsService {
@@ -18,16 +20,27 @@ export class ContractsService {
   async findAll(
     blockchainId: string,
     paginationDto: PaginationDto,
+    sortingDto: BaseSortingDto<ContractSortField>,
   ): Promise<PaginationResponse<ContractResponse>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [contracts, totalItems] = await this.contractRepository.findAndCount({
-      where: { blockchain: { id: blockchainId } },
-      relations: ['bytecode', 'blockchain'],
-      skip,
-      take: limit,
-    });
+    // Create query builder
+    const queryBuilder = this.contractRepository
+      .createQueryBuilder('contract')
+      .leftJoinAndSelect('contract.bytecode', 'bytecode')
+      .leftJoinAndSelect('contract.blockchain', 'blockchain')
+      .where('blockchain.id = :blockchainId', { blockchainId })
+      .skip(skip)
+      .take(limit);
+
+    queryBuilder.orderBy('contract.totalBidInvestment', SortDirection.DESC);
+    queryBuilder.addOrderBy('bytecode.bidBlockNumber', SortDirection.DESC);
+
+    // Log Query
+    console.log(queryBuilder.getQueryAndParameters());
+    // Execute query
+    const [contracts, totalItems] = await queryBuilder.getManyAndCount();
 
     // Process contracts to add calculated fields
     const processedContracts =

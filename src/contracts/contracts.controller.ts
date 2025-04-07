@@ -8,7 +8,9 @@ import {
 import { ContractsService } from './contracts.service';
 import { Contract } from './entities/contract.entity';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { BaseSortingDto } from '../common/dto/sort.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
+import { ContractSortField } from './dto/contract-sorting.dto';
 
 // Define the response type interface that includes calculated fields
 export interface ContractResponse extends Contract {
@@ -24,8 +26,13 @@ export class ContractsController {
   findAll(
     @Query('blockchainId') blockchainId: string,
     @Query() paginationDto: PaginationDto,
+    @Query() sortingDto: BaseSortingDto<ContractSortField>,
   ): Promise<PaginationResponse<ContractResponse>> {
-    return this.contractsService.findAll(blockchainId, paginationDto);
+    return this.contractsService.findAll(
+      blockchainId,
+      paginationDto,
+      sortingDto,
+    );
   }
 
   @Get(':id')
