@@ -5,8 +5,8 @@ import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 
 @Entity()
 export class UserContract {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column({ unique: true })
   address: string;

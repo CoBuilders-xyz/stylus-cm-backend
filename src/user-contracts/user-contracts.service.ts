@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserContract } from '../user-contracts/entities/user-contract.entity';
@@ -152,5 +157,34 @@ export class UserContractsService {
         hasPreviousPage: page > 1,
       },
     };
+  }
+
+  async getUserContract(user: User, id: string) {
+    const userContract = await this.userContractRepository.findOne({
+      where: { id, user },
+      relations: [
+        'contract',
+        'contract.bytecode',
+        'blockchain',
+        'contract.blockchain',
+      ],
+    });
+
+    if (!userContract) {
+      throw new NotFoundException('User contract not found');
+    }
+
+    // If the userContract has an associated contract, process it
+    if (userContract.contract) {
+      const processedContract =
+        await this.contractsUtilsService.processContract(userContract.contract);
+
+      return {
+        ...userContract,
+        contract: processedContract,
+      };
+    }
+
+    return userContract;
   }
 }
