@@ -6,6 +6,11 @@ import { User } from 'src/users/entities/user.entity';
 import { ethers } from 'ethers';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { Contract } from 'src/contracts/entities/contract.entity';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { ContractSortingDto } from 'src/contracts/dto/contract-sorting.dto';
+import { SearchDto } from 'src/common/dto/search.dto';
+import { SortDirection } from 'src/common/dto/sort.dto';
+import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
 
 @Injectable()
 export class UserContractsService {
@@ -16,6 +21,7 @@ export class UserContractsService {
     private blockchainRepository: Repository<Blockchain>,
     @InjectRepository(Contract)
     private contractRepository: Repository<Contract>,
+    private readonly contractsUtilsService: ContractsUtilsService,
   ) {}
 
   async createUserContract(
@@ -69,12 +75,82 @@ export class UserContractsService {
     return this.userContractRepository.save(newUserContract);
   }
 
-  async getUserContracts(user: User, blockchainId: string) {
-    //relate contract with bytecode as well
+  async getUserContracts(
+    user: User,
+    blockchainId: string,
+    paginationDto: PaginationDto,
+    sortingDto: ContractSortingDto,
+    searchDto: SearchDto,
+  ) {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
 
-    return this.userContractRepository.find({
-      where: { blockchain: { id: blockchainId }, user: { id: user.id } },
-      relations: ['contract', 'contract.bytecode'],
-    });
+    // Create query builder
+    const queryBuilder = this.userContractRepository
+      .createQueryBuilder('userContract')
+      .leftJoinAndSelect('userContract.contract', 'contract')
+      .leftJoinAndSelect('contract.bytecode', 'bytecode')
+      .leftJoinAndSelect('userContract.blockchain', 'blockchain')
+      .leftJoinAndSelect('contract.blockchain', 'contractBlockchain')
+      .where('blockchain.id = :blockchainId', { blockchainId })
+      .andWhere('userContract.user = :userId', { userId: user.id })
+      .skip(skip)
+      .take(limit);
+
+    if (searchDto.search) {
+      queryBuilder.andWhere(
+        '(LOWER(userContract.address) LIKE LOWER(:search) OR LOWER(userContract.name) LIKE LOWER(:search))',
+        {
+          search: `%${searchDto.search}%`,
+        },
+      );
+    } else if (sortingDto.sortBy) {
+      sortingDto.sortBy.forEach((field, index) => {
+        const direction =
+          sortingDto.sortDirection?.[index] || SortDirection.DESC;
+        if (index === 0) {
+          queryBuilder.orderBy(field, direction);
+        } else {
+          queryBuilder.addOrderBy(field, direction);
+        }
+      });
+    }
+
+    // Execute query
+    const [userContracts, totalItems] = await queryBuilder.getManyAndCount();
+
+    // Process contracts that have an associated contract
+    const processedUserContracts = await Promise.all(
+      userContracts.map(async (userContract) => {
+        // If the userContract has an associated contract, process it
+        if (userContract.contract) {
+          const processedContract =
+            await this.contractsUtilsService.processContract(
+              userContract.contract,
+            );
+
+          return {
+            ...userContract,
+            contract: processedContract,
+          };
+        }
+        return userContract;
+      }),
+    );
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      data: processedUserContracts,
+      meta: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
   }
 }

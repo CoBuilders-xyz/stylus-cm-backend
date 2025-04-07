@@ -51,8 +51,6 @@ export class ContractsService {
         }
       });
     }
-    // queryBuilder.orderBy('contract.totalBidInvestment', SortDirection.DESC);
-    // queryBuilder.addOrderBy('bytecode.bidBlockNumber', SortDirection.DESC);
 
     // Log Query
     console.log(queryBuilder.getQueryAndParameters());
