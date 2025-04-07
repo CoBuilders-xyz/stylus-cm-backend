@@ -6,8 +6,8 @@ import { ContractsUtilsService } from './contracts.utils.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
 import { ContractResponse } from './contracts.controller';
-import { BaseSortingDto, SortDirection } from '../common/dto/sort.dto';
-import { ContractSortField } from './dto/contract-sorting.dto';
+import { SortDirection } from '../common/dto/sort.dto';
+import { ContractSortingDto } from './dto/contract-sorting.dto';
 
 @Injectable()
 export class ContractsService {
@@ -20,7 +20,7 @@ export class ContractsService {
   async findAll(
     blockchainId: string,
     paginationDto: PaginationDto,
-    sortingDto: BaseSortingDto<ContractSortField>,
+    sortingDto: ContractSortingDto,
   ): Promise<PaginationResponse<ContractResponse>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
@@ -34,8 +34,20 @@ export class ContractsService {
       .skip(skip)
       .take(limit);
 
-    queryBuilder.orderBy('contract.totalBidInvestment', SortDirection.DESC);
-    queryBuilder.addOrderBy('bytecode.bidBlockNumber', SortDirection.DESC);
+    // Apply sorting based on sortingDto
+    if (sortingDto.sortBy) {
+      sortingDto.sortBy.forEach((field, index) => {
+        const direction =
+          sortingDto.sortDirection?.[index] || SortDirection.DESC;
+        if (index === 0) {
+          queryBuilder.orderBy(field, direction);
+        } else {
+          queryBuilder.addOrderBy(field, direction);
+        }
+      });
+    }
+    // queryBuilder.orderBy('contract.totalBidInvestment', SortDirection.DESC);
+    // queryBuilder.addOrderBy('bytecode.bidBlockNumber', SortDirection.DESC);
 
     // Log Query
     console.log(queryBuilder.getQueryAndParameters());
