@@ -36,4 +36,10 @@ export class Contract {
 
   @Column('varchar', { length: 78, default: '0' })
   totalBidInvestment: string;
+
+  @Column({ type: 'bigint' })
+  bidBlockNumber: number;
+
+  @Column({ type: 'timestamp' })
+  bidBlockTimestamp: Date;
 }

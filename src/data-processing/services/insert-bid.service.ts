@@ -50,6 +50,8 @@ export class InsertBidService {
     const address = String(eventDataArray[1]);
     const bidValue = String(eventDataArray[2]);
     const size = String(eventDataArray[3]);
+    const bidBlockNumber = event.blockNumber;
+    const bidBlockTimestamp = event.blockTimestamp;
 
     const blockchainState = await this.blockchainStateRepository.findOne({
       where: { blockchain: { id: blockchain.id } },
@@ -82,7 +84,7 @@ export class InsertBidService {
 
     // If no codehash in bytecode db, create new entry
     const existingBytecode = await this.bytecodeRepository.findOne({
-      where: { blockchain, bytecodeHash },
+      where: { blockchain: { id: blockchain.id }, bytecodeHash },
     });
 
     let bytecode = new Bytecode();
@@ -97,6 +99,8 @@ export class InsertBidService {
       bytecode.bidPlusDecay = bidValue;
       bytecode.totalBidInvestment = actualBid;
       bytecode.isCached = true;
+      bytecode.bidBlockNumber = bidBlockNumber;
+      bytecode.bidBlockTimestamp = bidBlockTimestamp;
     } else {
       this.logger.debug(`Bytecode found for ${bytecodeHash}, updating entry`);
       bytecode = existingBytecode;
@@ -107,12 +111,14 @@ export class InsertBidService {
         actualBid,
       );
       bytecode.isCached = true;
+      bytecode.bidBlockNumber = bidBlockNumber;
+      bytecode.bidBlockTimestamp = bidBlockTimestamp;
     }
     await this.bytecodeRepository.save(bytecode);
 
     // If no address in contract db, create new entry
     const existingContract = await this.contractRepository.findOne({
-      where: { blockchain, address },
+      where: { blockchain: { id: blockchain.id }, address },
     });
 
     let contract = new Contract();
@@ -124,6 +130,8 @@ export class InsertBidService {
       contract.lastBid = actualBid;
       contract.bidPlusDecay = bidValue;
       contract.totalBidInvestment = actualBid;
+      contract.bidBlockNumber = bidBlockNumber;
+      contract.bidBlockTimestamp = bidBlockTimestamp;
     } else {
       this.logger.debug(`Contract found for ${address}, updating entry`);
       contract = existingContract;
@@ -133,6 +141,8 @@ export class InsertBidService {
         existingContract.totalBidInvestment,
         actualBid,
       );
+      contract.bidBlockNumber = bidBlockNumber;
+      contract.bidBlockTimestamp = bidBlockTimestamp;
     }
 
     await this.contractRepository.save(contract);

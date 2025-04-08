@@ -39,19 +39,15 @@ export class EventListenerService {
       const contract = this.providerManager.getContract(blockchain);
       const provider = this.providerManager.getProvider(blockchain);
 
-      // Setup listeners for each event type
-      for (const eventType of eventTypes) {
-        await Promise.resolve(
-          this.setupEventListener(blockchain, contract, eventType, provider),
-        );
-      }
+      // Setup a single listener for all events
+      this.setupSingleEventListener(blockchain, contract, eventTypes, provider);
 
       this.logger.log(
-        `Successfully set up event listeners for blockchain ${blockchain.id}`,
+        `Successfully set up event listener for blockchain ${blockchain.id}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to setup event listeners for blockchain ${blockchain.id}: ${
+        `Failed to setup event listener for blockchain ${blockchain.id}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -66,7 +62,7 @@ export class EventListenerService {
     contract: ethers.Contract,
     eventType: string,
     provider: ethers.JsonRpcProvider,
-  ): void {
+  ) {
     const eventHandler = (...args: any[]): void => {
       // Extract the event data from the arguments (last item)
       const eventObj: unknown = args[args.length - 1];
@@ -106,6 +102,7 @@ export class EventListenerService {
       // Remove existing listeners first to avoid duplicates
       try {
         contract.removeAllListeners(eventType);
+        // Don't try to remove 'error' listeners from contract
         this.logger.verbose(
           `Removed existing listeners for ${eventType} on blockchain ${blockchain.id}`,
         );
@@ -119,7 +116,6 @@ export class EventListenerService {
         );
       }
 
-      // Register the event listener with error handling
       contract.on(eventType, eventHandler);
 
       this.logger.log(
@@ -132,6 +128,78 @@ export class EventListenerService {
         }`,
       );
     }
+  }
+
+  /**
+   * Sets up a single event listener for all event types
+   */
+  private setupSingleEventListener(
+    blockchain: Blockchain,
+    contract: ethers.Contract,
+    eventTypes: string[],
+    provider: ethers.JsonRpcProvider,
+  ) {
+    // Remove any existing listeners to avoid duplicates
+    try {
+      contract.removeAllListeners();
+      this.logger.verbose(
+        `Removed all existing listeners on blockchain ${blockchain.id}`,
+      );
+    } catch (removeError) {
+      this.logger.warn(
+        `Failed to remove existing listeners on blockchain ${blockchain.id}: ${
+          removeError instanceof Error
+            ? removeError.message
+            : String(removeError)
+        }`,
+      );
+    }
+
+    // Create a single event handler for all events
+    contract.on('*', (event) => {
+      try {
+        // Extract the event data
+        const eventLog = this.extractEventLog(event);
+        if (!eventLog) {
+          this.logger.warn(
+            `Received malformed event on blockchain ${blockchain.id}`,
+          );
+          return;
+        }
+
+        // Get the event type from the event
+        const eventType = event.eventName || 'Unknown';
+
+        // Check if this is an event type we're interested in
+        if (eventTypes.length > 0 && !eventTypes.includes(eventType)) {
+          this.logger.debug(
+            `Ignoring event ${eventType} as it's not in the list of tracked events`,
+          );
+          return;
+        }
+
+        this.logger.debug(
+          `Received real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
+        );
+
+        // Handle the async operations separately with proper error handling
+        void this.processEvent(blockchain, eventLog, provider, eventType).catch(
+          (err) => {
+            this.logger.error(
+              `Error in event processing: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          },
+        );
+      } catch (error) {
+        this.logger.error(
+          `Error processing event on blockchain ${blockchain.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    });
+
+    this.logger.log(`Subscribed to all events for blockchain ${blockchain.id}`);
   }
 
   /**
