@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
   "contractName": "CacheManager",
-  "sourceName": "src/constants/abis/cacheManager/CacheManager.sol",
+  "sourceName": "src/common/abis/cacheManager/CacheManager.sol",
   "abi": [
     {
       "inputs": [

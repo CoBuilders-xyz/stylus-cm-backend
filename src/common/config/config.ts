@@ -27,6 +27,3 @@ export default () => ({
     'Initialized',
   ],
 });
-
-// Sepolia checkpoint
-//dbfd098f-f85c-4824-a827-0be9470ade44	Arbitrum Sepolia	https://arb-sepolia.g.alchemy.com/v2/4Fz5j6zHZW8RjDfSnUmER1rvh4iiBWgm	0x0c9043d042ab52cfa8d0207459260040cca54253	0x0000000000000000000000000000000000000072		421614	138768439	138768439

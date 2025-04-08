@@ -6,7 +6,7 @@ import { ethers } from 'ethers';
 
 import { Blockchain } from '../blockchains/entities/blockchain.entity';
 import { BlockchainState } from '../blockchains/entities/blockchain-state.entity';
-import { abi } from '../constants/abis/cacheManager/cacheManager.json';
+import { abi } from '../common/abis/cacheManager/cacheManager.json';
 
 @Injectable()
 export class StateFetcherService implements OnModuleInit {

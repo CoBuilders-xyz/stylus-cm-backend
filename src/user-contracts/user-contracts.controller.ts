@@ -8,7 +8,7 @@ import {
   Param,
 } from '@nestjs/common';
 import { UserContractsService } from './user-contracts.service';
-import { AuthenticatedRequest } from 'src/types/custom-types';
+import { AuthenticatedRequest } from '../common/types/custom-types';
 import { CreateUserContractDto } from './dto/create-user-contract.dto';
 import { SearchDto } from 'src/common/dto/search.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';

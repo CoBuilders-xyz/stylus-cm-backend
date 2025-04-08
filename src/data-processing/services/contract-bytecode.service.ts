@@ -5,7 +5,7 @@ import { Bytecode } from '../../contracts/entities/bytecode.entity';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
 import { ethers } from 'ethers';
-import { abi } from '../../constants/abis/arbWasmCache/arbWasmCache.json';
+import { abi } from '../../common/abis/arbWasmCache/arbWasmCache.json';
 
 @Injectable()
 export class ContractBytecodeService {

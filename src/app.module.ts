@@ -1,19 +1,17 @@
 import { Module } from '@nestjs/common';
-import config from './config/config';
+import config from './common/config/config';
 
 // nestjs modules
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
-import { JwtModule } from '@nestjs/jwt';
 
 // app modules
 import { UsersModule } from './users/users.module';
 import { TasksModule } from './tasks/tasks.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { BlockchainsModule } from './blockchains/blockchains.module';
-import { MetricsModule } from './metrics/metrics.module';
 import { DataProcessingModule } from './data-processing/data-processing.module';
 import { EventFetcherModule } from './event-fetcher/event-fetcher.module';
 import { StateFetcherModule } from './state-fetcher/state-fetcher.module';
@@ -32,16 +30,19 @@ import { ContractBytecodeMetric } from './contracts/entities/bytecode.metric.ent
 import { UserContractsModule } from './user-contracts/user-contracts.module';
 import { AuthModule } from './auth/auth.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { AlertsModule } from './alerts/alerts.module';
 
 const appModules = [
   BlockchainsModule,
   UsersModule,
   ContractsModule,
   TasksModule,
-  MetricsModule,
   StateFetcherModule,
   EventFetcherModule,
   DataProcessingModule,
+  UserContractsModule,
+  AuthModule,
+  AlertsModule,
 ];
 const entities = [
   Bytecode,
@@ -73,8 +74,6 @@ const entities = [
     CacheModule.register(),
     EventEmitterModule.forRoot(),
     ...appModules,
-    UserContractsModule,
-    AuthModule,
   ],
 })
 export class AppModule {}
