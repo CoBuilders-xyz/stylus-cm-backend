@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 // app modules
 import { UsersModule } from './users/users.module';
@@ -15,6 +16,9 @@ import { BlockchainsModule } from './blockchains/blockchains.module';
 import { DataProcessingModule } from './data-processing/data-processing.module';
 import { EventFetcherModule } from './event-fetcher/event-fetcher.module';
 import { StateFetcherModule } from './state-fetcher/state-fetcher.module';
+import { UserContractsModule } from './user-contracts/user-contracts.module';
+import { AuthModule } from './auth/auth.module';
+import { AlertsModule } from './alerts/alerts.module';
 
 // entities
 import { User } from './users/entities/user.entity';
@@ -27,10 +31,7 @@ import { BlockchainState } from './blockchains/entities/blockchain-state.entity'
 import { Contract } from './contracts/entities/contract.entity';
 import { ContractMetric } from './contracts/entities/contract-metric.entity';
 import { ContractBytecodeMetric } from './contracts/entities/bytecode.metric.entity';
-import { UserContractsModule } from './user-contracts/user-contracts.module';
-import { AuthModule } from './auth/auth.module';
-import { EventEmitterModule } from '@nestjs/event-emitter';
-import { AlertsModule } from './alerts/alerts.module';
+import { Alert } from './alerts/entities/alert.entity';
 
 const appModules = [
   BlockchainsModule,
@@ -55,6 +56,7 @@ const entities = [
   Contract,
   ContractMetric,
   ContractBytecodeMetric,
+  Alert,
 ];
 
 @Module({
