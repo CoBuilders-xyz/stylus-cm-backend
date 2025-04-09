@@ -3,11 +3,11 @@ import {
   Get,
   Patch,
   Body,
-  Param,
   NotFoundException,
+  Request,
+  BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { AlertsSettings } from './entities/user.entity';
 import {
   AlertsSettingsDto,
   EmailSettingsDto,
@@ -15,95 +15,95 @@ import {
   SlackSettingsDto,
   WebhookSettingsDto,
 } from './dto/alerts-settings.dto';
+import { AuthenticatedRequest } from '../common/types/custom-types';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Get(':address/alerts-settings')
-  async getAlertsSettings(@Param('address') address: string) {
-    const settings = await this.usersService.getAlertsSettings(address);
-    if (!settings) {
-      throw new NotFoundException(`User with address ${address} not found`);
-    }
-    return settings;
+  @Get('alerts-settings')
+  async getAlertsSettings(@Request() req: AuthenticatedRequest) {
+    const settings = await this.usersService.getAlertsSettings(
+      req.user.address,
+    );
+    return settings || {};
   }
 
-  @Patch(':address/alerts-settings')
+  @Patch('alerts-settings')
   async updateAlertsSettings(
-    @Param('address') address: string,
+    @Request() req: AuthenticatedRequest,
     @Body() alertsSettings: AlertsSettingsDto,
   ) {
     const user = await this.usersService.updateAlertsSettings(
-      address,
+      req.user.address,
       alertsSettings,
     );
     if (!user) {
-      throw new NotFoundException(`User with address ${address} not found`);
+      throw new NotFoundException(`User not found`);
     }
     return user.alertsSettings;
   }
 
-  @Patch(':address/alerts-settings/email')
+  @Patch('alerts-settings/email')
   async updateEmailSettings(
-    @Param('address') address: string,
+    @Request() req: AuthenticatedRequest,
     @Body() settings: EmailSettingsDto,
   ) {
     const user = await this.usersService.updateAlertChannel(
-      address,
+      req.user.address,
       'emailSettings',
       settings,
     );
     if (!user) {
-      throw new NotFoundException(`User with address ${address} not found`);
+      throw new NotFoundException(`User not found`);
     }
     return user.alertsSettings;
   }
 
-  @Patch(':address/alerts-settings/telegram')
+  @Patch('alerts-settings/telegram')
   async updateTelegramSettings(
-    @Param('address') address: string,
+    @Request() req: AuthenticatedRequest,
     @Body() settings: TelegramSettingsDto,
   ) {
     const user = await this.usersService.updateAlertChannel(
-      address,
+      req.user.address,
       'telegramSettings',
       settings,
     );
     if (!user) {
-      throw new NotFoundException(`User with address ${address} not found`);
+      throw new NotFoundException(`User not found`);
     }
     return user.alertsSettings;
   }
 
-  @Patch(':address/alerts-settings/slack')
+  @Patch('alerts-settings/slack')
   async updateSlackSettings(
-    @Param('address') address: string,
+    @Request() req: AuthenticatedRequest,
     @Body() settings: SlackSettingsDto,
   ) {
     const user = await this.usersService.updateAlertChannel(
-      address,
+      req.user.address,
       'slackSettings',
       settings,
     );
     if (!user) {
-      throw new NotFoundException(`User with address ${address} not found`);
+      throw new NotFoundException(`User not found`);
     }
     return user.alertsSettings;
   }
 
-  @Patch(':address/alerts-settings/webhook')
+  @Patch('alerts-settings/webhook')
   async updateWebhookSettings(
-    @Param('address') address: string,
+    @Request() req: AuthenticatedRequest,
     @Body() settings: WebhookSettingsDto,
   ) {
     const user = await this.usersService.updateAlertChannel(
-      address,
+      req.user.address,
       'webhookSettings',
       settings,
     );
     if (!user) {
-      throw new NotFoundException(`User with address ${address} not found`);
+      throw new NotFoundException(`User not found`);
     }
     return user.alertsSettings;
   }

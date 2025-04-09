@@ -27,6 +27,13 @@ export interface AlertsSettings {
   webhookSettings?: WebhookSettings;
 }
 
+const defaultAlertsSettings: AlertsSettings = {
+  emailSettings: { enabled: false, destination: '' },
+  telegramSettings: { enabled: false, destination: '' },
+  slackSettings: { enabled: false, destination: '' },
+  webhookSettings: { enabled: false, destination: '' },
+};
+
 @Entity()
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -41,6 +48,6 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'jsonb', nullable: true, default: () => "'{}'" })
   alertsSettings: AlertsSettings;
 }

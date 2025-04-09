@@ -5,6 +5,8 @@ import {
   IsUrl,
   IsOptional,
   ValidateNested,
+  ValidateIf,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -12,8 +14,11 @@ export class EmailSettingsDto {
   @IsBoolean()
   enabled: boolean;
 
+  @ValidateIf((o) => o.enabled === true)
+  @IsNotEmpty({
+    message: 'Destination is required when email alerts are enabled',
+  })
   @IsEmail()
-  @IsOptional()
   destination: string;
 }
 
@@ -21,8 +26,11 @@ export class TelegramSettingsDto {
   @IsBoolean()
   enabled: boolean;
 
+  @ValidateIf((o) => o.enabled === true)
+  @IsNotEmpty({
+    message: 'Destination is required when telegram alerts are enabled',
+  })
   @IsString()
-  @IsOptional()
   destination: string;
 }
 
@@ -30,8 +38,11 @@ export class SlackSettingsDto {
   @IsBoolean()
   enabled: boolean;
 
+  @ValidateIf((o) => o.enabled === true)
+  @IsNotEmpty({
+    message: 'Destination is required when slack alerts are enabled',
+  })
   @IsString()
-  @IsOptional()
   destination: string;
 }
 
@@ -39,8 +50,11 @@ export class WebhookSettingsDto {
   @IsBoolean()
   enabled: boolean;
 
+  @ValidateIf((o) => o.enabled === true)
+  @IsNotEmpty({
+    message: 'Destination is required when webhook alerts are enabled',
+  })
   @IsUrl()
-  @IsOptional()
   destination: string;
 }
 
