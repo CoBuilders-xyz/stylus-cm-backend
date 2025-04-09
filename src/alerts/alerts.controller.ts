@@ -17,12 +17,12 @@ export class AlertsController {
     return this.alertsService.getAlerts(req.user, blockchainId);
   }
 
-  // Create an alert
+  // Create or update an alert
   @Post()
-  async createAlert(
+  async createOrUpdateAlert(
     @Req() req: AuthenticatedRequest,
     @Body() body: CreateAlertDto,
   ) {
-    return this.alertsService.createAlert(req.user, body);
+    return this.alertsService.createOrUpdateAlert(req.user, body);
   }
 }

@@ -27,7 +27,7 @@ export class AlertsService {
     return queryBuilder.getMany();
   }
 
-  async createAlert(user: User, createAlertDto: CreateAlertDto) {
+  async createOrUpdateAlert(user: User, createAlertDto: CreateAlertDto) {
     // Validate userContract exists on blockchain
     const userContract = await this.userContractsRepository.findOne({
       where: {
@@ -38,6 +38,40 @@ export class AlertsService {
 
     if (!userContract) {
       throw new NotFoundException('User contract not found');
+    }
+
+    // Check if an alert of this type already exists for this user and contract
+    const existingAlert = await this.alertsRepository.findOne({
+      where: {
+        user: { id: user.id },
+        userContract: { id: createAlertDto.userContractId },
+        type: createAlertDto.type,
+      },
+    });
+
+    // If the alert already exists, update it instead of creating a new one
+    if (existingAlert) {
+      // Update properties from the DTO
+      existingAlert.value = createAlertDto.value;
+      existingAlert.isActive = createAlertDto.isActive;
+
+      // Update notification channels if provided
+      if (createAlertDto.emailChannelEnabled !== undefined) {
+        existingAlert.emailChannelEnabled = createAlertDto.emailChannelEnabled;
+      }
+      if (createAlertDto.slackChannelEnabled !== undefined) {
+        existingAlert.slackChannelEnabled = createAlertDto.slackChannelEnabled;
+      }
+      if (createAlertDto.telegramChannelEnabled !== undefined) {
+        existingAlert.telegramChannelEnabled =
+          createAlertDto.telegramChannelEnabled;
+      }
+      if (createAlertDto.webhookChannelEnabled !== undefined) {
+        existingAlert.webhookChannelEnabled =
+          createAlertDto.webhookChannelEnabled;
+      }
+
+      return this.alertsRepository.save(existingAlert);
     }
 
     // Create alert
