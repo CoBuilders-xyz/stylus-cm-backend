@@ -9,24 +9,18 @@ import { SlackNotificationProcessor } from './notif.slack.processor';
 import { TelegramNotificationProcessor } from './notif.telegram.processor';
 import { EmailNotificationProcessor } from './notif.email.processor';
 import { WebhookNotificationProcessor } from './notif.webhook.processor';
+import { HttpModule } from '@nestjs/axios';
+import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Alert, User]),
+    TypeOrmModule.forFeature([Alert, User, UserContract]),
+    HttpModule,
     BullModule.registerQueue({
       name: 'notif-slack',
     }),
     BullModule.registerQueue({
       name: 'notif-telegram',
-      defaultJobOptions: {
-        attempts: 5,
-        backoff: {
-          type: 'exponential',
-          delay: 1000,
-        },
-        removeOnComplete: false,
-        removeOnFail: false,
-      },
     }),
     BullModule.registerQueue({
       name: 'notif-email',

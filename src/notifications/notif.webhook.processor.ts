@@ -25,6 +25,7 @@ export class WebhookNotificationProcessor extends WorkerHost {
 
     // Log notification details
     this.logger.log(`Processing Webhook notification for alert: ${alertId}`);
+    this.logger.log(`Attempt number: ${job.attemptsMade + 1}`);
     this.logger.log(`Alert type: ${alertType}`);
     this.logger.log(`User ID: ${userId}`);
     this.logger.log(`Webhook URL: ${destination}`);

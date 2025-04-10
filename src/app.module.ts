@@ -80,6 +80,15 @@ const entities = [
         host: process.env.REDIS_HOST,
         port: parseInt(process.env.REDIS_PORT || '6380'),
       },
+      defaultJobOptions: {
+        attempts: 10,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: false,
+        removeOnFail: false,
+      },
     }),
     ScheduleModule.forRoot(),
     CacheModule.register(),

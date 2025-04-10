@@ -25,10 +25,10 @@ export class TelegramNotificationProcessor extends WorkerHost {
 
     // Log notification details
     this.logger.log(`Processing Telegram notification for alert: ${alertId}`);
+    this.logger.log(`Attempt number: ${job.attemptsMade + 1}`);
     this.logger.log(`Alert type: ${alertType}`);
     this.logger.log(`User ID: ${userId}`);
     this.logger.log(`Telegram chat ID: ${destination}`);
-    this.logger.log(`Attempt number: ${job.attemptsMade + 1}`);
 
     // Here you would implement the actual Telegram notification logic
     // For example, using Telegram Bot API to send messages

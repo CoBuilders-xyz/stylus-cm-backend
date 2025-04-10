@@ -23,6 +23,7 @@ export class EmailNotificationProcessor extends WorkerHost {
 
     // Log notification details
     this.logger.log(`Processing Email notification for alert: ${alertId}`);
+    this.logger.log(`Attempt number: ${job.attemptsMade + 1}`);
     this.logger.log(`Alert type: ${alertType}`);
     this.logger.log(`User ID: ${userId}`);
     this.logger.log(`Email address: ${destination}`);
