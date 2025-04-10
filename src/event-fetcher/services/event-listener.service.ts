@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { EventStorageService } from './event-storage.service';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { ProviderManager } from '../utils/provider.util';
+import { ProviderManager } from '../../common/utils/provider.util';
 import { EthersEvent } from '../interfaces/event.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,6 +12,8 @@ import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.ent
 @Injectable()
 export class EventListenerService {
   private readonly logger = new Logger(EventListenerService.name);
+  // Add a set to track which blockchains have listeners set up
+  private readonly activeListeners = new Set<string>();
 
   constructor(
     private readonly eventStorageService: EventStorageService,
@@ -35,12 +37,23 @@ export class EventListenerService {
       return;
     }
 
+    // Check if listeners are already set up for this blockchain
+    if (this.activeListeners.has(blockchain.id)) {
+      this.logger.log(
+        `Event listeners already set up for blockchain ${blockchain.id}, skipping.`,
+      );
+      return;
+    }
+
     try {
       const contract = this.providerManager.getContract(blockchain);
       const provider = this.providerManager.getProvider(blockchain);
 
       // Setup a single listener for all events
       this.setupSingleEventListener(blockchain, contract, eventTypes, provider);
+
+      // Track that we've set up listeners for this blockchain
+      this.activeListeners.add(blockchain.id);
 
       this.logger.log(
         `Successfully set up event listener for blockchain ${blockchain.id}`,
@@ -141,7 +154,17 @@ export class EventListenerService {
   ) {
     // Remove any existing listeners to avoid duplicates
     try {
+      // First explicitly remove any listeners for specific events
+      if (eventTypes && eventTypes.length > 0) {
+        for (const eventType of eventTypes) {
+          contract.removeAllListeners(eventType);
+        }
+      }
+      // Then remove any wildcard listeners
+      contract.removeAllListeners('*');
+      // Finally, remove all listeners (this is a catch-all)
       contract.removeAllListeners();
+
       this.logger.verbose(
         `Removed all existing listeners on blockchain ${blockchain.id}`,
       );
@@ -251,6 +274,23 @@ export class EventListenerService {
     eventType: string,
   ): Promise<void> {
     try {
+      // Check if this event already exists in the database
+      const existingEvent = await this.blockchainEventRepository.findOne({
+        where: {
+          blockchain: { id: blockchain.id },
+          blockNumber: eventLog.blockNumber,
+          logIndex: eventLog.index,
+          transactionHash: eventLog.transactionHash,
+        },
+      });
+
+      if (existingEvent) {
+        this.logger.debug(
+          `Event already exists for ${eventType} on blockchain ${blockchain.id} at block ${eventLog.blockNumber}, skipping processing.`,
+        );
+        return;
+      }
+
       // Prepare and store the event
       const eventData = await this.eventStorageService.prepareEvents(
         blockchain,

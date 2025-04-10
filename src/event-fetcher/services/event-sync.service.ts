@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { EventStorageService } from './event-storage.service';
-import { ProviderManager } from '../utils/provider.util';
+import { ProviderManager } from '../../common/utils/provider.util';
 import { EthersEvent } from '../interfaces/event.interface';
 import { safeContractCall } from '../utils/contract-call.util';
 

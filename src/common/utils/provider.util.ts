@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { Logger } from '@nestjs/common';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { abi } from '../../common/abis/cacheManager/cacheManager.json';
+import { abi } from '../abis/cacheManager/cacheManager.json';
 
 const logger = new Logger('ProviderUtil');
 

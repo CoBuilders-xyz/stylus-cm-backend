@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { EventConfigService } from './event-config.service';
 import { EventSyncService } from './event-sync.service';
-import { ProviderManager } from '../utils/provider.util';
+import { ProviderManager } from '../../common/utils/provider.util';
 
 @Injectable()
 export class EventSchedulerService {

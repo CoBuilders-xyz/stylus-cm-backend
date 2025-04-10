@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { EventListenerService } from './services/event-listener.service';
 import { EventSyncService } from './services/event-sync.service';
 import { EventSchedulerService } from './services/event-scheduler.service';
-import { ProviderManager } from './utils/provider.util';
+import { ProviderManager } from '../common/utils/provider.util';
 import { BlockchainsService } from 'src/blockchains/blockchains.service';
 
 @Injectable()
@@ -45,9 +45,12 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    // Setup real-time event listeners
+    // Setup real-time event listeners (one at a time to avoid race conditions)
     try {
       for (const blockchain of blockchains) {
+        this.logger.log(
+          `Setting up event listeners for blockchain: ${blockchain.name} (${blockchain.id})`,
+        );
         await this.eventListenerService.setupEventListeners(
           blockchain,
           eventTypes,
