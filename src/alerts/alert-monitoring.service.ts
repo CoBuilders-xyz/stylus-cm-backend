@@ -8,6 +8,9 @@ import { CronExpression } from '@nestjs/schedule';
 import { ProviderManager } from '../common/utils/provider.util';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
+
 /**
  * Service responsible for monitoring and triggering alerts based on:
  * 1. Blockchain events (event-based alerts)
@@ -25,10 +28,13 @@ export class AlertMonitoringService implements OnModuleInit {
     private blockchainRepository: Repository<Blockchain>,
     @InjectRepository(BlockchainEvent)
     private blockchainEventRepository: Repository<BlockchainEvent>,
+    private notificationsService: NotificationsService,
+    private contractsUtilsService: ContractsUtilsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
     this.logger.log('Alert monitoring system initialized.');
+    await Promise.resolve();
   }
 
   /**
@@ -36,7 +42,7 @@ export class AlertMonitoringService implements OnModuleInit {
    * Triggers alerts based on blockchain events
    */
   @OnEvent('blockchain.event.stored')
-  async handleBlockchainEvent(payload: {
+  async handleBlockchainEventAlerts(payload: {
     blockchainId: string;
     eventId: string;
   }): Promise<void> {
@@ -59,38 +65,12 @@ export class AlertMonitoringService implements OnModuleInit {
    * This method could be called on a schedule via a cron job
    */
   @Cron(CronExpression.EVERY_MINUTE)
-  async checkRealTimeDataAlerts(): Promise<void> {
+  async handleRealTimeDataAlerts(): Promise<void> {
     this.logger.log('Checking real-time data alerts...');
+    const blockchains = await this.blockchainRepository.find({});
 
-    try {
-      // Find all active bidSafety alerts
-      const bidSafetyAlerts = await this.alertsRepository.find({
-        where: {
-          type: AlertType.BID_SAFETY,
-          isActive: true,
-        },
-        relations: ['user', 'userContract'],
-      });
-
-      this.logger.log(
-        `Found ${bidSafetyAlerts.length} active bidSafety alerts`,
-      );
-
-      bidSafetyAlerts.forEach(async (alert) => {
-        this.logger.log(
-          `[Real-Time Alert] BidSafety alert for user: ${alert.user.id}, contract: ${alert.userContract?.id}, value: ${alert.value}`,
-        );
-        const minBid = await this.providerManager
-          .getContract(alert.userContract.blockchain)
-          .getMinBid(alert.userContract.id);
-
-        if (minBid < alert.value) {
-          // Notify User
-          // Update alert lastTriggered and triggerCount
-        }
-      });
-    } catch (error) {
-      this.logger.error(`Error checking real-time alerts: ${error.message}`);
+    for (const blockchain of blockchains) {
+      await this.processRealTimeDataAlerts(blockchain);
     }
   }
 
@@ -104,6 +84,62 @@ export class AlertMonitoringService implements OnModuleInit {
   };
 
   private processDeleteBidEvent(event: BlockchainEvent) {
-    this.logger.log(`DeleteBid event for alerts `);
+    this.logger.log(`Processing DeleteBid event with id: ${event.id}`);
+    // Fetch Alerts to trigger
+    // For each enabled alert, send notification to users.
+    // this.notificationsService.sendNotifications(event);
+  }
+
+  private async processRealTimeDataAlerts(blockchain: Blockchain) {
+    // Fetch Alerts to trigger
+    // For each enabled alert, send notification to users.
+    // this.notificationsService.sendNotifications(event);
+    try {
+      const bidSafetyAlerts = await this.alertsRepository.find({
+        where: {
+          type: AlertType.BID_SAFETY,
+          isActive: true,
+          userContract: {
+            blockchain: { id: blockchain.id },
+          },
+        },
+        relations: [
+          'userContract',
+          'userContract.contract',
+          'userContract.contract.blockchain',
+        ],
+      });
+
+      this.logger.log(
+        `Found ${bidSafetyAlerts.length} active bidSafety alerts`,
+      );
+
+      const cacheManagerInstance = this.providerManager.getContract(blockchain);
+
+      for (const alert of bidSafetyAlerts) {
+        const minBid = (await cacheManagerInstance[
+          'getMinBid(address program)'
+        ](alert.userContract.address)) as bigint;
+
+        const effectiveBid = BigInt(
+          await this.contractsUtilsService.calculateEffectiveBid(
+            alert.userContract.contract,
+          ),
+        );
+
+        const alertValueBigInt = BigInt(Math.round(Number(alert.value) * 100));
+        const basePercentage = BigInt(10000); // 100% represented as 10000 for BigInt precision
+        const multiplier = basePercentage + alertValueBigInt;
+        const threshold = (minBid * multiplier) / basePercentage;
+
+        if (effectiveBid < threshold) {
+          this.notificationsService.sendNotifications(alert);
+        }
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error checking real-time alerts: ${errorMessage}`);
+    }
   }
 }

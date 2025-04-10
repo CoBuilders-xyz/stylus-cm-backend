@@ -19,5 +19,6 @@ import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entit
   ],
   controllers: [ContractsController],
   providers: [ContractsService, ContractsUtilsService],
+  exports: [ContractsUtilsService],
 })
 export class ContractsModule {}

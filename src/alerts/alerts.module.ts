@@ -8,6 +8,8 @@ import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { AlertMonitoringService } from './alert-monitoring.service';
 import { ProviderManager } from 'src/common/utils/provider.util';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
+import { NotificationsModule } from 'src/notifications/notifications.module';
+import { ContractsModule } from 'src/contracts/contracts.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entit
       Blockchain,
       BlockchainEvent,
     ]),
+    NotificationsModule,
+    ContractsModule,
   ],
   providers: [AlertsService, AlertMonitoringService, ProviderManager],
   controllers: [AlertsController],

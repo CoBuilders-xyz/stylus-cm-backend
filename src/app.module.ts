@@ -32,6 +32,8 @@ import { Contract } from './contracts/entities/contract.entity';
 import { ContractMetric } from './contracts/entities/contract-metric.entity';
 import { ContractBytecodeMetric } from './contracts/entities/bytecode.metric.entity';
 import { Alert } from './alerts/entities/alert.entity';
+import { NotificationsService } from './notifications/notifications.service';
+import { NotificationsModule } from './notifications/notifications.module';
 
 const appModules = [
   BlockchainsModule,
@@ -76,6 +78,8 @@ const entities = [
     CacheModule.register(),
     EventEmitterModule.forRoot(),
     ...appModules,
+    NotificationsModule,
   ],
+  providers: [NotificationsService],
 })
 export class AppModule {}
