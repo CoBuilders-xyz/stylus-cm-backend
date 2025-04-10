@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { BullModule } from '@nestjs/bullmq';
 
 // app modules
 import { UsersModule } from './users/users.module';
@@ -32,7 +33,6 @@ import { Contract } from './contracts/entities/contract.entity';
 import { ContractMetric } from './contracts/entities/contract-metric.entity';
 import { ContractBytecodeMetric } from './contracts/entities/bytecode.metric.entity';
 import { Alert } from './alerts/entities/alert.entity';
-import { NotificationsService } from './notifications/notifications.service';
 import { NotificationsModule } from './notifications/notifications.module';
 
 const appModules = [
@@ -46,6 +46,7 @@ const appModules = [
   UserContractsModule,
   AuthModule,
   AlertsModule,
+  NotificationsModule,
 ];
 const entities = [
   Bytecode,
@@ -74,12 +75,16 @@ const entities = [
       entities: entities,
       synchronize: true, // TODO: Change synch to env variable
     }),
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST,
+        port: parseInt(process.env.REDIS_PORT || '6380'),
+      },
+    }),
     ScheduleModule.forRoot(),
     CacheModule.register(),
     EventEmitterModule.forRoot(),
     ...appModules,
-    NotificationsModule,
   ],
-  providers: [NotificationsService],
 })
 export class AppModule {}

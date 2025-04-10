@@ -8,8 +8,10 @@ import { CronExpression } from '@nestjs/schedule';
 import { ProviderManager } from '../common/utils/provider.util';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
-import { NotificationsService } from 'src/notifications/notifications.service';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
+import { Queue } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq';
+
 /**
  * Service responsible for monitoring and triggering alerts based on:
  * 1. Blockchain events (event-based alerts)
@@ -27,8 +29,8 @@ export class AlertMonitoringService implements OnModuleInit {
     private blockchainRepository: Repository<Blockchain>,
     @InjectRepository(BlockchainEvent)
     private blockchainEventRepository: Repository<BlockchainEvent>,
-    private notificationsService: NotificationsService,
     private contractsUtilsService: ContractsUtilsService,
+    @InjectQueue('alerts') private alertsQueue: Queue,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -116,8 +118,9 @@ export class AlertMonitoringService implements OnModuleInit {
 
     // For each user contract, send a notification
     for (const alert of alerts) {
-      // this.notificationsService.sendNotifications(alert);
-      // Add Job To Queue
+      await this.alertsQueue.add('alert-triggered', {
+        alertId: alert.id,
+      });
     }
   }
 
@@ -161,8 +164,9 @@ export class AlertMonitoringService implements OnModuleInit {
         const threshold = (minBid * multiplier) / basePercentage;
 
         if (effectiveBid < threshold) {
-          // Add Job To Queue
-          // this.notificationsService.sendNotifications(alert);
+          await this.alertsQueue.add('alert-triggered', {
+            alertId: alert.id,
+          });
         }
       }
     } catch (error: unknown) {
