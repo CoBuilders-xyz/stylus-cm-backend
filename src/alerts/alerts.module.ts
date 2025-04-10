@@ -10,7 +10,7 @@ import { ProviderManager } from 'src/common/utils/provider.util';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
 import { NotificationsModule } from 'src/notifications/notifications.module';
 import { ContractsModule } from 'src/contracts/contracts.module';
-
+import { Contract } from 'src/contracts/entities/contract.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -18,6 +18,7 @@ import { ContractsModule } from 'src/contracts/contracts.module';
       UserContract,
       Blockchain,
       BlockchainEvent,
+      Contract,
     ]),
     NotificationsModule,
     ContractsModule,
