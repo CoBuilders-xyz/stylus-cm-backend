@@ -5,7 +5,7 @@ import { Alert } from './entities/alert.entity';
 import { User } from 'src/users/entities/user.entity';
 import { CreateAlertDto } from './dto/create-alert.dto';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
-
+import { AlertType } from './entities/alert.entity';
 @Injectable()
 export class AlertsService {
   constructor(
@@ -19,8 +19,8 @@ export class AlertsService {
     // use query builder for leftJoining userContracts and check blockchainId
     const queryBuilder = this.alertsRepository
       .createQueryBuilder('alert')
-      .leftJoin('alert.userContract', 'userContract')
-      .leftJoin('userContract.blockchain', 'blockchain')
+      .leftJoinAndSelect('alert.userContract', 'userContract')
+      .leftJoinAndSelect('userContract.blockchain', 'blockchain')
       .where('alert.user = :userId', { userId: user.id })
       .andWhere('blockchain.id = :blockchainId', { blockchainId });
 

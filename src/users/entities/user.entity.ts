@@ -27,13 +27,6 @@ export interface AlertsSettings {
   webhookSettings?: WebhookSettings;
 }
 
-const defaultAlertsSettings: AlertsSettings = {
-  emailSettings: { enabled: false, destination: '' },
-  telegramSettings: { enabled: false, destination: '' },
-  slackSettings: { enabled: false, destination: '' },
-  webhookSettings: { enabled: false, destination: '' },
-};
-
 @Entity()
 export class User {
   @PrimaryGeneratedColumn('uuid')
