@@ -8,7 +8,7 @@ export class UserContract {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column()
   address: string;
 
   @Column()
