@@ -153,7 +153,7 @@ export class AlertMonitoringService implements OnModuleInit {
         ](alert.userContract.address)) as bigint;
 
         const effectiveBid = BigInt(
-          await this.contractsUtilsService.calculateEffectiveBid(
+          await this.contractsUtilsService.calculateCurrentContractEffectiveBid(
             alert.userContract.contract,
           ),
         );

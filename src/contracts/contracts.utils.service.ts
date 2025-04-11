@@ -80,12 +80,12 @@ export class ContractsUtilsService {
    * @param decayRate Optional decay rate to use (if already fetched)
    * @returns The calculated effective bid value
    */
-  async calculateEffectiveBid(
+  calculateEffectiveBid(
     startTimestamp: Date,
     endTimestamp: Date,
     bidSize: string,
     decayRate: string,
-  ): Promise<string> {
+  ): string {
     try {
       const timeElapsed = Math.floor(
         endTimestamp.getTime() / 1000 - startTimestamp.getTime() / 1000,
@@ -208,7 +208,7 @@ export class ContractsUtilsService {
               event.blockTimestamp,
             );
             const originDate = new Date(0);
-            const actualBid = await this.calculateEffectiveBid(
+            const actualBid = this.calculateEffectiveBid(
               originDate,
               event.blockTimestamp,
               bid,

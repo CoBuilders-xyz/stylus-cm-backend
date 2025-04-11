@@ -18,15 +18,47 @@ import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
     HttpModule,
     BullModule.registerQueue({
       name: 'notif-slack',
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: false,
+        removeOnFail: false,
+      },
     }),
     BullModule.registerQueue({
       name: 'notif-telegram',
+      defaultJobOptions: {
+        attempts: 5,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: false,
+        removeOnFail: false,
+      },
     }),
     BullModule.registerQueue({
       name: 'notif-email',
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+      },
     }),
     BullModule.registerQueue({
       name: 'notif-webhook',
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+      },
     }),
   ],
   providers: [
