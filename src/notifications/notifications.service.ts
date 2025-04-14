@@ -3,7 +3,11 @@ import { Alert } from 'src/alerts/entities/alert.entity';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { AlertType } from 'src/alerts/entities/alert.entity';
-import { AlertsSettings } from 'src/users/entities/user.entity';
+import { AlertsSettings, User } from 'src/users/entities/user.entity';
+import { WebhookNotificationService } from './notif.webhook.service';
+import { SlackNotificationService } from './notif.slack.service';
+import { TelegramNotificationService } from './notif.telegram.service';
+import { EmailNotificationService } from './notif.email.service';
 
 type NotificationData = {
   alertId: string;
@@ -25,6 +29,10 @@ export class NotificationsService {
     private emailQueue: Queue,
     @InjectQueue('notif-webhook')
     private webhookQueue: Queue,
+    private webhookService: WebhookNotificationService,
+    private slackService: SlackNotificationService,
+    private telegramService: TelegramNotificationService,
+    private emailService: EmailNotificationService,
   ) {}
 
   /**
@@ -124,5 +132,52 @@ export class NotificationsService {
       `Queueing webhook notification to ${data.destination} for alert: ${data.alertId}`,
     );
     await this.webhookQueue.add('send-webhook', data);
+  }
+
+  async sendMockNotification(
+    user: User,
+    notificationChannel: 'webhook' | 'slack' | 'telegram' | 'email',
+  ) {
+    const mockData = {
+      alertId: '123',
+      alertValue: '100',
+      alertContractAddress: '0x123',
+      alertContractName: 'Mock Contract',
+      alertType: AlertType.EVICTION,
+      userId: user.id,
+      destination: 'test@test.com',
+      alertTypeDisplay: 'Mock Alert Type',
+    };
+
+    const destination =
+      user.alertsSettings[`${notificationChannel}Settings`]?.destination;
+
+    if (!destination) {
+      this.logger.warn(`No destination found for ${notificationChannel}`);
+      return;
+    }
+
+    this.logger.log(
+      `Sending mock ${notificationChannel} notification to ${destination}`,
+    );
+
+    const sendServices = {
+      webhook: this.webhookService,
+      slack: this.slackService,
+      telegram: this.telegramService,
+      email: this.emailService,
+      default: () => {},
+    };
+
+    await sendServices[notificationChannel].sendNotification({
+      destination,
+      recipientName: user.name,
+      alertId: mockData.alertId,
+      alertType: mockData.alertType,
+      value: mockData.alertValue,
+      contractName: mockData.alertContractName,
+      contractAddress: mockData.alertContractAddress,
+      triggeredCount: 0,
+    });
   }
 }

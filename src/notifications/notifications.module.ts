@@ -11,7 +11,11 @@ import { EmailNotificationProcessor } from './notif.email.processor';
 import { WebhookNotificationProcessor } from './notif.webhook.processor';
 import { HttpModule } from '@nestjs/axios';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
-import { WebhookController } from './webhook.controller';
+import { NotificationsController } from './notifications.controller';
+import { EmailNotificationService } from './notif.email.service';
+import { SlackNotificationService } from './notif.slack.service';
+import { TelegramNotificationService } from './notif.telegram.service';
+import { WebhookNotificationService } from './notif.webhook.service';
 
 @Module({
   imports: [
@@ -62,7 +66,7 @@ import { WebhookController } from './webhook.controller';
       },
     }),
   ],
-  controllers: [WebhookController],
+  controllers: [NotificationsController],
   providers: [
     NotificationsService,
     AlertsConsumer,
@@ -70,7 +74,17 @@ import { WebhookController } from './webhook.controller';
     TelegramNotificationProcessor,
     EmailNotificationProcessor,
     WebhookNotificationProcessor,
+    EmailNotificationService,
+    SlackNotificationService,
+    TelegramNotificationService,
+    WebhookNotificationService,
   ],
-  exports: [NotificationsService],
+  exports: [
+    NotificationsService,
+    EmailNotificationService,
+    SlackNotificationService,
+    TelegramNotificationService,
+    WebhookNotificationService,
+  ],
 })
 export class NotificationsModule {}
