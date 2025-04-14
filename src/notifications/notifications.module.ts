@@ -11,6 +11,7 @@ import { EmailNotificationProcessor } from './notif.email.processor';
 import { WebhookNotificationProcessor } from './notif.webhook.processor';
 import { HttpModule } from '@nestjs/axios';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
+import { WebhookController } from './webhook.controller';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
       },
     }),
   ],
+  controllers: [WebhookController],
   providers: [
     NotificationsService,
     AlertsConsumer,

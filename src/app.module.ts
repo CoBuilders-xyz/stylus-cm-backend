@@ -81,10 +81,10 @@ const entities = [
         port: parseInt(process.env.REDIS_PORT || '6380'),
       },
       defaultJobOptions: {
-        attempts: 10,
+        attempts: parseInt(process.env.BULLMQ_ATTEMPTS || '5'),
         backoff: {
           type: 'exponential',
-          delay: 1000,
+          delay: parseInt(process.env.BULLMQ_BACKOFF_DELAY || '10000'),
         },
         removeOnComplete: false,
         removeOnFail: false,
