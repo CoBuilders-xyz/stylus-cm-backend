@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThanOrEqual } from 'typeorm';
 import { Contract } from './entities/contract.entity';
 import { BlockchainState } from '../blockchains/entities/blockchain-state.entity';
+import { BlockchainEvent } from '../blockchains/entities/blockchain-event.entity';
 
 /**
  * This service contains utility functions for processing contract data
@@ -15,31 +16,56 @@ export class ContractsUtilsService {
   constructor(
     @InjectRepository(BlockchainState)
     private readonly blockchainStateRepository: Repository<BlockchainState>,
+    @InjectRepository(BlockchainEvent)
+    private readonly blockchainEventRepository: Repository<BlockchainEvent>,
   ) {}
 
   /**
-   * Get the current decay rate from blockchain state for a specific blockchain
+   * Get the decay rate from blockchain events for a specific blockchain at a specific timestamp
    * @param blockchainId The ID of the blockchain to get the decay rate for
-   * @returns The current decay rate as a string
+   * @param timestamp Optional timestamp to get the decay rate at, defaults to current time
+   * @returns The decay rate as a string
    */
-  private async getDecayRate(blockchainId: string): Promise<string> {
+  private async getDecayRate(
+    blockchainId: string,
+    timestamp: Date,
+  ): Promise<string> {
     try {
-      // Fetch the latest blockchain state to get the decay rate
+      // Try to find the most recent setDecayRate event before the target timestamp
+      const decayRateEvent = await this.blockchainEventRepository.findOne({
+        where: {
+          blockchain: { id: blockchainId },
+          eventName: 'SetDecayRate',
+          blockTimestamp: LessThanOrEqual(timestamp),
+        },
+        order: { blockTimestamp: 'DESC' },
+      });
+
+      if (decayRateEvent) {
+        // Parse the event data to get the decay rate
+        const eventData = decayRateEvent.eventData as string[];
+        // Assuming decay rate is the first parameter in the event data
+        const decayRate = eventData[0];
+        return decayRate;
+      }
+
+      // Fallback to checking the blockchain state if no event is found
       const latestState = await this.blockchainStateRepository.findOne({
         where: { blockchain: { id: blockchainId } },
         order: { blockNumber: 'DESC' },
       });
 
-      if (!latestState) {
-        this.logger.warn(
-          `No blockchain state found for blockchain ${blockchainId}, using default decay rate of 0`,
-        );
-        return '0';
+      if (latestState) {
+        return latestState.decayRate;
       }
 
-      return latestState.decayRate;
+      this.logger.warn(
+        `No decay rate information found for blockchain ${blockchainId}, using default decay rate of 0`,
+      );
+      return '0';
     } catch (error) {
-      this.logger.error(`Error fetching decay rate: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Error fetching decay rate: ${err.message}`);
       // If there's an error, return 0 as a safe default
       return '0';
     }
@@ -55,29 +81,20 @@ export class ContractsUtilsService {
    * @returns The calculated effective bid value
    */
   async calculateEffectiveBid(
-    contract: Contract,
-    decayRate?: string,
+    startTimestamp: Date,
+    endTimestamp: Date,
+    bidSize: string,
+    decayRate: string,
   ): Promise<string> {
     try {
-      // If no decay rate is provided, fetch it
-      const actualDecayRate =
-        decayRate || (await this.getDecayRate(contract.blockchain.id));
-
-      // Get the current timestamp in seconds
-      const currentTimestamp = Math.floor(Date.now() / 1000);
-
-      // Get the bid block timestamp in seconds
-      const bidBlockTimestamp = Math.floor(
-        contract.bidBlockTimestamp.getTime() / 1000,
+      const timeElapsed = Math.floor(
+        endTimestamp.getTime() / 1000 - startTimestamp.getTime() / 1000,
       );
 
-      // Calculate the time elapsed since the bid in seconds
-      const timeElapsed = currentTimestamp - bidBlockTimestamp;
-
       // Parse the values to BigInt to avoid precision issues
-      const lastBidBigInt = BigInt(contract.lastBid);
+      const lastBidBigInt = BigInt(bidSize);
       const timeElapsedBigInt = BigInt(timeElapsed);
-      const decayRateBigInt = BigInt(actualDecayRate);
+      const decayRateBigInt = BigInt(decayRate);
 
       // Calculate the decay amount
       const decayAmount = timeElapsedBigInt * decayRateBigInt;
@@ -95,10 +112,35 @@ export class ContractsUtilsService {
 
       return effectiveBid.toString();
     } catch (error) {
-      this.logger.error(`Error calculating effective bid: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Error calculating effective bid: ${err.message}`);
       // In case of an error, return 0 as a safe default
       return '0';
     }
+  }
+
+  /**
+   * Calculate the effective bid for a contract
+   * @param contract The contract to calculate the effective bid for
+   * @returns The calculated effective bid value
+   */
+  async calculateCurrentContractEffectiveBid(
+    contract: Contract,
+  ): Promise<string> {
+    const currentTimestamp = new Date();
+    const decayRate = await this.getDecayRate(
+      contract.blockchain.id,
+      currentTimestamp,
+    );
+    const bidSize = contract.lastBid;
+    const startTimestamp = contract.bidBlockTimestamp;
+    const endTimestamp = new Date();
+    return this.calculateEffectiveBid(
+      startTimestamp,
+      endTimestamp,
+      bidSize,
+      decayRate,
+    );
   }
 
   /**
@@ -107,50 +149,188 @@ export class ContractsUtilsService {
    * @returns The calculated eviction risk value (could be a percentage or score)
    */
   calculateEvictionRisk(contract: Contract): number {
-    // TODO: Implement the calculation logic
-    // This will be implemented in future iterations
+    // TODO: Implement the calculation logic based on contract parameters
+    // For now, returning 0 as default value until implementation is complete
+    // Use contract to avoid linter errors
+    if (contract) {
+      // Future implementation will use contract properties to calculate risk
+    }
     return 0; // Default return value
+  }
+
+  /**
+   * Get the bidding history for a contract from blockchain events
+   * @param contractAddress The address of the contract to get bidding history for
+   * @returns An array of bid events with parsed data
+   */
+  async getBiddingHistory(contractAddress: string): Promise<
+    Array<{
+      bytecodeHash: string;
+      contractAddress: string;
+      bid: string;
+      actualBid: string;
+      size: string;
+      timestamp: Date;
+      blockNumber: number;
+      transactionHash: string;
+    }>
+  > {
+    try {
+      const normalizedAddress = contractAddress.toLowerCase();
+
+      // Try multiple query strategies to find the InsertBid events for this contract
+
+      // First attempt: Using direct JSONB access with explicit type casting and LOWER
+      const bidEvents = await this.blockchainEventRepository
+        .createQueryBuilder('event')
+        .leftJoinAndSelect('event.blockchain', 'blockchain')
+        .where('event.eventName = :eventName', { eventName: 'InsertBid' })
+        .andWhere(
+          'LOWER(CAST(event."eventData"->>1 AS TEXT)) = :contractAddress',
+          {
+            contractAddress: normalizedAddress,
+          },
+        )
+        .orderBy('event.blockTimestamp', 'DESC')
+        .getMany();
+
+      // Parse the event data from the primary query
+      const bidPromises = bidEvents
+        .map(async (event) => {
+          try {
+            // Extract data from the eventData array
+            const eventData = event.eventData as unknown as string[];
+            const [bytecodeHash, eventContractAddress, bid, size] = eventData;
+
+            // Calculate actual bid
+            const decayRate = await this.getDecayRate(
+              event.blockchain.id,
+              event.blockTimestamp,
+            );
+            const originDate = new Date(0);
+            const actualBid = await this.calculateEffectiveBid(
+              originDate,
+              event.blockTimestamp,
+              bid,
+              decayRate,
+            );
+
+            return {
+              bytecodeHash,
+              contractAddress: eventContractAddress,
+              bid,
+              actualBid,
+              size,
+              timestamp: event.blockTimestamp,
+              blockNumber: event.blockNumber,
+              transactionHash: event.transactionHash,
+            };
+          } catch (err) {
+            const error = err as Error;
+            this.logger.error(`Error parsing bid event data: ${error.message}`);
+            return null;
+          }
+        })
+        .filter((item) => item !== null);
+
+      // Resolve all promises and filter out any null values
+      const results = await Promise.all(bidPromises);
+      return results.filter(
+        (
+          item,
+        ): item is {
+          bytecodeHash: string;
+          contractAddress: string;
+          bid: string;
+          actualBid: string;
+          size: string;
+          timestamp: Date;
+          blockNumber: number;
+          transactionHash: string;
+        } => item !== null,
+      );
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`Error fetching bidding history: ${err.message}`);
+      return [];
+    }
   }
 
   /**
    * Process a contract to add calculated fields
    * @param contract The contract to process
    * @param decayRate Optional decay rate to use (if already fetched)
+   * @param includeBiddingHistory Optional flag to include bidding history (default: false)
    * @returns The contract with additional calculated fields
    */
   async processContract(
     contract: Contract,
-    decayRate?: string,
-  ): Promise<Contract & { effectiveBid: string; evictionRisk: number }> {
-    return {
+    includeBiddingHistory = false,
+  ): Promise<
+    Contract & {
+      effectiveBid: string;
+      evictionRisk: number;
+      biddingHistory?: Array<{
+        bytecodeHash: string;
+        contractAddress: string;
+        bid: string;
+        size: string;
+        timestamp: Date;
+        blockNumber: number;
+        transactionHash: string;
+      }>;
+    }
+  > {
+    const processedContract = {
       ...contract,
-      effectiveBid: await this.calculateEffectiveBid(contract, decayRate),
+      effectiveBid: await this.calculateCurrentContractEffectiveBid(contract),
       evictionRisk: this.calculateEvictionRisk(contract),
     };
+
+    // Optionally include bidding history if requested
+    if (includeBiddingHistory) {
+      return {
+        ...processedContract,
+        biddingHistory: await this.getBiddingHistory(contract.address),
+      };
+    }
+
+    return processedContract;
   }
 
   /**
    * Process an array of contracts to add calculated fields to each one
    * @param contracts The array of contracts to process
+   * @param includeBiddingHistory Optional flag to include bidding history (default: false)
    * @returns The processed contracts with additional calculated fields
    */
   async processContracts(
     contracts: Contract[],
-  ): Promise<(Contract & { effectiveBid: string; evictionRisk: number })[]> {
+    includeBiddingHistory = false,
+  ): Promise<
+    (Contract & {
+      effectiveBid: string;
+      evictionRisk: number;
+      biddingHistory?: Array<{
+        bytecodeHash: string;
+        contractAddress: string;
+        bid: string;
+        size: string;
+        timestamp: Date;
+        blockNumber: number;
+        transactionHash: string;
+      }>;
+    })[]
+  > {
     if (contracts.length === 0) {
       return [];
     }
 
-    // Get blockchainId from the first contract
-    // This assumes all contracts in the array are from the same blockchain
-    const blockchainId = contracts[0].blockchain.id;
-
-    // Get the decay rate once for all contracts to avoid multiple DB queries
-    const decayRate = await this.getDecayRate(blockchainId);
-
     // Process all contracts in parallel using Promise.all with the same decay rate
     const processedContracts = await Promise.all(
-      contracts.map((contract) => this.processContract(contract, decayRate)),
+      contracts.map((contract) =>
+        this.processContract(contract, includeBiddingHistory),
+      ),
     );
 
     return processedContracts;

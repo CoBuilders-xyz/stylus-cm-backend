@@ -36,7 +36,7 @@ export class UserContractsController {
   }
 
   @Get(':id')
-  async findOne(
+  findOne(
     @Request() req: AuthenticatedRequest,
     @Param() getUserContractDto: GetUserContractDto,
   ) {

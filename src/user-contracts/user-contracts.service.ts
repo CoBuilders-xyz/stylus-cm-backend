@@ -176,7 +176,10 @@ export class UserContractsService {
     // If the userContract has an associated contract, process it
     if (userContract.contract) {
       const processedContract =
-        await this.contractsUtilsService.processContract(userContract.contract);
+        await this.contractsUtilsService.processContract(
+          userContract.contract,
+          true,
+        );
 
       return {
         ...userContract,

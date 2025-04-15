@@ -7,7 +7,7 @@ import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { Contract } from 'src/contracts/entities/contract.entity';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
 import { BlockchainState } from 'src/blockchains/entities/blockchain-state.entity';
-
+import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -15,6 +15,7 @@ import { BlockchainState } from 'src/blockchains/entities/blockchain-state.entit
       Blockchain,
       Contract,
       BlockchainState,
+      BlockchainEvent,
     ]),
   ],
   providers: [UserContractsService, ContractsUtilsService],

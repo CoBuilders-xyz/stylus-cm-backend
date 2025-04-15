@@ -52,8 +52,6 @@ export class ContractsService {
       });
     }
 
-    // Log Query
-    console.log(queryBuilder.getQueryAndParameters());
     // Execute query
     const [contracts, totalItems] = await queryBuilder.getManyAndCount();
 

@@ -203,7 +203,7 @@ export class EventProcessorService {
     //   this.contractBytecodeService.processSetCacheSizeEvent2(blockchain, event),
     Default: (blockchain: Blockchain, event: BlockchainEvent) => {
       this.logger.warn(
-        `No event processor found for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
+        `No event processor defined for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
       );
     },
   };
