@@ -5,7 +5,6 @@ import { Alert } from './entities/alert.entity';
 import { User } from 'src/users/entities/user.entity';
 import { CreateAlertDto } from './dto/create-alert.dto';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
-import { AlertType } from './entities/alert.entity';
 @Injectable()
 export class AlertsService {
   constructor(

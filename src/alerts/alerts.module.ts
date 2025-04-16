@@ -8,7 +8,10 @@ import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { AlertMonitoringService } from './alert-monitoring.service';
 import { ProviderManager } from 'src/common/utils/provider.util';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
-
+import { NotificationsModule } from 'src/notifications/notifications.module';
+import { ContractsModule } from 'src/contracts/contracts.module';
+import { Contract } from 'src/contracts/entities/contract.entity';
+import { BullModule } from '@nestjs/bullmq';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -16,7 +19,13 @@ import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entit
       UserContract,
       Blockchain,
       BlockchainEvent,
+      Contract,
     ]),
+    NotificationsModule,
+    ContractsModule,
+    BullModule.registerQueue({
+      name: 'alerts',
+    }),
   ],
   providers: [AlertsService, AlertMonitoringService, ProviderManager],
   controllers: [AlertsController],
