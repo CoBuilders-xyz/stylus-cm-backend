@@ -8,6 +8,8 @@ import { WebhookNotificationService } from './notif.webhook.service';
 import { SlackNotificationService } from './notif.slack.service';
 import { TelegramNotificationService } from './notif.telegram.service';
 import { EmailNotificationService } from './notif.email.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 type NotificationData = {
   alertId: string;
@@ -33,6 +35,8 @@ export class NotificationsService {
     private slackService: SlackNotificationService,
     private telegramService: TelegramNotificationService,
     private emailService: EmailNotificationService,
+    @InjectRepository(Alert)
+    private alertsRepository: Repository<Alert>,
   ) {}
 
   /**
@@ -50,6 +54,20 @@ export class NotificationsService {
       alertType: alert.type,
       userId: alert.user.id,
     };
+
+    // Check if backoff_delay was not exceeded after lastNotified
+    if (alert.lastNotified) {
+      const backoffDelay = process.env.BACKOFF_DELAY;
+      const lastNotified = new Date(alert.lastNotified);
+      const now = new Date();
+      const timeDiff = now.getTime() - lastNotified.getTime();
+      if (timeDiff < Number(backoffDelay)) {
+        this.logger.log(
+          `Backoff delay not exceeded for alert: ${alert.id} - skipping notifications`,
+        );
+        return;
+      }
+    }
 
     const queuePromises: Promise<any>[] = [];
 
@@ -104,6 +122,10 @@ export class NotificationsService {
         `No notifications were queued for alert: ${alert.id} - check alert and user settings`,
       );
     }
+
+    // Update lastNotified
+    alert.lastNotified = new Date();
+    await this.alertsRepository.save(alert);
   }
 
   async queueEmailNotification(data: NotificationData): Promise<void> {

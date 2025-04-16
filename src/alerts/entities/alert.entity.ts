@@ -26,6 +26,9 @@ export class Alert {
   @Column({ nullable: true })
   lastTriggered: Date;
 
+  @Column({ nullable: true })
+  lastNotified: Date;
+
   @Column({ default: 0 })
   triggeredCount: number;
 
