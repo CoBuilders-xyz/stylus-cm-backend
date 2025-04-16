@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { EventStorageService } from './event-storage.service';
-import { ProviderManager } from '../../common/utils/provider.util';
+import {
+  ContractType,
+  ProviderManager,
+} from '../../common/utils/provider.util';
 import { EthersEvent } from '../interfaces/event.interface';
 import { safeContractCall } from '../utils/contract-call.util';
 
@@ -59,7 +62,14 @@ export class EventSyncService {
     provider: ethers.JsonRpcProvider,
     eventTypes: string[],
   ): Promise<void> {
-    const cacheManagerContract = this.providerManager.getContract(blockchain);
+    const cacheManagerContract = this.providerManager.getContract(
+      blockchain,
+      ContractType.CACHE_MANAGER,
+    );
+    const cacheManagerAutomationContract = this.providerManager.getContract(
+      blockchain,
+      ContractType.CACHE_MANAGER_AUTOMATION,
+    );
 
     // Get last processed block for this blockchain
     const lastSyncedBlock =
@@ -97,12 +107,21 @@ export class EventSyncService {
     );
 
     // Fetch events for all event types
-    const allEvents = await this.fetchEvents(
+    const cacheManagerEvents = await this.fetchEvents(
       cacheManagerContract,
       eventTypes,
       lastSyncedBlock,
       latestBlock,
     );
+
+    const cacheManagerAutomationEvents = await this.fetchEvents(
+      cacheManagerAutomationContract,
+      eventTypes,
+      lastSyncedBlock,
+      latestBlock,
+    );
+
+    const allEvents = [...cacheManagerEvents, ...cacheManagerAutomationEvents];
 
     if (allEvents.length === 0) {
       this.logger.log(
@@ -237,7 +256,10 @@ export class EventSyncService {
     );
 
     const provider = this.providerManager.getProvider(blockchain);
-    const contract = this.providerManager.getContract(blockchain);
+    const contract = this.providerManager.getContract(
+      blockchain,
+      ContractType.CACHE_MANAGER,
+    );
 
     // Fetch events for the specified range
     const allEvents = await this.fetchEvents(

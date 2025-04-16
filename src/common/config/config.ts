@@ -6,6 +6,8 @@ export default () => ({
       chainId: 412346,
       cacheManagerAddress: '0x0f1f89aaf1c6fdb7ff9d361e4388f5f3997f12a8',
       arbWasmCacheAddress: '0x0000000000000000000000000000000000000072',
+      cacheManagerAutomationAddress:
+        '0xBBddf043394068d570F0affb64D5435C35e27F2F',
       lastSyncedBlock: 0,
     },
     // {
@@ -18,6 +20,7 @@ export default () => ({
     // },
   ],
   eventTypes: [
+    // CacheManager
     'InsertBid',
     'DeleteBid',
     'Pause',
@@ -25,5 +28,15 @@ export default () => ({
     'SetCacheSize',
     'SetDecayRate',
     'Initialized',
+    // CacheManagerAutomation
+    'BidDetails',
+    'ContractUpdated',
+    'ContractRemoved',
+    'BalanceUpdated',
+    'BidAttempted',
+    'BidError',
+    'Paused',
+    'Unpaused',
+    'ContractOperationPerformed',
   ],
 });

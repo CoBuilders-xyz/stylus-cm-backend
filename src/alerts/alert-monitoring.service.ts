@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import { Alert, AlertType } from './entities/alert.entity';
 import { Cron } from '@nestjs/schedule';
 import { CronExpression } from '@nestjs/schedule';
-import { ProviderManager } from '../common/utils/provider.util';
+import { ContractType, ProviderManager } from '../common/utils/provider.util';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
@@ -145,7 +145,10 @@ export class AlertMonitoringService implements OnModuleInit {
         `Found ${bidSafetyAlerts.length} active bidSafety alerts`,
       );
 
-      const cacheManagerInstance = this.providerManager.getContract(blockchain);
+      const cacheManagerInstance = this.providerManager.getContract(
+        blockchain,
+        ContractType.CACHE_MANAGER,
+      );
 
       for (const alert of bidSafetyAlerts) {
         const minBid = (await cacheManagerInstance[

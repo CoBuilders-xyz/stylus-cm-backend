@@ -14,6 +14,9 @@ export class Blockchain {
   cacheManagerAddress: string;
 
   @Column({})
+  cacheManagerAutomationAddress: string;
+
+  @Column({})
   arbWasmCacheAddress: string;
 
   @Column({ unique: true })

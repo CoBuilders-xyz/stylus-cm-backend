@@ -32,7 +32,7 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
 
     // Initialize blockchain configurations
     const blockchains = await this.blockchainService.findAll();
-    const eventTypes = this.configService.get('eventTypes');
+    const eventTypes = this.configService.get<string[]>('eventTypes') || [''];
 
     // Perform initial historical sync
     try {
