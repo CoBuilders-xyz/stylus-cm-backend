@@ -173,6 +173,8 @@ export class ContractsUtilsService {
       timestamp: Date;
       blockNumber: number;
       transactionHash: string;
+      isAutomated: boolean;
+      automationUser?: string;
     }>
   > {
     try {
@@ -194,61 +196,95 @@ export class ContractsUtilsService {
         .orderBy('event.blockTimestamp', 'DESC')
         .getMany();
 
-      // Parse the event data from the primary query
-      const bidPromises = bidEvents
-        .map(async (event) => {
-          try {
-            // Extract data from the eventData array
-            const eventData = event.eventData as unknown as string[];
-            const [bytecodeHash, eventContractAddress, bid, size] = eventData;
+      // Get all transaction hashes to check for automated bids
+      const transactionHashes = bidEvents.map((event) => event.transactionHash);
 
-            // Calculate actual bid
-            const decayRate = await this.getDecayRate(
-              event.blockchain.id,
-              event.blockTimestamp,
-            );
-            const originDate = new Date(0);
-            const actualBid = this.calculateEffectiveBid(
-              originDate,
-              event.blockTimestamp,
-              bid,
-              decayRate,
-            );
-
-            return {
-              bytecodeHash,
-              contractAddress: eventContractAddress,
-              bid,
-              actualBid,
-              size,
-              timestamp: event.blockTimestamp,
-              blockNumber: event.blockNumber,
-              transactionHash: event.transactionHash,
-            };
-          } catch (err) {
-            const error = err as Error;
-            this.logger.error(`Error parsing bid event data: ${error.message}`);
-            return null;
-          }
+      // Fetch BidPlaced events from CacheManagerAutomation with matching transaction hashes
+      const automatedBidEvents = await this.blockchainEventRepository
+        .createQueryBuilder('event')
+        .where('event.eventName = :eventName', { eventName: 'BidPlaced' })
+        .andWhere('event.transactionHash IN (:...hashes)', {
+          hashes: transactionHashes.length > 0 ? transactionHashes : [''],
         })
-        .filter((item) => item !== null);
+        .getMany();
+
+      // Create a map of transaction hash to automation user for quick lookup
+      const automationMap = new Map<string, string>();
+      for (const event of automatedBidEvents) {
+        try {
+          const eventData = event.eventData as unknown as string[];
+          // First parameter of BidPlaced event is the user address
+          const userAddress = eventData[0];
+          automationMap.set(event.transactionHash, userAddress);
+        } catch (err) {
+          this.logger.warn(`Error parsing BidPlaced event data: ${err}`);
+        }
+      }
+
+      // Define the return type for typechecking
+      type BidHistoryItem = {
+        bytecodeHash: string;
+        contractAddress: string;
+        bid: string;
+        actualBid: string;
+        size: string;
+        timestamp: Date;
+        blockNumber: number;
+        transactionHash: string;
+        isAutomated: boolean;
+        automationUser?: string;
+      };
+
+      // Parse the event data from the primary query
+      const bidPromises = bidEvents.map(async (event) => {
+        try {
+          // Extract data from the eventData array
+          const eventData = event.eventData as unknown as string[];
+          const [bytecodeHash, eventContractAddress, bid, size] = eventData;
+
+          // Calculate actual bid
+          const decayRate = await this.getDecayRate(
+            event.blockchain.id,
+            event.blockTimestamp,
+          );
+          const originDate = new Date(0);
+          const actualBid = this.calculateEffectiveBid(
+            originDate,
+            event.blockTimestamp,
+            bid,
+            decayRate,
+          );
+
+          // Check if this transaction was an automated bid
+          const isAutomated = automationMap.has(event.transactionHash);
+          const automationUser = isAutomated
+            ? automationMap.get(event.transactionHash)
+            : undefined;
+
+          const result: BidHistoryItem = {
+            bytecodeHash,
+            contractAddress: eventContractAddress,
+            bid,
+            actualBid,
+            size,
+            timestamp: event.blockTimestamp,
+            blockNumber: event.blockNumber,
+            transactionHash: event.transactionHash,
+            isAutomated,
+            automationUser,
+          };
+
+          return result;
+        } catch (err) {
+          const error = err as Error;
+          this.logger.error(`Error parsing bid event data: ${error.message}`);
+          return null;
+        }
+      });
 
       // Resolve all promises and filter out any null values
       const results = await Promise.all(bidPromises);
-      return results.filter(
-        (
-          item,
-        ): item is {
-          bytecodeHash: string;
-          contractAddress: string;
-          bid: string;
-          actualBid: string;
-          size: string;
-          timestamp: Date;
-          blockNumber: number;
-          transactionHash: string;
-        } => item !== null,
-      );
+      return results.filter((item): item is BidHistoryItem => item !== null);
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Error fetching bidding history: ${err.message}`);
@@ -274,10 +310,13 @@ export class ContractsUtilsService {
         bytecodeHash: string;
         contractAddress: string;
         bid: string;
+        actualBid: string;
         size: string;
         timestamp: Date;
         blockNumber: number;
         transactionHash: string;
+        isAutomated: boolean;
+        automationUser?: string;
       }>;
     }
   > {
@@ -315,10 +354,13 @@ export class ContractsUtilsService {
         bytecodeHash: string;
         contractAddress: string;
         bid: string;
+        actualBid: string;
         size: string;
         timestamp: Date;
         blockNumber: number;
         transactionHash: string;
+        isAutomated: boolean;
+        automationUser?: string;
       }>;
     })[]
   > {

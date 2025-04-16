@@ -7,7 +7,7 @@ export default () => ({
       cacheManagerAddress: '0x0f1f89aaf1c6fdb7ff9d361e4388f5f3997f12a8',
       arbWasmCacheAddress: '0x0000000000000000000000000000000000000072',
       cacheManagerAutomationAddress:
-        '0xBBddf043394068d570F0affb64D5435C35e27F2F',
+        '0x343FAF37071Ae1Bb8676b5a116c82D9db52696C0',
       lastSyncedBlock: 0,
     },
     // {
@@ -29,14 +29,14 @@ export default () => ({
     'SetDecayRate',
     'Initialized',
     // CacheManagerAutomation
-    'BidDetails',
+    'ContractAdded',
     'ContractUpdated',
     'ContractRemoved',
-    'BalanceUpdated',
     'BidAttempted',
+    'BidPlaced',
     'BidError',
-    'Paused',
-    'Unpaused',
-    'ContractOperationPerformed',
+    'BalanceUpdated',
+    'UpkeepPerformed',
+    'UserBalanceOperation',
   ],
 });
