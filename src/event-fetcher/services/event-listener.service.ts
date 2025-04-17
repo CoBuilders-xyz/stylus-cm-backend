@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { EventStorageService } from './event-storage.service';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { ProviderManager } from '../../common/utils/provider.util';
+import {
+  ContractType,
+  ProviderManager,
+} from '../../common/utils/provider.util';
 import { EthersEvent } from '../interfaces/event.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -48,12 +51,29 @@ export class EventListenerService {
     }
 
     try {
-      const contract = this.providerManager.getContract(blockchain);
+      const cacheManagerContract = this.providerManager.getContract(
+        blockchain,
+        ContractType.CACHE_MANAGER,
+      );
+      const cacheManagerAutomationContract = this.providerManager.getContract(
+        blockchain,
+        ContractType.CACHE_MANAGER_AUTOMATION,
+      );
       const provider = this.providerManager.getProvider(blockchain);
 
       // Setup a single listener for all events
-      this.setupSingleEventListener(blockchain, contract, eventTypes, provider);
-
+      await this.setupSingleEventListener(
+        blockchain,
+        cacheManagerContract,
+        eventTypes,
+        provider,
+      );
+      await this.setupSingleEventListener(
+        blockchain,
+        cacheManagerAutomationContract,
+        eventTypes,
+        provider,
+      );
       // Track that we've set up listeners for this blockchain
       this.activeListeners.add(blockchain.id);
 
@@ -72,14 +92,14 @@ export class EventListenerService {
   /**
    * Sets up a single event listener for all event types
    */
-  private setupSingleEventListener(
+  private async setupSingleEventListener(
     blockchain: Blockchain,
     contract: ethers.Contract,
     eventTypes: string[],
     provider: ethers.JsonRpcProvider,
   ) {
     // Remove any existing listeners to avoid duplicates
-    contract.removeAllListeners();
+    await contract.removeAllListeners();
 
     // Type guard for events with eventName property
     const hasEventName = (obj: unknown): obj is { eventName: string } => {
@@ -87,12 +107,12 @@ export class EventListenerService {
         typeof obj === 'object' &&
         obj !== null &&
         'eventName' in obj &&
-        typeof (obj as any).eventName === 'string'
+        typeof (obj as { eventName: string }).eventName === 'string'
       );
     };
 
     // Create a single event handler for all events
-    contract.on('*', (event: unknown) => {
+    await contract.on('*', (event: unknown) => {
       try {
         // Extract the event data
         const eventLog = this.extractEventLog(event);

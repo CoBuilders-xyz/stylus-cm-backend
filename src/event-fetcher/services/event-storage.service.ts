@@ -75,9 +75,27 @@ export class EventStorageService {
         const transactionHash = getTransactionHash(event);
         const logIndex = getLogIndex(event);
 
+        // Infer contract name from the contract address
+        let contractName = 'Unknown';
+        if (
+          event.address.toLowerCase() ===
+          blockchain.cacheManagerAddress?.toLowerCase()
+        ) {
+          contractName = 'CacheManager';
+        } else if (
+          event.address.toLowerCase() ===
+          blockchain.cacheManagerAutomationAddress?.toLowerCase()
+        ) {
+          contractName = 'CacheManagerAutomation';
+        } else {
+          this.logger.warn(
+            `Unknown contract address ${event.address} does not match any known contract for blockchain ${blockchain.id}`,
+          );
+        }
+
         return {
           blockchain: blockchain,
-          contractName: 'CacheManager',
+          contractName: contractName,
           contractAddress: event.address,
           eventName: hasFragment(event) ? event.fragment.name : '',
           blockTimestamp: new Date(block ? block.timestamp * 1000 : 0),
