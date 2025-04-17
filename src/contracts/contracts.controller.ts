@@ -31,8 +31,8 @@ interface CacheStats {
 
 // Define the response type interface that includes calculated fields
 export interface ContractResponse extends Contract {
-  effectiveBid: string;
-  evictionRisk: {
+  effectiveBid?: string;
+  evictionRisk?: {
     riskLevel: RiskLevel;
     remainingEffectiveBid: string;
     suggestedBids: BidRiskLevels;
@@ -41,6 +41,10 @@ export interface ContractResponse extends Contract {
       vsMidRisk: number;
       vsLowRisk: number;
     };
+    cacheStats: CacheStats;
+  };
+  suggestedBids?: {
+    suggestedBids: BidRiskLevels;
     cacheStats: CacheStats;
   };
   biddingHistory?: Array<{

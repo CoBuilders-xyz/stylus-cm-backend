@@ -427,7 +427,6 @@ export class ContractsUtilsService {
   /**
    * Process a contract to add calculated fields
    * @param contract The contract to process
-   * @param decayRate Optional decay rate to use (if already fetched)
    * @param includeBiddingHistory Optional flag to include bidding history (default: false)
    * @returns The contract with additional calculated fields
    */
@@ -436,8 +435,8 @@ export class ContractsUtilsService {
     includeBiddingHistory = false,
   ): Promise<
     Contract & {
-      effectiveBid: string;
-      evictionRisk: {
+      effectiveBid?: string;
+      evictionRisk?: {
         riskLevel: RiskLevel;
         remainingEffectiveBid: string;
         suggestedBids: BidRiskLevels;
@@ -448,10 +447,15 @@ export class ContractsUtilsService {
         };
         cacheStats: CacheStats;
       };
+      suggestedBids?: {
+        suggestedBids: BidRiskLevels;
+        cacheStats: CacheStats;
+      };
       biddingHistory?: Array<{
         bytecodeHash: string;
         contractAddress: string;
         bid: string;
+        actualBid: string;
         size: string;
         timestamp: Date;
         blockNumber: number;
@@ -459,15 +463,51 @@ export class ContractsUtilsService {
       }>;
     }
   > {
-    const effectiveBid =
-      await this.calculateCurrentContractEffectiveBid(contract);
-    const evictionRisk = await this.calculateEvictionRisk(contract);
-
-    const processedContract = {
+    let processedContract: Contract & {
+      effectiveBid?: string;
+      evictionRisk?: {
+        riskLevel: RiskLevel;
+        remainingEffectiveBid: string;
+        suggestedBids: BidRiskLevels;
+        comparisonPercentages: {
+          vsHighRisk: number;
+          vsMidRisk: number;
+          vsLowRisk: number;
+        };
+        cacheStats: CacheStats;
+      };
+      suggestedBids?: {
+        suggestedBids: BidRiskLevels;
+        cacheStats: CacheStats;
+      };
+    } = {
       ...contract,
-      effectiveBid,
-      evictionRisk,
     };
+
+    // Only calculate effective bid and eviction risk if the contract is cached
+    if (contract.bytecode.isCached) {
+      const effectiveBid =
+        await this.calculateCurrentContractEffectiveBid(contract);
+      const evictionRisk = await this.calculateEvictionRisk(contract);
+
+      processedContract = {
+        ...processedContract,
+        effectiveBid,
+        evictionRisk,
+      };
+    } else {
+      // If contract is not cached, only calculate suggested bids
+      const size = Number(contract.bytecode.size);
+      const { suggestedBids, cacheStats } = await this.getSuggestedBids(
+        size,
+        contract.blockchain.id,
+      );
+
+      processedContract = {
+        ...processedContract,
+        suggestedBids: { suggestedBids, cacheStats },
+      };
+    }
 
     // Optionally include bidding history if requested
     if (includeBiddingHistory) {
@@ -491,8 +531,8 @@ export class ContractsUtilsService {
     includeBiddingHistory = false,
   ): Promise<
     (Contract & {
-      effectiveBid: string;
-      evictionRisk: {
+      effectiveBid?: string;
+      evictionRisk?: {
         riskLevel: RiskLevel;
         remainingEffectiveBid: string;
         suggestedBids: BidRiskLevels;
@@ -503,10 +543,15 @@ export class ContractsUtilsService {
         };
         cacheStats: CacheStats;
       };
+      suggestedBids?: {
+        suggestedBids: BidRiskLevels;
+        cacheStats: CacheStats;
+      };
       biddingHistory?: Array<{
         bytecodeHash: string;
         contractAddress: string;
         bid: string;
+        actualBid: string;
         size: string;
         timestamp: Date;
         blockNumber: number;
@@ -518,7 +563,7 @@ export class ContractsUtilsService {
       return [];
     }
 
-    // Process all contracts in parallel using Promise.all with the same decay rate
+    // Process all contracts in parallel using Promise.all
     const processedContracts = await Promise.all(
       contracts.map((contract) =>
         this.processContract(contract, includeBiddingHistory),
