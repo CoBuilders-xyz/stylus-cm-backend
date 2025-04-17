@@ -11,11 +11,48 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
 import { ContractSortingDto } from './dto/contract-sorting.dto';
 import { SearchDto } from '../common/dto/search.dto';
+import { RiskLevel } from './contracts.utils.service';
+
+// Define risk-related types
+interface BidRiskLevels {
+  highRisk: string;
+  midRisk: string;
+  lowRisk: string;
+}
+
+interface CacheStats {
+  utilization: number;
+  evictionRate: number;
+  medianBidPerByte: string;
+  competitiveness: number;
+  cacheSizeBytes: string;
+  usedCacheSizeBytes: string;
+}
 
 // Define the response type interface that includes calculated fields
 export interface ContractResponse extends Contract {
   effectiveBid: string;
-  evictionRisk: number;
+  evictionRisk: {
+    riskLevel: RiskLevel;
+    remainingEffectiveBid: string;
+    suggestedBids: BidRiskLevels;
+    comparisonPercentages: {
+      vsHighRisk: number;
+      vsMidRisk: number;
+      vsLowRisk: number;
+    };
+    cacheStats: CacheStats;
+  };
+  biddingHistory?: Array<{
+    bytecodeHash: string;
+    contractAddress: string;
+    bid: string;
+    actualBid: string;
+    size: string;
+    timestamp: Date;
+    blockNumber: number;
+    transactionHash: string;
+  }>;
 }
 
 @Controller('contracts')

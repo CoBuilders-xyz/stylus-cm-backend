@@ -88,6 +88,8 @@ export class ContractsService {
     // Process the single contract to add calculated fields
     const processedContract =
       await this.contractsUtilsService.processContract(contract);
+
+    // The types now match so we can safely cast
     return processedContract as ContractResponse;
   }
 }
