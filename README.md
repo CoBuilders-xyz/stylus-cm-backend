@@ -57,6 +57,7 @@ cp .env.example .env
 ```bash
 # Development
 npm run start:dev
+```
 
 ## API Overview
 
@@ -120,4 +121,3 @@ Each module contains detailed documentation in a `.md` file explaining its purpo
 ## About the Project
 
 This backend is part of the CoBuilders Stylus Cache Manager project, which received an [ARB grant](https://arbitrum.questbook.app/dashboard/?proposalId=67489c3d90449961f516e735&ref=blog.arbitrum.io&grantId=671a105a2047c84bb8a73770&chainId=10) to develop an open-source GUI for Arbitrum's Cache Manager with automated bidding, real-time alerts, and usage insights.
-```
