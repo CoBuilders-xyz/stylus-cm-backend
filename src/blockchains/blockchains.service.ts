@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -126,6 +126,14 @@ export class BlockchainsService {
 
   async getTotalBytecodes(blockchainId: string) {
     // Bytecode Data
+    //validate blockchainId exists
+    const blockchain = await this.blockchainRepository.findOne({
+      where: { id: blockchainId },
+    });
+    if (!blockchain) {
+      throw new NotFoundException('Blockchain not found');
+    }
+
     const netBytecodesTrends = await this.getNetBytecodesTrends(
       'M',
       blockchainId,
