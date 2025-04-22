@@ -133,9 +133,15 @@ export class BlockchainsService {
     const bytecodeCount = await this.bytecodeRepository.count({
       where: { blockchain: { id: blockchainId }, isCached: true },
     });
-    const bytecodeCountDiffWithLastMonth =
-      netBytecodesTrends[netBytecodesTrends.length - 1].currentTotal -
-      netBytecodesTrends[netBytecodesTrends.length - 2].currentTotal;
+
+    let bytecodeCountDiffWithLastMonth = 0;
+
+    // Check if we have enough data to calculate the difference
+    if (netBytecodesTrends && netBytecodesTrends.length >= 2) {
+      bytecodeCountDiffWithLastMonth =
+        netBytecodesTrends[netBytecodesTrends.length - 1].currentTotal -
+        netBytecodesTrends[netBytecodesTrends.length - 2].currentTotal;
+    }
 
     return {
       bytecodeCount,
