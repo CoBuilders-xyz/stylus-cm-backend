@@ -15,6 +15,7 @@ import { ContractSortingDto } from 'src/contracts/dto/contract-sorting.dto';
 import { SearchDto } from 'src/common/dto/search.dto';
 import { SortDirection } from 'src/common/dto/sort.dto';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
+import { UpdateUserContractNameDto } from './dto/update-user-contract-name.dto';
 
 @Injectable()
 export class UserContractsService {
@@ -186,6 +187,35 @@ export class UserContractsService {
         contract: processedContract,
       };
     }
+
+    return userContract;
+  }
+
+  async updateUserContractName(
+    user: User,
+    id: string,
+    updateNameDto: UpdateUserContractNameDto,
+  ) {
+    // Find the user contract, ensuring it belongs to the authenticated user
+    const userContract = await this.userContractRepository.findOne({
+      where: { id, user },
+      relations: [
+        'contract',
+        'contract.bytecode',
+        'blockchain',
+        'contract.blockchain',
+      ],
+    });
+
+    if (!userContract) {
+      throw new NotFoundException('User contract not found');
+    }
+
+    // Update the name
+    userContract.name = updateNameDto.name;
+
+    // Save the updated user contract
+    await this.userContractRepository.save(userContract);
 
     return userContract;
   }
