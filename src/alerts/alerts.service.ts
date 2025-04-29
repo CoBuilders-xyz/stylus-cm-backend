@@ -26,6 +26,16 @@ export class AlertsService {
     return queryBuilder.getMany();
   }
 
+  async getAlertsForUserContract(userId: string, userContractId: string) {
+    // Query alerts for a specific user contract
+    const queryBuilder = this.alertsRepository
+      .createQueryBuilder('alert')
+      .where('alert.user = :userId', { userId })
+      .andWhere('alert.userContract = :userContractId', { userContractId });
+
+    return queryBuilder.getMany();
+  }
+
   async createOrUpdateAlert(user: User, createAlertDto: CreateAlertDto) {
     // Validate userContract exists on blockchain
     const userContract = await this.userContractsRepository.findOne({

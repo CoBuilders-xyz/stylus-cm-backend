@@ -8,6 +8,8 @@ import { Contract } from 'src/contracts/entities/contract.entity';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
 import { BlockchainState } from 'src/blockchains/entities/blockchain-state.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
+import { AlertsModule } from 'src/alerts/alerts.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -17,6 +19,7 @@ import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entit
       BlockchainState,
       BlockchainEvent,
     ]),
+    AlertsModule,
   ],
   providers: [UserContractsService, ContractsUtilsService],
   controllers: [UserContractsController],

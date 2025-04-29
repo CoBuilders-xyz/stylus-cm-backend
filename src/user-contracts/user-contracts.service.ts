@@ -16,6 +16,7 @@ import { SearchDto } from 'src/common/dto/search.dto';
 import { SortDirection } from 'src/common/dto/sort.dto';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
 import { UpdateUserContractNameDto } from './dto/update-user-contract-name.dto';
+import { AlertsService } from 'src/alerts/alerts.service';
 
 @Injectable()
 export class UserContractsService {
@@ -27,6 +28,7 @@ export class UserContractsService {
     @InjectRepository(Contract)
     private contractRepository: Repository<Contract>,
     private readonly contractsUtilsService: ContractsUtilsService,
+    private readonly alertsService: AlertsService,
   ) {}
 
   async createUserContract(
@@ -127,6 +129,12 @@ export class UserContractsService {
     // Process contracts that have an associated contract
     const processedUserContracts = await Promise.all(
       userContracts.map(async (userContract) => {
+        // Get alerts for this user contract
+        const alerts = await this.alertsService.getAlertsForUserContract(
+          user.id,
+          userContract.id,
+        );
+
         // If the userContract has an associated contract, process it
         if (userContract.contract) {
           const processedContract =
@@ -137,9 +145,13 @@ export class UserContractsService {
           return {
             ...userContract,
             contract: processedContract,
+            alerts,
           };
         }
-        return userContract;
+        return {
+          ...userContract,
+          alerts,
+        };
       }),
     );
 
@@ -174,6 +186,12 @@ export class UserContractsService {
       throw new NotFoundException('User contract not found');
     }
 
+    // Get alerts for this user contract
+    const alerts = await this.alertsService.getAlertsForUserContract(
+      user.id,
+      id,
+    );
+
     // If the userContract has an associated contract, process it
     if (userContract.contract) {
       const processedContract =
@@ -185,10 +203,14 @@ export class UserContractsService {
       return {
         ...userContract,
         contract: processedContract,
+        alerts,
       };
     }
 
-    return userContract;
+    return {
+      ...userContract,
+      alerts,
+    };
   }
 
   async updateUserContractName(
