@@ -219,4 +219,18 @@ export class UserContractsService {
 
     return userContract;
   }
+
+  async deleteUserContract(user: User, id: string): Promise<void> {
+    // Find the user contract, ensuring it belongs to the authenticated user
+    const userContract = await this.userContractRepository.findOne({
+      where: { id, user },
+    });
+
+    if (!userContract) {
+      throw new NotFoundException('User contract not found');
+    }
+
+    // Delete the user contract
+    await this.userContractRepository.remove(userContract);
+  }
 }

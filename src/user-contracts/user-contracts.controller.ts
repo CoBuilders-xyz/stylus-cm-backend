@@ -7,6 +7,9 @@ import {
   Body,
   Param,
   Patch,
+  Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UserContractsService } from './user-contracts.service';
 import { AuthenticatedRequest } from '../common/types/custom-types';
@@ -72,5 +75,14 @@ export class UserContractsController {
       id,
       updateNameDto,
     );
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.userContractsService.deleteUserContract(req.user, id);
   }
 }
