@@ -56,6 +56,7 @@ export interface ContractResponse extends Contract {
     timestamp: Date;
     blockNumber: number;
     transactionHash: string;
+    originAddress: string;
   }>;
 }
 

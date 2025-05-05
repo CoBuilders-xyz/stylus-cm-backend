@@ -1,5 +1,27 @@
 export default () => ({
   blockchains: [
+    // {
+    //   name: 'Arbitrum One',
+    //   rpcUrl:
+    //     'https://arb-mainnet.g.alchemy.com/v2/4Fz5j6zHZW8RjDfSnUmER1rvh4iiBWgm',
+    //   chainId: 42161,
+    //   cacheManagerAddress: '0x51dedbd2f190e0696afbee5e60bfde96d86464ec',
+    //   arbWasmCacheAddress: '0x0000000000000000000000000000000000000072',
+    //   cacheManagerAutomationAddress:
+    //     '0x343FAF37071Ae1Bb8676b5a116c82D9db52696C0',
+    //   lastSyncedBlock: 0,
+    // },
+    // {
+    //   name: 'Arbitrum Sepolia',
+    //   rpcUrl:
+    //     'https://arb-sepolia.g.alchemy.com/v2/4Fz5j6zHZW8RjDfSnUmER1rvh4iiBWgm',
+    //   chainId: 421614,
+    //   cacheManagerAddress: '0x0c9043d042ab52cfa8d0207459260040cca54253',
+    //   arbWasmCacheAddress: '0x0000000000000000000000000000000000000072',
+    //   cacheManagerAutomationAddress:
+    //     '0x343FAF37071Ae1Bb8676b5a116c82D9db52696C0',
+    //   lastSyncedBlock: 0,
+    // },
     {
       name: 'Arbitrum Local',
       rpcUrl: 'http://localhost:8547',
@@ -10,14 +32,6 @@ export default () => ({
         '0x343FAF37071Ae1Bb8676b5a116c82D9db52696C0',
       lastSyncedBlock: 0,
     },
-    // {
-    //   name: 'Arbitrum Sepolia',
-    //   rpcUrl: 'https://arb-sepolia.g.alchemy.com/v2/4Fz5j6zHZW8RjDfSnUmER1rvh4iiBWgm',
-    //   chainId: 421614,
-    //   cacheManagerAddress: '0x0c9043d042ab52cfa8d0207459260040cca54253',
-    //   arbWasmCacheAddress: '0x0000000000000000000000000000000000000072',
-    //   lastSyncedBlock: 0,
-    // },
   ],
   eventTypes: [
     // CacheManager

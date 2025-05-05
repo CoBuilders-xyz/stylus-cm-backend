@@ -341,6 +341,7 @@ export class ContractsUtilsService {
       timestamp: Date;
       blockNumber: number;
       transactionHash: string;
+      originAddress: string;
     }>
   > {
     try {
@@ -352,6 +353,16 @@ export class ContractsUtilsService {
       const bidEvents = await this.blockchainEventRepository
         .createQueryBuilder('event')
         .leftJoinAndSelect('event.blockchain', 'blockchain')
+        .select([
+          'event.eventName',
+          'event.blockTimestamp',
+          'event.blockNumber',
+          'event.transactionHash',
+          'event.logIndex',
+          'event.eventData',
+          'event.originAddress',
+          'blockchain.id',
+        ])
         .where('event.eventName = :eventName', { eventName: 'InsertBid' })
         .andWhere(
           'LOWER(CAST(event."eventData"->>1 AS TEXT)) = :contractAddress',
@@ -392,6 +403,7 @@ export class ContractsUtilsService {
               timestamp: event.blockTimestamp,
               blockNumber: event.blockNumber,
               transactionHash: event.transactionHash,
+              originAddress: event.originAddress || '',
             };
           } catch (err) {
             const error = err as Error;
@@ -403,6 +415,14 @@ export class ContractsUtilsService {
 
       // Resolve all promises and filter out any null values
       const results = await Promise.all(bidPromises);
+
+      // Log origin address inclusion stats
+      const withOrigin = results.filter((item) => item?.originAddress).length;
+      const totalItems = results.length;
+      this.logger.debug(
+        `Bidding history: ${withOrigin}/${totalItems} entries have origin addresses`,
+      );
+
       return results.filter(
         (
           item,
@@ -415,6 +435,7 @@ export class ContractsUtilsService {
           timestamp: Date;
           blockNumber: number;
           transactionHash: string;
+          originAddress: string;
         } => item !== null,
       );
     } catch (error) {
@@ -460,6 +481,7 @@ export class ContractsUtilsService {
         timestamp: Date;
         blockNumber: number;
         transactionHash: string;
+        originAddress: string;
       }>;
     }
   > {
@@ -556,6 +578,7 @@ export class ContractsUtilsService {
         timestamp: Date;
         blockNumber: number;
         transactionHash: string;
+        originAddress: string;
       }>;
     })[]
   > {

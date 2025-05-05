@@ -12,6 +12,7 @@ export interface BlockchainEventData {
   logIndex: number;
   isRealTime: boolean;
   isSynced?: boolean;
+  originAddress?: string;
   eventData: Record<string, any>;
 }
 
