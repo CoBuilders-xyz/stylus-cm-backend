@@ -3,16 +3,31 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, MoreThan, Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
-import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
 import { InsertBidService } from './insert-bid.service';
 import { DeleteBidService } from './delete-bid.service';
 import { DecayRateService } from './decay-rate.service';
 import { ContractBytecodeService } from './contract-bytecode.service';
-import { findApplicableDecayRate } from '../utils/event-utils';
+
+// Define a type for event handler functions
+type EventHandler = (
+  blockchain: Blockchain,
+  event: BlockchainEvent,
+) => Promise<void>;
+
+// Define an enum for supported event types
+enum EventType {
+  InsertBid = 'InsertBid',
+  DeleteBid = 'DeleteBid',
+  // SetDecayRate = 'SetDecayRate',
+  // SetCacheSize = 'SetCacheSize',
+}
 
 @Injectable()
 export class EventProcessorService {
   private readonly logger = new Logger(EventProcessorService.name);
+
+  // Define a map of event processors with proper typing
+  private readonly eventHandlers: Map<string, EventHandler>;
 
   constructor(
     @InjectRepository(Blockchain)
@@ -24,7 +39,31 @@ export class EventProcessorService {
     private readonly decayRateService: DecayRateService,
     private readonly contractBytecodeService: ContractBytecodeService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) {
+    // Initialize the event handlers map
+    this.eventHandlers = new Map<string, EventHandler>([
+      [
+        EventType.InsertBid,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.insertBidService.processInsertBidEvent(blockchain, event),
+      ],
+      [
+        EventType.DeleteBid,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.deleteBidService.processDeleteBidEvent(blockchain, event),
+      ],
+      // [
+      //   EventType.SetDecayRate,
+      //   (blockchain: Blockchain, event: BlockchainEvent) =>
+      //     this.decayRateService.processSetDecayRateEvent2(blockchain, event)
+      // ],
+      // [
+      //   EventType.SetCacheSize,
+      //   (blockchain: Blockchain, event: BlockchainEvent) =>
+      //     this.contractBytecodeService.processSetCacheSizeEvent2(blockchain, event)
+      // ],
+    ]);
+  }
 
   /**
    * Process all events for all blockchains
@@ -119,9 +158,7 @@ export class EventProcessorService {
     // Process the events
     if (events.length > 0) {
       for (const event of events) {
-        const eventProcessor =
-          this.processEvent[event.eventName] || this.processEvent.Default;
-        await eventProcessor(blockchain, event);
+        await this.processEvent(blockchain, event);
       }
 
       // Update the last processed event in the blockchain record
@@ -159,12 +196,29 @@ export class EventProcessorService {
     this.logger.debug(
       `New event query returned event by type: ${event.eventName}`,
     );
-    const eventProcessor =
-      this.processEvent[event.eventName] || this.processEvent.Default;
-    await eventProcessor(blockchain, event);
+
+    await this.processEvent(blockchain, event);
 
     // Update the last processed event in the blockchain record
     await this.updateLastProcessedEvent(blockchain, event);
+  }
+
+  /**
+   * Process a single event with proper type safety
+   */
+  private async processEvent(
+    blockchain: Blockchain,
+    event: BlockchainEvent,
+  ): Promise<void> {
+    const handler = this.eventHandlers.get(event.eventName);
+
+    if (handler) {
+      await handler(blockchain, event);
+    } else {
+      this.logger.warn(
+        `No event processor defined for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
+      );
+    }
   }
 
   /**
@@ -191,20 +245,4 @@ export class EventProcessorService {
       throw error;
     }
   }
-
-  private processEvent = {
-    InsertBid: (blockchain: Blockchain, event: BlockchainEvent) =>
-      this.insertBidService.processInsertBidEvent(blockchain, event),
-    DeleteBid: (blockchain: Blockchain, event: BlockchainEvent) =>
-      this.deleteBidService.processDeleteBidEvent(blockchain, event),
-    // SetDecayRate: (blockchain: Blockchain, event: BlockchainEvent) =>
-    //   this.decayRateService.processSetDecayRateEvent2(blockchain, event),
-    // SetCacheSize: (blockchain: Blockchain, event: BlockchainEvent) =>
-    //   this.contractBytecodeService.processSetCacheSizeEvent2(blockchain, event),
-    Default: (blockchain: Blockchain, event: BlockchainEvent) => {
-      this.logger.warn(
-        `No event processor defined for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
-      );
-    },
-  };
 }
