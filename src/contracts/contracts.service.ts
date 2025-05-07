@@ -5,7 +5,10 @@ import { Contract } from './entities/contract.entity';
 import { ContractsUtilsService } from './contracts.utils.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
-import { ContractResponse } from './contracts.controller';
+import {
+  ContractResponse,
+  SuggestedBidsResponse,
+} from './contracts.controller';
 import { SortDirection } from '../common/dto/sort.dto';
 import { ContractSortingDto } from './dto/contract-sorting.dto';
 import { SearchDto } from '../common/dto/search.dto';
@@ -91,5 +94,34 @@ export class ContractsService {
 
     // The types now match so we can safely cast
     return processedContract as ContractResponse;
+  }
+
+  /**
+   * Get suggested bids for a contract address
+   * @param address Contract address
+   * @param blockchainId Blockchain ID
+   * @returns Suggested bids with cache statistics
+   */
+  async getSuggestedBidsByAddress(
+    address: string,
+    blockchainId: string,
+  ): Promise<SuggestedBidsResponse> {
+    return this.contractsUtilsService.getSuggestedBidsByAddress(
+      address,
+      blockchainId,
+    );
+  }
+
+  /**
+   * Get suggested bids for a contract bytecode size
+   * @param size Bytecode size in bytes
+   * @param blockchainId Blockchain ID
+   * @returns Suggested bids with cache statistics
+   */
+  async getSuggestedBidsBySize(
+    size: number,
+    blockchainId: string,
+  ): Promise<SuggestedBidsResponse> {
+    return this.contractsUtilsService.getSuggestedBids(size, blockchainId);
   }
 }

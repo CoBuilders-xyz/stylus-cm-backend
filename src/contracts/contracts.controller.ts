@@ -27,6 +27,7 @@ interface CacheStats {
   competitiveness: number;
   cacheSizeBytes: string;
   usedCacheSizeBytes: string;
+  minBid: string;
 }
 
 // Define the response type interface that includes calculated fields
@@ -60,6 +61,12 @@ export interface ContractResponse extends Contract {
   }>;
 }
 
+// Define suggested bids response interface
+export interface SuggestedBidsResponse {
+  suggestedBids: BidRiskLevels;
+  cacheStats: CacheStats;
+}
+
 @Controller('contracts')
 export class ContractsController {
   constructor(private readonly contractsService: ContractsService) {}
@@ -77,6 +84,38 @@ export class ContractsController {
       sortingDto,
       searchDto,
     );
+  }
+
+  @Get('suggest-bids/by-address/:address')
+  async getSuggestedBidsByAddress(
+    @Param('address') address: string,
+    @Query('blockchainId') blockchainId: string,
+  ): Promise<SuggestedBidsResponse> {
+    if (!blockchainId) {
+      throw new NotFoundException('blockchainId query parameter is required');
+    }
+    return this.contractsService.getSuggestedBidsByAddress(
+      address,
+      blockchainId,
+    );
+  }
+
+  @Get('suggest-bids/by-size/:size')
+  async getSuggestedBidsBySize(
+    @Param('size') sizeParam: string,
+    @Query('blockchainId') blockchainId: string,
+  ): Promise<SuggestedBidsResponse> {
+    if (!blockchainId) {
+      throw new NotFoundException('blockchainId query parameter is required');
+    }
+
+    // Parse the size parameter to a number
+    const size = parseInt(sizeParam, 10);
+    if (isNaN(size) || size <= 0) {
+      throw new NotFoundException('Size must be a positive number');
+    }
+
+    return this.contractsService.getSuggestedBidsBySize(size, blockchainId);
   }
 
   @Get(':id')
