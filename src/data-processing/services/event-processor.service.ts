@@ -7,6 +7,7 @@ import { InsertBidService } from './insert-bid.service';
 import { DeleteBidService } from './delete-bid.service';
 import { DecayRateService } from './decay-rate.service';
 import { ContractBytecodeService } from './contract-bytecode.service';
+import { AutomationService } from './automation.service';
 
 // Define a type for event handler functions
 type EventHandler = (
@@ -18,6 +19,8 @@ type EventHandler = (
 enum EventType {
   InsertBid = 'InsertBid',
   DeleteBid = 'DeleteBid',
+  ContractAdded = 'ContractAdded',
+  ContractUpdated = 'ContractUpdated',
   // SetDecayRate = 'SetDecayRate',
   // SetCacheSize = 'SetCacheSize',
 }
@@ -39,6 +42,7 @@ export class EventProcessorService {
     private readonly decayRateService: DecayRateService,
     private readonly contractBytecodeService: ContractBytecodeService,
     private readonly dataSource: DataSource,
+    private readonly automationService: AutomationService,
   ) {
     // Initialize the event handlers map
     this.eventHandlers = new Map<string, EventHandler>([
@@ -52,16 +56,16 @@ export class EventProcessorService {
         (blockchain: Blockchain, event: BlockchainEvent) =>
           this.deleteBidService.processDeleteBidEvent(blockchain, event),
       ],
-      // [
-      //   EventType.SetDecayRate,
-      //   (blockchain: Blockchain, event: BlockchainEvent) =>
-      //     this.decayRateService.processSetDecayRateEvent2(blockchain, event)
-      // ],
-      // [
-      //   EventType.SetCacheSize,
-      //   (blockchain: Blockchain, event: BlockchainEvent) =>
-      //     this.contractBytecodeService.processSetCacheSizeEvent2(blockchain, event)
-      // ],
+      [
+        EventType.ContractAdded,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.automationService.processContractAddedEvent(blockchain, event),
+      ],
+      [
+        EventType.ContractUpdated,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.automationService.processContractUpdatedEvent(blockchain, event),
+      ],
     ]);
   }
 

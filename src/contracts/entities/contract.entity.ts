@@ -42,4 +42,10 @@ export class Contract {
 
   @Column({ type: 'timestamp' })
   bidBlockTimestamp: Date;
+
+  @Column({ default: false })
+  isAutomated: boolean;
+
+  @Column('varchar', { length: 78, default: '0' })
+  maxBid: string;
 }
