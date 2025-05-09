@@ -23,5 +23,6 @@ import { AlertsModule } from 'src/alerts/alerts.module';
   ],
   providers: [UserContractsService, ContractsUtilsService],
   controllers: [UserContractsController],
+  exports: [UserContractsService],
 })
 export class UserContractsModule {}

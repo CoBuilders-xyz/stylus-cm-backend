@@ -255,4 +255,50 @@ export class UserContractsService {
     // Delete the user contract
     await this.userContractRepository.remove(userContract);
   }
+
+  /**
+   * Check if the given contracts are saved by the user
+   * @param user The user to check
+   * @param contractIds Array of contract IDs to check
+   * @param blockchainId Optional blockchain ID filter
+   * @returns A map of contract IDs to boolean values indicating if they are saved by the user
+   */
+  async checkContractsSavedByUser(
+    user: User,
+    contractIds: string[],
+    blockchainId?: string,
+  ): Promise<Record<string, boolean>> {
+    if (!contractIds.length) {
+      return {};
+    }
+
+    // Create query to find all user contracts for these contract IDs and user
+    const queryBuilder = this.userContractRepository
+      .createQueryBuilder('userContract')
+      .leftJoin('userContract.contract', 'contract')
+      .select('contract.id', 'contractId')
+      .where('userContract.user = :userId', { userId: user.id })
+      .andWhere('contract.id IN (:...contractIds)', { contractIds });
+
+    // Add optional blockchain filter
+    if (blockchainId) {
+      queryBuilder.andWhere('userContract.blockchain = :blockchainId', {
+        blockchainId,
+      });
+    }
+
+    // Execute query to get all saved contract IDs
+    const savedContractResults = await queryBuilder.getRawMany();
+    const savedContractIds = savedContractResults.map(
+      (result: { contractId: string }) => result.contractId,
+    );
+
+    // Create result map with true for saved contracts, false for others
+    const resultMap: Record<string, boolean> = {};
+    contractIds.forEach((id) => {
+      resultMap[id] = savedContractIds.includes(id);
+    });
+
+    return resultMap;
+  }
 }

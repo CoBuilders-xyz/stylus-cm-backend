@@ -4,6 +4,7 @@ import {
   Param,
   NotFoundException,
   Query,
+  Request,
 } from '@nestjs/common';
 import { ContractsService } from './contracts.service';
 import { Contract } from './entities/contract.entity';
@@ -12,6 +13,7 @@ import { PaginationResponse } from '../common/interfaces/pagination-response.int
 import { ContractSortingDto } from './dto/contract-sorting.dto';
 import { SearchDto } from '../common/dto/search.dto';
 import { RiskLevel } from './contracts.utils.service';
+import { AuthenticatedRequest } from '../common/types/custom-types';
 
 // Define risk-related types
 interface BidRiskLevels {
@@ -59,6 +61,7 @@ export interface ContractResponse extends Contract {
     transactionHash: string;
     originAddress: string;
   }>;
+  isSavedByUser?: boolean;
 }
 
 // Define suggested bids response interface
@@ -71,14 +74,22 @@ export interface SuggestedBidsResponse {
 export class ContractsController {
   constructor(private readonly contractsService: ContractsService) {}
 
+  /**
+   * Get all contracts with pagination, sorting, and filtering
+   *
+   * The response will include a boolean 'isSavedByUser' property that indicates
+   * whether each contract is saved by the authenticated user.
+   */
   @Get('')
   findAll(
+    @Request() req: AuthenticatedRequest,
     @Query('blockchainId') blockchainId: string,
     @Query() paginationDto: PaginationDto,
     @Query() sortingDto: ContractSortingDto,
     @Query() searchDto: SearchDto,
   ): Promise<PaginationResponse<ContractResponse>> {
     return this.contractsService.findAll(
+      req.user,
       blockchainId,
       paginationDto,
       sortingDto,
@@ -118,9 +129,18 @@ export class ContractsController {
     return this.contractsService.getSuggestedBidsBySize(size, blockchainId);
   }
 
+  /**
+   * Get a single contract by ID
+   *
+   * The response will include a boolean 'isSavedByUser' property that indicates
+   * whether the contract is saved by the authenticated user.
+   */
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<ContractResponse> {
-    const contract = await this.contractsService.findOne(id);
+  async findOne(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<ContractResponse> {
+    const contract = await this.contractsService.findOne(id, req.user);
     if (!contract) {
       throw new NotFoundException(`Contract with ID ${id} not found`);
     }
