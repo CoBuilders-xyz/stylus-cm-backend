@@ -215,10 +215,15 @@ export class BlockchainsService {
       .orderBy('period', 'ASC')
       .getRawMany();
 
-    return result.map((item) => ({
-      period: item.period,
-      count: parseInt(item.count, 10),
-    }));
+    return {
+      periods: result.map((item) => ({
+        period: item.period,
+        count: parseInt(item.count, 10),
+      })),
+      global: {
+        count: result.reduce((acc, item) => acc + parseInt(item.count, 10), 0),
+      },
+    };
   }
 
   async getNetBytecodesTrends(timespan: string, blockchainId: string) {
