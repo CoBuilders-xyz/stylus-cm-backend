@@ -67,19 +67,26 @@ const entities = [
     ConfigModule.forRoot({ isGlobal: true, load: [config] }), // In charge of loading environment variables. Required for the rest.
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.POSTGRES_HOST,
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      username: process.env.POSTGRES_USER,
-      password: process.env.POSTGRES_PASSWORD,
-      database: process.env.POSTGRES_DB,
+      ...(process.env.DATABASE_URL
+        ? { url: process.env.DATABASE_URL } // Use URL connection if DATABASE_URL is provided
+        : {
+            // Use individual parameters otherwise
+            host: process.env.POSTGRES_HOST,
+            port: parseInt(process.env.POSTGRES_PORT || '5432'),
+            username: process.env.POSTGRES_USER,
+            password: process.env.POSTGRES_PASSWORD,
+            database: process.env.POSTGRES_DB,
+          }),
       entities: entities,
       synchronize: true, // TODO: Change synch to env variable
     }),
     BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT || '6380'),
-      },
+      connection: process.env.REDIS_URL
+        ? { url: process.env.REDIS_URL }
+        : {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT || '6380'),
+          },
       defaultJobOptions: {
         attempts: parseInt(process.env.BULLMQ_ATTEMPTS || '5'),
         backoff: {
