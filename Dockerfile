@@ -1,12 +1,19 @@
-FROM node:20.18.0-bullseye
+FROM node:22.14.0-bullseye
 
+# Create app directory
+WORKDIR /usr/src/app
 
-RUN mkdir /app && chown node:node /app
-WORKDIR /app
+# A wildcard is used to ensure both package.json AND package-lock.json are copied
+COPY package*.json ./
 
-USER node
-
-COPY --chown=node:node ./package*.json ./
+# Install app dependencies
 RUN npm install
 
-COPY --chown=node:node . .
+# Bundle app source
+COPY . .
+
+# Creates a "dist" folder with the production build
+RUN npm run build
+
+# Expose the port on which the app will run
+EXPOSE 3000

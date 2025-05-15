@@ -82,10 +82,13 @@ const entities = [
     }),
     BullModule.forRoot({
       connection: process.env.REDIS_URL
-        ? { url: process.env.REDIS_URL }
+        ? { url: process.env.REDIS_URL, 
+           family: 0,
+          }
         : {
             host: process.env.REDIS_HOST,
             port: parseInt(process.env.REDIS_PORT || '6380'),
+            family: 0,
           },
       defaultJobOptions: {
         attempts: parseInt(process.env.BULLMQ_ATTEMPTS || '5'),
