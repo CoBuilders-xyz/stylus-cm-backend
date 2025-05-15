@@ -10,6 +10,9 @@ export class Blockchain {
   @Column()
   rpcUrl: string;
 
+  @Column({ nullable: true })
+  fastSyncRpcUrl: string;
+
   @Column({})
   cacheManagerAddress: string;
 
@@ -21,6 +24,9 @@ export class Blockchain {
 
   @Column({ unique: true })
   chainId: number;
+
+  @Column({ default: 0 })
+  originBlock: number;
 
   @Column('jsonb', { nullable: true }) // Flexible field for extra metadata
   otherInfo: Record<string, any>;
