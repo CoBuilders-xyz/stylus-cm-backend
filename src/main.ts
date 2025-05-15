@@ -26,7 +26,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: ['http://localhost:5000'], // TODO Make it env variable
+      origin: ['*'], // TODO Make it env variable
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     },
