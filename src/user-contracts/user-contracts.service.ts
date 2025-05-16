@@ -15,6 +15,8 @@ import { ContractSortingDto } from 'src/contracts/dto/contract-sorting.dto';
 import { SearchDto } from 'src/common/dto/search.dto';
 import { SortDirection } from 'src/common/dto/sort.dto';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
+import { UpdateUserContractNameDto } from './dto/update-user-contract-name.dto';
+import { AlertsService } from 'src/alerts/alerts.service';
 
 @Injectable()
 export class UserContractsService {
@@ -26,6 +28,7 @@ export class UserContractsService {
     @InjectRepository(Contract)
     private contractRepository: Repository<Contract>,
     private readonly contractsUtilsService: ContractsUtilsService,
+    private readonly alertsService: AlertsService,
   ) {}
 
   async createUserContract(
@@ -126,6 +129,12 @@ export class UserContractsService {
     // Process contracts that have an associated contract
     const processedUserContracts = await Promise.all(
       userContracts.map(async (userContract) => {
+        // Get alerts for this user contract
+        const alerts = await this.alertsService.getAlertsForUserContract(
+          user.id,
+          userContract.id,
+        );
+
         // If the userContract has an associated contract, process it
         if (userContract.contract) {
           const processedContract =
@@ -136,9 +145,13 @@ export class UserContractsService {
           return {
             ...userContract,
             contract: processedContract,
+            alerts,
           };
         }
-        return userContract;
+        return {
+          ...userContract,
+          alerts,
+        };
       }),
     );
 
@@ -173,6 +186,12 @@ export class UserContractsService {
       throw new NotFoundException('User contract not found');
     }
 
+    // Get alerts for this user contract
+    const alerts = await this.alertsService.getAlertsForUserContract(
+      user.id,
+      id,
+    );
+
     // If the userContract has an associated contract, process it
     if (userContract.contract) {
       const processedContract =
@@ -184,9 +203,102 @@ export class UserContractsService {
       return {
         ...userContract,
         contract: processedContract,
+        alerts,
       };
     }
 
+    return {
+      ...userContract,
+      alerts,
+    };
+  }
+
+  async updateUserContractName(
+    user: User,
+    id: string,
+    updateNameDto: UpdateUserContractNameDto,
+  ) {
+    // Find the user contract, ensuring it belongs to the authenticated user
+    const userContract = await this.userContractRepository.findOne({
+      where: { id, user },
+      relations: [
+        'contract',
+        'contract.bytecode',
+        'blockchain',
+        'contract.blockchain',
+      ],
+    });
+
+    if (!userContract) {
+      throw new NotFoundException('User contract not found');
+    }
+
+    // Update the name
+    userContract.name = updateNameDto.name;
+
+    // Save the updated user contract
+    await this.userContractRepository.save(userContract);
+
     return userContract;
+  }
+
+  async deleteUserContract(user: User, id: string): Promise<void> {
+    // Find the user contract, ensuring it belongs to the authenticated user
+    const userContract = await this.userContractRepository.findOne({
+      where: { id, user },
+    });
+
+    if (!userContract) {
+      throw new NotFoundException('User contract not found');
+    }
+
+    // Delete the user contract
+    await this.userContractRepository.remove(userContract);
+  }
+
+  /**
+   * Check if the given contracts are saved by the user
+   * @param user The user to check
+   * @param contractIds Array of contract IDs to check
+   * @param blockchainId Optional blockchain ID filter
+   * @returns A map of contract IDs to boolean values indicating if they are saved by the user
+   */
+  async checkContractsSavedByUser(
+    user: User,
+    contractIds: string[],
+    blockchainId?: string,
+  ): Promise<Record<string, boolean>> {
+    if (!contractIds.length) {
+      return {};
+    }
+
+    // Create query to find all user contracts for these contract IDs and user
+    const queryBuilder = this.userContractRepository
+      .createQueryBuilder('userContract')
+      .leftJoin('userContract.contract', 'contract')
+      .select('contract.id', 'contractId')
+      .where('userContract.user = :userId', { userId: user.id })
+      .andWhere('contract.id IN (:...contractIds)', { contractIds });
+
+    // Add optional blockchain filter
+    if (blockchainId) {
+      queryBuilder.andWhere('userContract.blockchain = :blockchainId', {
+        blockchainId,
+      });
+    }
+
+    // Execute query to get all saved contract IDs
+    const savedContractResults = await queryBuilder.getRawMany();
+    const savedContractIds = savedContractResults.map(
+      (result: { contractId: string }) => result.contractId,
+    );
+
+    // Create result map with true for saved contracts, false for others
+    const resultMap: Record<string, boolean> = {};
+    contractIds.forEach((id) => {
+      resultMap[id] = savedContractIds.includes(id);
+    });
+
+    return resultMap;
   }
 }

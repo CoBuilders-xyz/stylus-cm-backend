@@ -10,7 +10,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ethers } from 'ethers';
 import { UsersService } from 'src/users/users.service';
-import { Not } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +20,7 @@ export class AuthService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private usersService: UsersService,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
   async generateNonce(address: string) {
@@ -27,7 +28,11 @@ export class AuthService {
     const timestamp = new Date().toISOString();
     const nonce = `Sign this message to verify your ownership of address ${address}. Nonce: ${randomStr}. Timestamp: ${timestamp}`;
 
-    await this.cacheManager.set(address, nonce, 10000); // TODO Change expiration time make it env
+    const nonceExpiration = this.configService.get<number>(
+      'AUTH_NONCE_EXPIRATION',
+      10000,
+    );
+    await this.cacheManager.set(address, nonce, nonceExpiration);
     return nonce;
   }
 

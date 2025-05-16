@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -126,6 +126,14 @@ export class BlockchainsService {
 
   async getTotalBytecodes(blockchainId: string) {
     // Bytecode Data
+    //validate blockchainId exists
+    const blockchain = await this.blockchainRepository.findOne({
+      where: { id: blockchainId },
+    });
+    if (!blockchain) {
+      throw new NotFoundException('Blockchain not found');
+    }
+
     const netBytecodesTrends = await this.getNetBytecodesTrends(
       'M',
       blockchainId,
@@ -133,9 +141,15 @@ export class BlockchainsService {
     const bytecodeCount = await this.bytecodeRepository.count({
       where: { blockchain: { id: blockchainId }, isCached: true },
     });
-    const bytecodeCountDiffWithLastMonth =
-      netBytecodesTrends[netBytecodesTrends.length - 1].currentTotal -
-      netBytecodesTrends[netBytecodesTrends.length - 2].currentTotal;
+
+    let bytecodeCountDiffWithLastMonth = 0;
+
+    // Check if we have enough data to calculate the difference
+    if (netBytecodesTrends && netBytecodesTrends.length >= 2) {
+      bytecodeCountDiffWithLastMonth =
+        netBytecodesTrends[netBytecodesTrends.length - 1].currentTotal -
+        netBytecodesTrends[netBytecodesTrends.length - 2].currentTotal;
+    }
 
     return {
       bytecodeCount,
@@ -201,10 +215,15 @@ export class BlockchainsService {
       .orderBy('period', 'ASC')
       .getRawMany();
 
-    return result.map((item) => ({
-      period: item.period,
-      count: parseInt(item.count, 10),
-    }));
+    return {
+      periods: result.map((item) => ({
+        period: item.period,
+        count: parseInt(item.count, 10),
+      })),
+      global: {
+        count: result.reduce((acc, item) => acc + parseInt(item.count, 10), 0),
+      },
+    };
   }
 
   async getNetBytecodesTrends(timespan: string, blockchainId: string) {

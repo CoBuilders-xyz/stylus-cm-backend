@@ -75,6 +75,14 @@ export class EventStorageService {
         const transactionHash = getTransactionHash(event);
         const logIndex = getLogIndex(event);
 
+        // Get transaction data to extract the sender address
+        const tx = await provider.getTransaction(transactionHash);
+        const originAddress = tx?.from || undefined;
+
+        this.logger.debug(
+          `Transaction ${transactionHash} sender address: ${originAddress}`,
+        );
+
         // Infer contract name from the contract address
         let contractName = 'Unknown';
         if (
@@ -103,6 +111,7 @@ export class EventStorageService {
           transactionHash: transactionHash,
           logIndex: logIndex,
           isRealTime: isRealTime,
+          originAddress: originAddress,
           eventData: hasArgs(event) ? serializeEventArgs(event.args) : {},
         };
       }),

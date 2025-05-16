@@ -47,6 +47,10 @@ export class BlockchainEvent {
   @Column({ default: false })
   isRealTime: boolean;
 
+  // Add originAddress field to store the transaction sender
+  @Column({ nullable: true })
+  originAddress: string;
+
   @Column('jsonb')
   eventData: Record<string, any>; // Flexible JSONB storage for different event types
 }

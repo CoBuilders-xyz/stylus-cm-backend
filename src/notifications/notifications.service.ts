@@ -201,5 +201,9 @@ export class NotificationsService {
       contractAddress: mockData.alertContractAddress,
       triggeredCount: 0,
     });
+    return {
+      success: true,
+      message: 'Mock notification sent',
+    };
   }
 }

@@ -10,6 +10,7 @@ import { Blockchain } from '../blockchains/entities/blockchain.entity';
 // Define proper types for contract and provider
 interface CacheManagerContract {
   'getMinBid(uint64)'(size: number): Promise<bigint>;
+  'getMinBid(address)'(address: string): Promise<bigint>;
   decay(): Promise<bigint>;
   getCachedBid(
     address: string,
@@ -40,6 +41,7 @@ interface CacheStats {
   competitiveness: number; // How competitive the cache is (0-1)
   cacheSizeBytes: string;
   usedCacheSizeBytes: string;
+  minBid: string; // Minimum required bid for the current request
 }
 
 /**
@@ -321,6 +323,7 @@ export class ContractsUtilsService {
           competitiveness: 0,
           cacheSizeBytes: BigInt(0).toString(),
           usedCacheSizeBytes: BigInt(0).toString(),
+          minBid: BigInt(0).toString(),
         },
       };
     }
@@ -341,6 +344,7 @@ export class ContractsUtilsService {
       timestamp: Date;
       blockNumber: number;
       transactionHash: string;
+      originAddress: string;
     }>
   > {
     try {
@@ -352,6 +356,16 @@ export class ContractsUtilsService {
       const bidEvents = await this.blockchainEventRepository
         .createQueryBuilder('event')
         .leftJoinAndSelect('event.blockchain', 'blockchain')
+        .select([
+          'event.eventName',
+          'event.blockTimestamp',
+          'event.blockNumber',
+          'event.transactionHash',
+          'event.logIndex',
+          'event.eventData',
+          'event.originAddress',
+          'blockchain.id',
+        ])
         .where('event.eventName = :eventName', { eventName: 'InsertBid' })
         .andWhere(
           'LOWER(CAST(event."eventData"->>1 AS TEXT)) = :contractAddress',
@@ -392,6 +406,7 @@ export class ContractsUtilsService {
               timestamp: event.blockTimestamp,
               blockNumber: event.blockNumber,
               transactionHash: event.transactionHash,
+              originAddress: event.originAddress || '',
             };
           } catch (err) {
             const error = err as Error;
@@ -403,6 +418,14 @@ export class ContractsUtilsService {
 
       // Resolve all promises and filter out any null values
       const results = await Promise.all(bidPromises);
+
+      // Log origin address inclusion stats
+      const withOrigin = results.filter((item) => item?.originAddress).length;
+      const totalItems = results.length;
+      this.logger.debug(
+        `Bidding history: ${withOrigin}/${totalItems} entries have origin addresses`,
+      );
+
       return results.filter(
         (
           item,
@@ -415,6 +438,7 @@ export class ContractsUtilsService {
           timestamp: Date;
           blockNumber: number;
           transactionHash: string;
+          originAddress: string;
         } => item !== null,
       );
     } catch (error) {
@@ -460,6 +484,7 @@ export class ContractsUtilsService {
         timestamp: Date;
         blockNumber: number;
         transactionHash: string;
+        originAddress: string;
       }>;
     }
   > {
@@ -556,6 +581,7 @@ export class ContractsUtilsService {
         timestamp: Date;
         blockNumber: number;
         transactionHash: string;
+        originAddress: string;
       }>;
     })[]
   > {
@@ -590,9 +616,10 @@ export class ContractsUtilsService {
     // Get minimum bid from contract
     const minBid = await cacheManagerContract['getMinBid(uint64)'](size);
     const minBidNum = Number(minBid);
+    const minBidStr = minBid.toString();
 
     // Get cache statistics to adjust risk multipliers
-    const cacheStats = await this.getCacheStatistics(blockchainId);
+    const cacheStats = await this.getCacheStatistics(blockchainId, minBidStr);
 
     // Calculate dynamic risk multipliers based on cache statistics
     const riskMultipliers = this.calculateDynamicRiskMultipliers(cacheStats);
@@ -600,7 +627,47 @@ export class ContractsUtilsService {
     // Calculate the risk levels based on our dynamic multipliers
     return {
       suggestedBids: {
-        highRisk: minBid.toString(),
+        highRisk: minBidStr,
+        midRisk: BigInt(
+          Math.floor(minBidNum * riskMultipliers.midRisk),
+        ).toString(),
+        lowRisk: BigInt(
+          Math.floor(minBidNum * riskMultipliers.lowRisk),
+        ).toString(),
+      },
+      cacheStats,
+    };
+  }
+
+  /**
+   * Calculates suggested bids at different risk levels for a contract address
+   * @param address Contract address
+   * @param blockchainId The ID of the blockchain to calculate suggested bids for
+   * @returns Three bid levels at different risk profiles
+   */
+  async getSuggestedBidsByAddress(
+    address: string,
+    blockchainId: string,
+  ): Promise<{ suggestedBids: BidRiskLevels; cacheStats: CacheStats }> {
+    // Get CacheManagerContract instance
+    const cacheManagerContract =
+      await this.getCacheManagerContract(blockchainId);
+
+    // Get minimum bid from contract using the address variant
+    const minBid = await cacheManagerContract['getMinBid(address)'](address);
+    const minBidNum = Number(minBid);
+    const minBidStr = minBid.toString();
+
+    // Get cache statistics to adjust risk multipliers
+    const cacheStats = await this.getCacheStatistics(blockchainId, minBidStr);
+
+    // Calculate dynamic risk multipliers based on cache statistics
+    const riskMultipliers = this.calculateDynamicRiskMultipliers(cacheStats);
+
+    // Calculate the risk levels based on our dynamic multipliers
+    return {
+      suggestedBids: {
+        highRisk: minBidStr,
         midRisk: BigInt(
           Math.floor(minBidNum * riskMultipliers.midRisk),
         ).toString(),
@@ -654,9 +721,13 @@ export class ContractsUtilsService {
   /**
    * Gather cache statistics by analyzing contract state and blockchain events
    * @param blockchainId The ID of the blockchain to gather cache statistics for
+   * @param minBid Optional minimum bid to include in the statistics
    * @returns Cache statistics for risk assessment
    */
-  private async getCacheStatistics(blockchainId: string): Promise<CacheStats> {
+  private async getCacheStatistics(
+    blockchainId: string,
+    minBid: string = '0',
+  ): Promise<CacheStats> {
     // Get CacheManagerContract instance
     const cacheManagerContract =
       await this.getCacheManagerContract(blockchainId);
@@ -729,6 +800,7 @@ export class ContractsUtilsService {
       competitiveness,
       cacheSizeBytes: totalCacheSize.toString(),
       usedCacheSizeBytes: usedCacheSize.toString(),
+      minBid,
     };
   }
 

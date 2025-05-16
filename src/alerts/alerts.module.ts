@@ -29,6 +29,6 @@ import { BullModule } from '@nestjs/bullmq';
   ],
   providers: [AlertsService, AlertMonitoringService, ProviderManager],
   controllers: [AlertsController],
-  exports: [AlertMonitoringService],
+  exports: [AlertsService, AlertMonitoringService],
 })
 export class AlertsModule {}

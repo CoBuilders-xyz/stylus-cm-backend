@@ -32,10 +32,10 @@ export class Alert {
   @Column({ default: 0 })
   triggeredCount: number;
 
-  @ManyToOne(() => UserContract, { nullable: true })
+  @ManyToOne(() => UserContract, { nullable: true, onDelete: 'CASCADE' })
   userContract: UserContract;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
   user: User;
 
   @Column({ default: false })
