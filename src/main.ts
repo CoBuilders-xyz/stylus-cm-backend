@@ -26,7 +26,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: ['http://localhost:5000'], // TODO Make it env variable
+      origin: ['https://stylus-cm-frontend-f4pgm4fsu-toket.vercel.app'], // TODO Make it env variable
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     },
@@ -49,7 +49,7 @@ async function bootstrap() {
     new AllExceptionsFilter(httpAdapterHost),
   );
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '::');
   logger.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
