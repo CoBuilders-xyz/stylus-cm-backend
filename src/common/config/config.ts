@@ -15,7 +15,7 @@ export default () => ({
     // },
     {
       name: 'Arbitrum Sepolia',
-      rpcUrl: process.env.ARB_SEPOLIA_URL,
+      rpcUrl: process.env.ARB_SEPOLIA_FAST_SYNC_RPC,
       fastSyncRpcUrl: process.env.ARB_SEPOLIA_FAST_SYNC_RPC,
       chainId: 421614,
       cacheManagerAddress: '0x0c9043d042ab52cfa8d0207459260040cca54253',
