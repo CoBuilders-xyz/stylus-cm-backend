@@ -19,6 +19,7 @@ export enum ContractType {
  */
 export class ProviderManager {
   private providers: Map<string, ethers.JsonRpcProvider> = new Map();
+  private fastSyncProviders: Map<string, ethers.JsonRpcProvider> = new Map();
   private contracts: Map<string, Map<ContractType, ethers.Contract>> =
     new Map();
 
@@ -38,6 +39,35 @@ export class ProviderManager {
       });
       this.providers.set(blockchain.id, provider);
       logger.debug(`Created new provider for blockchain ${blockchain.id}`);
+    }
+
+    return provider;
+  }
+
+  /**
+   * Gets a fast sync provider for a blockchain using the fastSyncRpcUrl if available,
+   * otherwise falls back to the regular rpcUrl. Used for historical syncing operations.
+   */
+  getFastSyncProvider(blockchain: Blockchain): ethers.JsonRpcProvider {
+    // Check for existing provider in the fast sync cache
+    let provider = this.fastSyncProviders.get(blockchain.id);
+    if (!provider) {
+      // Use fastSyncRpcUrl if available, otherwise fall back to rpcUrl
+      const rpcUrl = blockchain.fastSyncRpcUrl || blockchain.rpcUrl;
+      if (!rpcUrl) {
+        throw new Error(`Blockchain ${blockchain.id} has no RPC URL`);
+      }
+
+      provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+        polling: true,
+        pollingInterval: 10000,
+      });
+      this.fastSyncProviders.set(blockchain.id, provider);
+      logger.debug(
+        `Created new fast sync provider for blockchain ${blockchain.id} using ${
+          blockchain.fastSyncRpcUrl ? 'fastSyncRpcUrl' : 'rpcUrl'
+        }`,
+      );
     }
 
     return provider;
@@ -100,10 +130,64 @@ export class ProviderManager {
   }
 
   /**
+   * Gets a contract instance connected to the fast sync provider for a blockchain
+   * and contract type, creating it if necessary. Used for historical operations.
+   */
+  getContractWithFastSyncProvider(
+    blockchain: Blockchain,
+    contractType: ContractType,
+  ): ethers.Contract {
+    // Get contract address based on contract type
+    let contractAddress: string;
+    let contractAbi: ethers.InterfaceAbi;
+
+    switch (contractType) {
+      case ContractType.CACHE_MANAGER:
+        if (!blockchain.cacheManagerAddress) {
+          throw new Error(
+            `Blockchain ${blockchain.id} has no CacheManager contract address`,
+          );
+        }
+        contractAddress = blockchain.cacheManagerAddress;
+        contractAbi = cacheManagerAbi;
+        break;
+      case ContractType.CACHE_MANAGER_AUTOMATION:
+        if (!blockchain.cacheManagerAutomationAddress) {
+          throw new Error(
+            `Blockchain ${blockchain.id} has no CacheManagerAutomation contract address`,
+          );
+        }
+        contractAddress = blockchain.cacheManagerAutomationAddress;
+        contractAbi = cacheManagerAutomationAbi;
+        break;
+      default:
+        throw new Error(`Unsupported contract type: ${String(contractType)}`);
+    }
+
+    // Get the fast sync provider
+    const provider = this.getFastSyncProvider(blockchain);
+
+    // Create a new contract instance connected to the fast sync provider
+    // (We don't cache these as they are only used for historical operations)
+    const contract = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      provider,
+    );
+
+    logger.debug(
+      `Created contract with fast sync provider for ${contractType} on blockchain ${blockchain.id}`,
+    );
+
+    return contract;
+  }
+
+  /**
    * Clears all providers and contracts
    */
   clear(): void {
     this.providers.clear();
+    this.fastSyncProviders.clear();
     this.contracts.clear();
     logger.debug('Cleared all providers and contracts');
   }

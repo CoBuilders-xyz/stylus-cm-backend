@@ -36,7 +36,8 @@ export class EventSyncService {
       }
 
       try {
-        const provider = this.providerManager.getProvider(blockchain);
+        // Use fast sync provider for historical syncing
+        const provider = this.providerManager.getFastSyncProvider(blockchain);
         await this.syncBlockchainEvents(blockchain, provider, eventTypes);
       } catch (error) {
         if (error instanceof Error) {
@@ -62,14 +63,17 @@ export class EventSyncService {
     provider: ethers.JsonRpcProvider,
     eventTypes: string[],
   ): Promise<void> {
-    const cacheManagerContract = this.providerManager.getContract(
-      blockchain,
-      ContractType.CACHE_MANAGER,
-    );
-    const cacheManagerAutomationContract = this.providerManager.getContract(
-      blockchain,
-      ContractType.CACHE_MANAGER_AUTOMATION,
-    );
+    // Use contracts connected to the fast sync provider for historical operations
+    const cacheManagerContract =
+      this.providerManager.getContractWithFastSyncProvider(
+        blockchain,
+        ContractType.CACHE_MANAGER,
+      );
+    const cacheManagerAutomationContract =
+      this.providerManager.getContractWithFastSyncProvider(
+        blockchain,
+        ContractType.CACHE_MANAGER_AUTOMATION,
+      );
 
     // Get last processed block for this blockchain
     const lastSyncedBlock =
@@ -255,8 +259,10 @@ export class EventSyncService {
       `Resyncing events for ${blockchain.id} from block ${fromBlock} to ${toBlock}`,
     );
 
-    const provider = this.providerManager.getProvider(blockchain);
-    const contract = this.providerManager.getContract(
+    // Use fast sync provider for historical resyncing
+    const provider = this.providerManager.getFastSyncProvider(blockchain);
+    // Use contract connected to the fast sync provider
+    const contract = this.providerManager.getContractWithFastSyncProvider(
       blockchain,
       ContractType.CACHE_MANAGER,
     );

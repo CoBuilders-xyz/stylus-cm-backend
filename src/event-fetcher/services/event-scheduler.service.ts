@@ -35,8 +35,8 @@ export class EventSchedulerService {
             continue;
           }
 
-          // Get provider
-          const provider = this.providerManager.getProvider(blockchain);
+          // Get fast sync provider for historical data
+          const provider = this.providerManager.getFastSyncProvider(blockchain);
 
           // Get current latest block
           const latestBlock = await provider.getBlockNumber();
@@ -96,7 +96,8 @@ export class EventSchedulerService {
       const blockchain = blockchains.find((b) => b.id === blockchainId);
 
       if (blockchain && blockchain.rpcUrl) {
-        const provider = this.providerManager.getProvider(blockchain);
+        // Use fast sync provider for manual resync
+        const provider = this.providerManager.getFastSyncProvider(blockchain);
         await this.eventSyncService.syncBlockchainEvents(
           blockchain,
           provider,
