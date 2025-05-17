@@ -26,7 +26,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: ['https://stylus-cm-frontend-f4pgm4fsu-toket.vercel.app'], // TODO Make it env variable
+      origin: [process.env.FRONTEND_URL || ''], // TODO Make it env variable
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     },
