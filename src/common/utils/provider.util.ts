@@ -20,6 +20,7 @@ export enum ContractType {
 export class ProviderManager {
   private providers: Map<string, ethers.JsonRpcProvider> = new Map();
   private fastSyncProviders: Map<string, ethers.JsonRpcProvider> = new Map();
+  private wssProviders: Map<string, ethers.WebSocketProvider> = new Map();
   private contracts: Map<string, Map<ContractType, ethers.Contract>> =
     new Map();
 
@@ -71,6 +72,86 @@ export class ProviderManager {
     }
 
     return provider;
+  }
+
+  /**
+   * Gets a WebSocket provider for a blockchain, creating it if necessary.
+   * This is specifically for event listeners to reduce polling and RPC request load.
+   */
+  getWssProvider(blockchain: Blockchain): ethers.WebSocketProvider {
+    if (!blockchain.rpcWssUrl) {
+      throw new Error(`Blockchain ${blockchain.id} has no WebSocket RPC URL`);
+    }
+
+    let provider = this.wssProviders.get(blockchain.id);
+    if (!provider) {
+      provider = new ethers.WebSocketProvider(blockchain.rpcWssUrl);
+
+      // Store provider reference for the interval
+      const wsProvider = provider;
+
+      // Set up reconnection with a ping interval
+      const pingInterval = setInterval(() => {
+        // Check if provider is still in our map (not already removed)
+        if (this.wssProviders.has(blockchain.id)) {
+          // Send a simple request to check if connection is alive
+          wsProvider.getBlockNumber().catch((error) => {
+            logger.error(
+              `WebSocket ping failed for blockchain ${blockchain.id}: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+            // Connection failed, clean up
+            clearInterval(pingInterval);
+            this.handleProviderDisconnect(blockchain.id);
+          });
+        } else {
+          // Provider was already removed, clear the interval
+          clearInterval(pingInterval);
+        }
+      }, 30000); // Check every 30 seconds
+
+      this.wssProviders.set(blockchain.id, provider);
+      logger.log(
+        `Created new WebSocket provider for blockchain ${blockchain.id}`,
+      );
+    }
+
+    return provider;
+  }
+
+  /**
+   * Handles provider disconnection by removing it from the cache and cleaning up listeners
+   */
+  private handleProviderDisconnect(blockchainId: string): void {
+    // Get provider before removing it
+    const provider = this.wssProviders.get(blockchainId);
+
+    // Remove the closed provider from the cache
+    this.wssProviders.delete(blockchainId);
+
+    // Properly clean up the provider if it exists
+    if (provider) {
+      try {
+        // Destroy the provider to close any underlying connection
+        provider.destroy();
+      } catch (error) {
+        logger.error(
+          `Error destroying WebSocket provider for blockchain ${blockchainId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    // Remove associated contracts that use this provider
+    this.removeAllListeners(blockchainId).catch((error) => {
+      logger.error(
+        `Error removing listeners for blockchain ${blockchainId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
   }
 
   /**
@@ -183,11 +264,81 @@ export class ProviderManager {
   }
 
   /**
+   * Gets a contract instance connected to WebSocket provider for a blockchain
+   * and contract type, creating it if necessary. Used for event listeners.
+   */
+  getContractWithWssProvider(
+    blockchain: Blockchain,
+    contractType: ContractType,
+  ): ethers.Contract {
+    // Get contract address based on contract type
+    let contractAddress: string;
+    let contractAbi: ethers.InterfaceAbi;
+
+    switch (contractType) {
+      case ContractType.CACHE_MANAGER:
+        if (!blockchain.cacheManagerAddress) {
+          throw new Error(
+            `Blockchain ${blockchain.id} has no CacheManager contract address`,
+          );
+        }
+        contractAddress = blockchain.cacheManagerAddress;
+        contractAbi = cacheManagerAbi;
+        break;
+      case ContractType.CACHE_MANAGER_AUTOMATION:
+        if (!blockchain.cacheManagerAutomationAddress) {
+          throw new Error(
+            `Blockchain ${blockchain.id} has no CacheManagerAutomation contract address`,
+          );
+        }
+        contractAddress = blockchain.cacheManagerAutomationAddress;
+        contractAbi = cacheManagerAutomationAbi;
+        break;
+      default:
+        throw new Error(`Unsupported contract type: ${String(contractType)}`);
+    }
+
+    // Get the WebSocket provider
+    const provider = this.getWssProvider(blockchain);
+
+    // Create a new contract instance connected to the WebSocket provider
+    const contract = new ethers.Contract(
+      contractAddress,
+      contractAbi,
+      provider,
+    );
+
+    logger.log(
+      `Created contract with WebSocket provider for ${contractType} on blockchain ${blockchain.id}`,
+    );
+
+    return contract;
+  }
+
+  /**
    * Clears all providers and contracts
    */
   clear(): void {
+    // Close all WebSocket connections before clearing
+    this.wssProviders.forEach((provider, blockchainId) => {
+      try {
+        // Clean up the provider
+        provider.destroy();
+        logger.debug(
+          `Closed WebSocket connection for blockchain ${blockchainId}`,
+        );
+      } catch (error) {
+        logger.error(
+          `Error closing WebSocket for blockchain ${blockchainId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    });
+
     this.providers.clear();
     this.fastSyncProviders.clear();
+    this.wssProviders.clear();
     this.contracts.clear();
     logger.debug('Cleared all providers and contracts');
   }
