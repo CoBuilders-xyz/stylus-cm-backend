@@ -26,7 +26,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: [process.env.FRONTEND_URL || ''], // TODO Make it env variable
+      origin: [process.env.FRONTEND_URL || ''],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     },
