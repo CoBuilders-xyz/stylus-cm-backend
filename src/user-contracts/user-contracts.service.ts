@@ -11,7 +11,10 @@ import { ethers } from 'ethers';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { Contract } from 'src/contracts/entities/contract.entity';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { ContractSortingDto } from 'src/contracts/dto/contract-sorting.dto';
+import {
+  ContractSortingDto,
+  ContractSortFieldNumeric,
+} from 'src/contracts/dto/contract-sorting.dto';
 import { SearchDto } from 'src/common/dto/search.dto';
 import { SortDirection } from 'src/common/dto/sort.dto';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
@@ -115,10 +118,27 @@ export class UserContractsService {
       sortingDto.sortBy.forEach((field, index) => {
         const direction =
           sortingDto.sortDirection?.[index] || SortDirection.DESC;
-        if (index === 0) {
-          queryBuilder.orderBy(field, direction);
+
+        // Check if the current field (string) is one of the string values in ContractSortFieldNumeric enum
+        if (
+          (Object.values(ContractSortFieldNumeric) as string[]).includes(field)
+        ) {
+          // Generate a safe, all-lowercase alias for the casted field
+          const alias = `${field.toLowerCase().replace(/\./g, '_')}_numeric`;
+          queryBuilder.addSelect(`CAST(${field} AS NUMERIC)`, alias);
+
+          if (index === 0) {
+            queryBuilder.orderBy(alias, direction);
+          } else {
+            queryBuilder.addOrderBy(alias, direction);
+          }
         } else {
-          queryBuilder.addOrderBy(field, direction);
+          // Sort other fields normally
+          if (index === 0) {
+            queryBuilder.orderBy(field, direction);
+          } else {
+            queryBuilder.addOrderBy(field, direction);
+          }
         }
       });
     }
