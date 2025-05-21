@@ -28,7 +28,10 @@ async function bootstrap() {
     cors: {
       origin: (origin, callback) => {
         // Allow origins that start with https://stylus-cm-frontend
-        if (origin?.startsWith('https://stylus-cm-frontend')) {
+        if (
+          process.env.ENVIRONMENT !== 'production' &&
+          origin?.startsWith('https://stylus-cm-frontend')
+        ) {
           callback(null, true);
           return;
         }
