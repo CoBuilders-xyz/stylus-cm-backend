@@ -11,6 +11,7 @@ import { Cache } from 'cache-manager';
 import { ethers } from 'ethers';
 import { UsersService } from 'src/users/users.service';
 import { ConfigService } from '@nestjs/config';
+import crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -24,9 +25,14 @@ export class AuthService {
   ) {}
 
   async generateNonce(address: string) {
-    const randomStr = Math.random().toString(36).substring(2);
-    const timestamp = new Date().toISOString();
-    const nonce = `Sign this message to verify your ownership of address ${address}. Nonce: ${randomStr}. Timestamp: ${timestamp}`;
+    const nonce = `Hello, welcome to Stylus Cache Manager UI. Please sign this message to verify your wallet.
+
+This action has no cost.
+
+Address:
+${address}
+Nonce:
+${crypto.randomUUID()}`;
 
     const nonceExpiration = this.configService.get<number>(
       'AUTH_NONCE_EXPIRATION',
