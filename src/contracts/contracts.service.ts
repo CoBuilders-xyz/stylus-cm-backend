@@ -91,7 +91,7 @@ export class ContractsService {
       .take(limit);
 
     if (searchDto.search) {
-      queryBuilder.andWhere('contract.address LIKE :search', {
+      queryBuilder.andWhere('LOWER(contract.address) LIKE LOWER(:search)', {
         search: `%${searchDto.search}%`,
       });
     } else if (sortingDto.sortBy) {
