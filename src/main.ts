@@ -26,7 +26,21 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: [process.env.FRONTEND_URL || ''],
+      origin: (origin, callback) => {
+        // Allow origins that start with https://stylus-cm-frontend
+        if (origin?.startsWith('https://stylus-cm-frontend')) {
+          callback(null, true);
+          return;
+        }
+
+        // Allow the main frontend URL if specified in env
+        if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error('Not allowed by CORS'));
+      },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     },
