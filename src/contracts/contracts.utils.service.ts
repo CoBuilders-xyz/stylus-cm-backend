@@ -44,6 +44,26 @@ interface CacheStats {
   minBid: string; // Minimum required bid for the current request
 }
 
+// Define the result type to match the return type
+type BidHistoryItem = {
+  bytecodeHash: string;
+  contractAddress: string;
+  bid: string;
+  actualBid: string;
+  size: string;
+  timestamp: Date;
+  blockNumber: number;
+  transactionHash: string;
+  originAddress: string;
+  isAutomated: boolean;
+  automationDetails?: {
+    user: string;
+    minBid: string;
+    maxBid: string;
+    userBalance: string;
+  };
+};
+
 /**
  * This service contains utility functions for processing contract data
  * and calculating derived values that need to be computed at request time.
@@ -413,26 +433,6 @@ export class ContractsUtilsService {
       const automationMap = new Map(
         automationEvents.map((event) => [event.transactionHash, event]),
       );
-
-      // Define the result type to match the return type
-      type BidHistoryItem = {
-        bytecodeHash: string;
-        contractAddress: string;
-        bid: string;
-        actualBid: string;
-        size: string;
-        timestamp: Date;
-        blockNumber: number;
-        transactionHash: string;
-        originAddress: string;
-        isAutomated: boolean;
-        automationDetails?: {
-          user: string;
-          minBid: string;
-          maxBid: string;
-          userBalance: string;
-        };
-      };
 
       // Parse the event data from the primary query
       const processedItems: BidHistoryItem[] = [];
