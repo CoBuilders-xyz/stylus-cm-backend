@@ -10,7 +10,10 @@ import {
   SuggestedBidsResponse,
 } from './contracts.controller';
 import { SortDirection } from '../common/dto/sort.dto';
-import { ContractSortingDto } from './dto/contract-sorting.dto';
+import {
+  ContractSortingDto,
+  ContractSortFieldNumeric,
+} from './dto/contract-sorting.dto';
 import { SearchDto } from '../common/dto/search.dto';
 import { User } from '../users/entities/user.entity';
 import { UserContract } from '../user-contracts/entities/user-contract.entity';
@@ -98,10 +101,27 @@ export class ContractsService {
       sortingDto.sortBy.forEach((field, index) => {
         const direction =
           sortingDto.sortDirection?.[index] || SortDirection.DESC;
-        if (index === 0) {
-          queryBuilder.orderBy(field, direction);
+
+        // Check if the current field (string) is one of the string values in ContractSortFieldNumeric enum
+        if (
+          (Object.values(ContractSortFieldNumeric) as string[]).includes(field)
+        ) {
+          // Generate a safe, all-lowercase alias for the casted field
+          const alias = `${field.toLowerCase().replace(/\./g, '_')}_numeric`;
+          queryBuilder.addSelect(`CAST(${field} AS NUMERIC)`, alias);
+
+          if (index === 0) {
+            queryBuilder.orderBy(alias, direction);
+          } else {
+            queryBuilder.addOrderBy(alias, direction);
+          }
         } else {
-          queryBuilder.addOrderBy(field, direction);
+          // Sort other fields normally
+          if (index === 0) {
+            queryBuilder.orderBy(field, direction);
+          } else {
+            queryBuilder.addOrderBy(field, direction);
+          }
         }
       });
     }

@@ -9,6 +9,12 @@ export enum ContractSortField {
   TOTAL_BID_INVESTMENT = 'contract.totalBidInvestment',
 }
 
+export enum ContractSortFieldNumeric {
+  LAST_BID = 'contract.lastBid',
+  BYTECODE_SIZE = 'bytecode.size',
+  TOTAL_BID_INVESTMENT = 'contract.totalBidInvestment',
+}
+
 export class ContractSortingDto extends BaseSortingDto<ContractSortField> {
   @IsOptional()
   @IsEnum(ContractSortField, { each: true })
