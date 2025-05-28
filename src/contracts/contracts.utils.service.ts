@@ -570,6 +570,7 @@ export class ContractsUtilsService {
           userBalance: string;
         };
       }>;
+      minBid: string;
     }
   > {
     let processedContract: Contract & {
@@ -589,8 +590,10 @@ export class ContractsUtilsService {
         suggestedBids: BidRiskLevels;
         cacheStats: CacheStats;
       };
+      minBid: string;
     } = {
       ...contract,
+      minBid: '0',
     };
 
     // Only calculate effective bid and eviction risk if the contract is cached
@@ -603,6 +606,7 @@ export class ContractsUtilsService {
         ...processedContract,
         effectiveBid,
         evictionRisk,
+        minBid: evictionRisk.cacheStats.minBid,
       };
     } else {
       // If contract is not cached, only calculate suggested bids
@@ -615,6 +619,7 @@ export class ContractsUtilsService {
       processedContract = {
         ...processedContract,
         suggestedBids: { suggestedBids, cacheStats },
+        minBid: cacheStats.minBid,
       };
     }
 
@@ -674,6 +679,7 @@ export class ContractsUtilsService {
           userBalance: string;
         };
       }>;
+      minBid: string;
     })[]
   > {
     if (contracts.length === 0) {
