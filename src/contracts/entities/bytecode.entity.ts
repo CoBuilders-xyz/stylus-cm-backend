@@ -38,9 +38,9 @@ export class Bytecode {
   @Column('varchar', { length: 78, default: '0' })
   totalBidInvestment: string;
 
-  @Column({ type: 'bigint' })
+  @Column({ type: 'bigint', nullable: true })
   bidBlockNumber: number;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', nullable: true })
   bidBlockTimestamp: Date;
 }

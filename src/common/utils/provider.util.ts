@@ -3,6 +3,8 @@ import { Logger } from '@nestjs/common';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { abi as cacheManagerAbi } from '../abis/cacheManager/cacheManager.json';
 import { abi as cacheManagerAutomationAbi } from '../abis/cacheManagerAutomation/CacheManagerAutomation.json';
+import { abi as arbWasmCacheAbi } from '../abis/arbWasmCache/arbWasmCache.json';
+import { abi as arbWasmAbi } from '../abis/arbWasm/ArbWasm.json';
 
 const logger = new Logger('ProviderUtil');
 
@@ -11,6 +13,8 @@ const logger = new Logger('ProviderUtil');
  */
 export enum ContractType {
   CACHE_MANAGER = 'cacheManager',
+  ARB_WASM_CACHE = 'arbWasmCache',
+  ARB_WASM = 'arbWasm',
   CACHE_MANAGER_AUTOMATION = 'cacheManagerAutomation',
 }
 
@@ -183,6 +187,24 @@ export class ProviderManager {
         }
         contractAddress = blockchain.cacheManagerAutomationAddress;
         contractAbi = cacheManagerAutomationAbi;
+        break;
+      case ContractType.ARB_WASM_CACHE:
+        if (!blockchain.arbWasmCacheAddress) {
+          throw new Error(
+            `Blockchain ${blockchain.id} has no ArbWasmCache contract address`,
+          );
+        }
+        contractAddress = blockchain.arbWasmCacheAddress;
+        contractAbi = arbWasmCacheAbi;
+        break;
+      case ContractType.ARB_WASM:
+        if (!blockchain.arbWasmAddress) {
+          throw new Error(
+            `Blockchain ${blockchain.id} has no ArbWasm contract address`,
+          );
+        }
+        contractAddress = blockchain.arbWasmAddress;
+        contractAbi = arbWasmAbi;
         break;
       default:
         throw new Error(`Unsupported contract type: ${String(contractType)}`);
