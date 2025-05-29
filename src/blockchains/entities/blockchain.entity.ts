@@ -25,6 +25,9 @@ export class Blockchain {
   @Column({})
   arbWasmCacheAddress: string;
 
+  @Column({})
+  arbWasmAddress: string;
+
   @Column({ unique: true })
   chainId: number;
 

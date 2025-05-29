@@ -9,6 +9,8 @@ import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
 import { BlockchainState } from 'src/blockchains/entities/blockchain-state.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
 import { AlertsModule } from 'src/alerts/alerts.module';
+import { Bytecode } from 'src/contracts/entities/bytecode.entity';
+import { ProviderManager } from 'src/common/utils/provider.util';
 
 @Module({
   imports: [
@@ -18,10 +20,11 @@ import { AlertsModule } from 'src/alerts/alerts.module';
       Contract,
       BlockchainState,
       BlockchainEvent,
+      Bytecode,
     ]),
     AlertsModule,
   ],
-  providers: [UserContractsService, ContractsUtilsService],
+  providers: [UserContractsService, ContractsUtilsService, ProviderManager],
   controllers: [UserContractsController],
   exports: [UserContractsService],
 })
