@@ -11,12 +11,17 @@ import { ethers } from 'ethers';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { Contract } from 'src/contracts/entities/contract.entity';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { ContractSortingDto } from 'src/contracts/dto/contract-sorting.dto';
+import {
+  ContractSortingDto,
+  ContractSortFieldNumeric,
+} from 'src/contracts/dto/contract-sorting.dto';
 import { SearchDto } from 'src/common/dto/search.dto';
 import { SortDirection } from 'src/common/dto/sort.dto';
 import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
 import { UpdateUserContractNameDto } from './dto/update-user-contract-name.dto';
 import { AlertsService } from 'src/alerts/alerts.service';
+import { Bytecode } from 'src/contracts/entities/bytecode.entity';
+import { ContractType, ProviderManager } from 'src/common/utils/provider.util';
 
 @Injectable()
 export class UserContractsService {
@@ -27,8 +32,11 @@ export class UserContractsService {
     private blockchainRepository: Repository<Blockchain>,
     @InjectRepository(Contract)
     private contractRepository: Repository<Contract>,
+    @InjectRepository(Bytecode)
+    private bytecodeRepository: Repository<Bytecode>,
     private readonly contractsUtilsService: ContractsUtilsService,
     private readonly alertsService: AlertsService,
+    private readonly providerManager: ProviderManager,
   ) {}
 
   async createUserContract(
@@ -57,9 +65,9 @@ export class UserContractsService {
       throw new BadRequestException('Blockchain not found');
     }
 
-    const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl); // TODO avoid envs within code.
-    const bytecode = await provider.getCode(address);
-    if (bytecode === '0x' || bytecode === '') {
+    const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
+    const onChainBytecode = await provider.getCode(address);
+    if (onChainBytecode === '0x' || onChainBytecode === '') {
       throw new BadRequestException(
         'The provided address is not a smart contract on the selected blockchain',
       );
@@ -67,14 +75,57 @@ export class UserContractsService {
     const verifiedAddress = ethers.getAddress(address);
     const nonEmptyName = name || verifiedAddress;
 
-    const contract = await this.contractRepository.findOne({
+    let contract = await this.contractRepository.findOne({
       where: { blockchain, address: verifiedAddress },
     });
+
+    let bytecode = await this.bytecodeRepository.findOne({
+      where: {
+        blockchain,
+        bytecodeHash: ethers.keccak256(onChainBytecode),
+      },
+    });
+    if (!bytecode) {
+      const arbWasmContract = this.providerManager.getContract(
+        blockchain,
+        ContractType.ARB_WASM,
+      );
+      const contractSizeRaw = (await arbWasmContract.codehashAsmSize(
+        ethers.keccak256(onChainBytecode),
+      )) as bigint;
+      const contractSize = contractSizeRaw.toString();
+
+      bytecode = this.bytecodeRepository.create({
+        blockchain,
+        bytecodeHash: ethers.keccak256(onChainBytecode),
+        size: contractSize,
+        lastBid: '0',
+        bidPlusDecay: '0',
+        lastEvictionBid: '0',
+        isCached: false,
+        totalBidInvestment: '0',
+      });
+      bytecode = await this.bytecodeRepository.save(bytecode);
+    }
+
+    if (!contract) {
+      contract = this.contractRepository.create({
+        blockchain,
+        address: verifiedAddress,
+        bytecode: bytecode,
+        lastBid: '0',
+        bidPlusDecay: '0',
+        totalBidInvestment: '0',
+        isAutomated: false,
+        maxBid: '0',
+      });
+      contract = await this.contractRepository.save(contract);
+    }
 
     const newUserContract = this.userContractRepository.create({
       address,
       blockchain,
-      ...(contract ? { contract } : {}),
+      contract,
       user,
       name: nonEmptyName,
     });
@@ -115,10 +166,27 @@ export class UserContractsService {
       sortingDto.sortBy.forEach((field, index) => {
         const direction =
           sortingDto.sortDirection?.[index] || SortDirection.DESC;
-        if (index === 0) {
-          queryBuilder.orderBy(field, direction);
+
+        // Check if the current field (string) is one of the string values in ContractSortFieldNumeric enum
+        if (
+          (Object.values(ContractSortFieldNumeric) as string[]).includes(field)
+        ) {
+          // Generate a safe, all-lowercase alias for the casted field
+          const alias = `${field.toLowerCase().replace(/\./g, '_')}_numeric`;
+          queryBuilder.addSelect(`CAST(${field} AS NUMERIC)`, alias);
+
+          if (index === 0) {
+            queryBuilder.orderBy(alias, direction);
+          } else {
+            queryBuilder.addOrderBy(alias, direction);
+          }
         } else {
-          queryBuilder.addOrderBy(field, direction);
+          // Sort other fields normally
+          if (index === 0) {
+            queryBuilder.orderBy(field, direction);
+          } else {
+            queryBuilder.addOrderBy(field, direction);
+          }
         }
       });
     }
