@@ -23,7 +23,7 @@ export default () => ({
       arbWasmCacheAddress: '0x0000000000000000000000000000000000000072',
       arbWasmAddress: '0x0000000000000000000000000000000000000071',
       cacheManagerAutomationAddress:
-        '0x70704176E8947fA11F56baf907095b62B80cDab2',
+        '0xB6059FBd316CB7C6F5b7CF0a62a9a113700A9069',
       originBlock: 109913803, // First TX on CM contract.
       lastSyncedBlock: 0,
     },
