@@ -13,7 +13,7 @@ import type {
   ContractRunner,
   ContractMethod,
   Listener,
-} from "ethers";
+} from 'ethers';
 import type {
   TypedContractEvent,
   TypedDeferredTopicFilter,
@@ -21,7 +21,7 @@ import type {
   TypedLogDescription,
   TypedListener,
   TypedContractMethod,
-} from "../common";
+} from '../common';
 
 export declare namespace ICacheManagerAutomationV2 {
   export type ContractConfigStruct = {
@@ -33,7 +33,7 @@ export declare namespace ICacheManagerAutomationV2 {
   export type ContractConfigStructOutput = [
     contractAddress: string,
     maxBid: bigint,
-    enabled: boolean
+    enabled: boolean,
   ] & { contractAddress: string; maxBid: bigint; enabled: boolean };
 
   export type UserContractsDataStruct = {
@@ -43,7 +43,7 @@ export declare namespace ICacheManagerAutomationV2 {
 
   export type UserContractsDataStructOutput = [
     user: string,
-    contracts: ICacheManagerAutomationV2.ContractConfigStructOutput[]
+    contracts: ICacheManagerAutomationV2.ContractConfigStructOutput[],
   ] & {
     user: string;
     contracts: ICacheManagerAutomationV2.ContractConfigStructOutput[];
@@ -56,206 +56,235 @@ export declare namespace ICacheManagerAutomationV2 {
 
   export type BidRequestStructOutput = [
     user: string,
-    contractAddress: string
+    contractAddress: string,
   ] & { user: string; contractAddress: string };
 }
 
 export interface CacheManagerAutomationInterface extends Interface {
   getFunction(
     nameOrSignature:
-      | "arbWasmCache"
-      | "cacheManager"
-      | "escrow"
-      | "fundBalance"
-      | "getContracts"
-      | "getUserBalance"
-      | "getUserContracts"
-      | "initialize"
-      | "insertContract"
-      | "owner"
-      | "placeBids"
-      | "proxiableUUID"
-      | "removeAllContracts"
-      | "removeContract"
-      | "renounceOwnership"
-      | "transferOwnership"
-      | "updateContract"
-      | "upgradeTo"
-      | "upgradeToAndCall"
-      | "userContracts"
-      | "withdrawBalance"
+      | 'arbWasmCache'
+      | 'cacheManager'
+      | 'escrow'
+      | 'fundBalance'
+      | 'getContracts'
+      | 'getContractsPaginated'
+      | 'getTotalUsersCount'
+      | 'getUserAtIndex'
+      | 'getUserBalance'
+      | 'getUserContracts'
+      | 'initialize'
+      | 'insertContract'
+      | 'owner'
+      | 'placeBids'
+      | 'proxiableUUID'
+      | 'removeAllContracts'
+      | 'removeContract'
+      | 'renounceOwnership'
+      | 'transferOwnership'
+      | 'updateContract'
+      | 'upgradeTo'
+      | 'upgradeToAndCall'
+      | 'userContracts'
+      | 'withdrawBalance',
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
-      | "AdminChanged"
-      | "BalanceUpdated"
-      | "BeaconUpgraded"
-      | "BidAttempted"
-      | "BidDetails"
-      | "BidError"
-      | "BidPlaced"
-      | "ContractAdded"
-      | "ContractOperationPerformed"
-      | "ContractRemoved"
-      | "ContractUpdated"
-      | "Initialized"
-      | "MinBidCheck"
-      | "OwnershipTransferred"
-      | "Paused"
-      | "Unpaused"
-      | "Upgraded"
-      | "UpkeepPerformed"
-      | "UserBalanceOperation"
+      | 'AdminChanged'
+      | 'BalanceUpdated'
+      | 'BeaconUpgraded'
+      | 'BidAttempted'
+      | 'BidDetails'
+      | 'BidError'
+      | 'BidPlaced'
+      | 'ContractAdded'
+      | 'ContractOperationPerformed'
+      | 'ContractRemoved'
+      | 'ContractUpdated'
+      | 'DebugBidCheck'
+      | 'DebugMinBidFetch'
+      | 'Initialized'
+      | 'MinBidCheck'
+      | 'OwnershipTransferred'
+      | 'Paused'
+      | 'Unpaused'
+      | 'Upgraded'
+      | 'UpkeepPerformed'
+      | 'UserBalanceOperation',
   ): EventFragment;
 
   encodeFunctionData(
-    functionFragment: "arbWasmCache",
-    values?: undefined
+    functionFragment: 'arbWasmCache',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "cacheManager",
-    values?: undefined
+    functionFragment: 'cacheManager',
+    values?: undefined,
   ): string;
-  encodeFunctionData(functionFragment: "escrow", values?: undefined): string;
+  encodeFunctionData(functionFragment: 'escrow', values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "fundBalance",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getContracts",
-    values?: undefined
+    functionFragment: 'fundBalance',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "getUserBalance",
-    values?: undefined
+    functionFragment: 'getContracts',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "getUserContracts",
-    values?: undefined
+    functionFragment: 'getContractsPaginated',
+    values: [BigNumberish, BigNumberish],
   ): string;
   encodeFunctionData(
-    functionFragment: "initialize",
-    values: [AddressLike, AddressLike]
+    functionFragment: 'getTotalUsersCount',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "insertContract",
-    values: [AddressLike, BigNumberish, boolean]
-  ): string;
-  encodeFunctionData(functionFragment: "owner", values?: undefined): string;
-  encodeFunctionData(
-    functionFragment: "placeBids",
-    values: [ICacheManagerAutomationV2.BidRequestStruct[]]
+    functionFragment: 'getUserAtIndex',
+    values: [BigNumberish],
   ): string;
   encodeFunctionData(
-    functionFragment: "proxiableUUID",
-    values?: undefined
+    functionFragment: 'getUserBalance',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "removeAllContracts",
-    values?: undefined
+    functionFragment: 'getUserContracts',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "removeContract",
-    values: [AddressLike]
+    functionFragment: 'initialize',
+    values: [AddressLike, AddressLike],
   ): string;
   encodeFunctionData(
-    functionFragment: "renounceOwnership",
-    values?: undefined
+    functionFragment: 'insertContract',
+    values: [AddressLike, BigNumberish, boolean],
+  ): string;
+  encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: 'placeBids',
+    values: [ICacheManagerAutomationV2.BidRequestStruct[]],
   ): string;
   encodeFunctionData(
-    functionFragment: "transferOwnership",
-    values: [AddressLike]
+    functionFragment: 'proxiableUUID',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "updateContract",
-    values: [AddressLike, BigNumberish, boolean]
+    functionFragment: 'removeAllContracts',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "upgradeTo",
-    values: [AddressLike]
+    functionFragment: 'removeContract',
+    values: [AddressLike],
   ): string;
   encodeFunctionData(
-    functionFragment: "upgradeToAndCall",
-    values: [AddressLike, BytesLike]
+    functionFragment: 'renounceOwnership',
+    values?: undefined,
   ): string;
   encodeFunctionData(
-    functionFragment: "userContracts",
-    values: [AddressLike, BigNumberish]
+    functionFragment: 'transferOwnership',
+    values: [AddressLike],
   ): string;
   encodeFunctionData(
-    functionFragment: "withdrawBalance",
-    values?: undefined
+    functionFragment: 'updateContract',
+    values: [AddressLike, BigNumberish, boolean],
+  ): string;
+  encodeFunctionData(
+    functionFragment: 'upgradeTo',
+    values: [AddressLike],
+  ): string;
+  encodeFunctionData(
+    functionFragment: 'upgradeToAndCall',
+    values: [AddressLike, BytesLike],
+  ): string;
+  encodeFunctionData(
+    functionFragment: 'userContracts',
+    values: [AddressLike, BigNumberish],
+  ): string;
+  encodeFunctionData(
+    functionFragment: 'withdrawBalance',
+    values?: undefined,
   ): string;
 
   decodeFunctionResult(
-    functionFragment: "arbWasmCache",
-    data: BytesLike
+    functionFragment: 'arbWasmCache',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "cacheManager",
-    data: BytesLike
+    functionFragment: 'cacheManager',
+    data: BytesLike,
   ): Result;
-  decodeFunctionResult(functionFragment: "escrow", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: 'escrow', data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "fundBalance",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "getContracts",
-    data: BytesLike
+    functionFragment: 'fundBalance',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getUserBalance",
-    data: BytesLike
+    functionFragment: 'getContracts',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getUserContracts",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "insertContract",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "placeBids", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "proxiableUUID",
-    data: BytesLike
+    functionFragment: 'getContractsPaginated',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "removeAllContracts",
-    data: BytesLike
+    functionFragment: 'getTotalUsersCount',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "removeContract",
-    data: BytesLike
+    functionFragment: 'getUserAtIndex',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "renounceOwnership",
-    data: BytesLike
+    functionFragment: 'getUserBalance',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "transferOwnership",
-    data: BytesLike
+    functionFragment: 'getUserContracts',
+    data: BytesLike,
+  ): Result;
+  decodeFunctionResult(functionFragment: 'initialize', data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: 'insertContract',
+    data: BytesLike,
+  ): Result;
+  decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: 'placeBids', data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: 'proxiableUUID',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "updateContract",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: "upgradeTo", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "upgradeToAndCall",
-    data: BytesLike
+    functionFragment: 'removeAllContracts',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "userContracts",
-    data: BytesLike
+    functionFragment: 'removeContract',
+    data: BytesLike,
   ): Result;
   decodeFunctionResult(
-    functionFragment: "withdrawBalance",
-    data: BytesLike
+    functionFragment: 'renounceOwnership',
+    data: BytesLike,
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: 'transferOwnership',
+    data: BytesLike,
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: 'updateContract',
+    data: BytesLike,
+  ): Result;
+  decodeFunctionResult(functionFragment: 'upgradeTo', data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: 'upgradeToAndCall',
+    data: BytesLike,
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: 'userContracts',
+    data: BytesLike,
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: 'withdrawBalance',
+    data: BytesLike,
   ): Result;
 }
 
@@ -302,13 +331,13 @@ export namespace BidAttemptedEvent {
     user: AddressLike,
     contractAddress: AddressLike,
     bid: BigNumberish,
-    success: boolean
+    success: boolean,
   ];
   export type OutputTuple = [
     user: string,
     contractAddress: string,
     bid: bigint,
-    success: boolean
+    success: boolean,
   ];
   export interface OutputObject {
     user: string;
@@ -330,7 +359,7 @@ export namespace BidDetailsEvent {
     minBid: BigNumberish,
     maxBid: BigNumberish,
     userBalance: BigNumberish,
-    success: boolean
+    success: boolean,
   ];
   export type OutputTuple = [
     user: string,
@@ -339,7 +368,7 @@ export namespace BidDetailsEvent {
     minBid: bigint,
     maxBid: bigint,
     userBalance: bigint,
-    success: boolean
+    success: boolean,
   ];
   export interface OutputObject {
     user: string;
@@ -361,13 +390,13 @@ export namespace BidErrorEvent {
     user: AddressLike,
     contractAddress: AddressLike,
     bid: BigNumberish,
-    reason: string
+    reason: string,
   ];
   export type OutputTuple = [
     user: string,
     contractAddress: string,
     bid: bigint,
-    reason: string
+    reason: string,
   ];
   export interface OutputObject {
     user: string;
@@ -387,14 +416,14 @@ export namespace BidPlacedEvent {
     contractAddress: AddressLike,
     bidAmount: BigNumberish,
     maxBid: BigNumberish,
-    userBalance: BigNumberish
+    userBalance: BigNumberish,
   ];
   export type OutputTuple = [
     user: string,
     contractAddress: string,
     bidAmount: bigint,
     maxBid: bigint,
-    userBalance: bigint
+    userBalance: bigint,
   ];
   export interface OutputObject {
     user: string;
@@ -413,12 +442,12 @@ export namespace ContractAddedEvent {
   export type InputTuple = [
     user: AddressLike,
     contractAddress: AddressLike,
-    maxBid: BigNumberish
+    maxBid: BigNumberish,
   ];
   export type OutputTuple = [
     user: string,
     contractAddress: string,
-    maxBid: bigint
+    maxBid: bigint,
   ];
   export interface OutputObject {
     user: string;
@@ -436,13 +465,13 @@ export namespace ContractOperationPerformedEvent {
     user: AddressLike,
     contractAddress: AddressLike,
     operation: string,
-    timestamp: BigNumberish
+    timestamp: BigNumberish,
   ];
   export type OutputTuple = [
     user: string,
     contractAddress: string,
     operation: string,
-    timestamp: bigint
+    timestamp: bigint,
   ];
   export interface OutputObject {
     user: string;
@@ -473,17 +502,61 @@ export namespace ContractUpdatedEvent {
   export type InputTuple = [
     user: AddressLike,
     contractAddress: AddressLike,
-    maxBid: BigNumberish
+    maxBid: BigNumberish,
   ];
   export type OutputTuple = [
     user: string,
     contractAddress: string,
-    maxBid: bigint
+    maxBid: bigint,
   ];
   export interface OutputObject {
     user: string;
     contractAddress: string;
     maxBid: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace DebugBidCheckEvent {
+  export type InputTuple = [
+    user: AddressLike,
+    contractAddress: AddressLike,
+    step: string,
+  ];
+  export type OutputTuple = [
+    user: string,
+    contractAddress: string,
+    step: string,
+  ];
+  export interface OutputObject {
+    user: string;
+    contractAddress: string;
+    step: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace DebugMinBidFetchEvent {
+  export type InputTuple = [
+    contractAddress: AddressLike,
+    minBid: BigNumberish,
+    success: boolean,
+  ];
+  export type OutputTuple = [
+    contractAddress: string,
+    minBid: bigint,
+    success: boolean,
+  ];
+  export interface OutputObject {
+    contractAddress: string;
+    minBid: bigint;
+    success: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -570,13 +643,13 @@ export namespace UpkeepPerformedEvent {
     totalContracts: BigNumberish,
     successfulBids: BigNumberish,
     failedBids: BigNumberish,
-    timestamp: BigNumberish
+    timestamp: BigNumberish,
   ];
   export type OutputTuple = [
     totalContracts: bigint,
     successfulBids: bigint,
     failedBids: bigint,
-    timestamp: bigint
+    timestamp: bigint,
   ];
   export interface OutputObject {
     totalContracts: bigint;
@@ -596,14 +669,14 @@ export namespace UserBalanceOperationEvent {
     operation: string,
     amount: BigNumberish,
     newBalance: BigNumberish,
-    timestamp: BigNumberish
+    timestamp: BigNumberish,
   ];
   export type OutputTuple = [
     user: string,
     operation: string,
     amount: bigint,
     newBalance: bigint,
-    timestamp: bigint
+    timestamp: bigint,
   ];
   export interface OutputObject {
     user: string;
@@ -627,116 +700,131 @@ export interface CacheManagerAutomation extends BaseContract {
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
     fromBlockOrBlockhash?: string | number | undefined,
-    toBlock?: string | number | undefined
+    toBlock?: string | number | undefined,
   ): Promise<Array<TypedEventLog<TCEvent>>>;
   queryFilter<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
     fromBlockOrBlockhash?: string | number | undefined,
-    toBlock?: string | number | undefined
+    toBlock?: string | number | undefined,
   ): Promise<Array<TypedEventLog<TCEvent>>>;
 
   on<TCEvent extends TypedContractEvent>(
     event: TCEvent,
-    listener: TypedListener<TCEvent>
+    listener: TypedListener<TCEvent>,
   ): Promise<this>;
   on<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
-    listener: TypedListener<TCEvent>
+    listener: TypedListener<TCEvent>,
   ): Promise<this>;
 
   once<TCEvent extends TypedContractEvent>(
     event: TCEvent,
-    listener: TypedListener<TCEvent>
+    listener: TypedListener<TCEvent>,
   ): Promise<this>;
   once<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
-    listener: TypedListener<TCEvent>
+    listener: TypedListener<TCEvent>,
   ): Promise<this>;
 
   listeners<TCEvent extends TypedContractEvent>(
-    event: TCEvent
+    event: TCEvent,
   ): Promise<Array<TypedListener<TCEvent>>>;
   listeners(eventName?: string): Promise<Array<Listener>>;
   removeAllListeners<TCEvent extends TypedContractEvent>(
-    event?: TCEvent
+    event?: TCEvent,
   ): Promise<this>;
 
-  arbWasmCache: TypedContractMethod<[], [string], "view">;
+  arbWasmCache: TypedContractMethod<[], [string], 'view'>;
 
-  cacheManager: TypedContractMethod<[], [string], "view">;
+  cacheManager: TypedContractMethod<[], [string], 'view'>;
 
-  escrow: TypedContractMethod<[], [string], "view">;
+  escrow: TypedContractMethod<[], [string], 'view'>;
 
-  fundBalance: TypedContractMethod<[], [void], "payable">;
+  fundBalance: TypedContractMethod<[], [void], 'payable'>;
 
   getContracts: TypedContractMethod<
     [],
     [ICacheManagerAutomationV2.UserContractsDataStructOutput[]],
-    "view"
+    'view'
   >;
 
-  getUserBalance: TypedContractMethod<[], [bigint], "view">;
+  getContractsPaginated: TypedContractMethod<
+    [offset: BigNumberish, limit: BigNumberish],
+    [
+      [ICacheManagerAutomationV2.UserContractsDataStructOutput[], boolean] & {
+        userData: ICacheManagerAutomationV2.UserContractsDataStructOutput[];
+        hasMore: boolean;
+      },
+    ],
+    'view'
+  >;
+
+  getTotalUsersCount: TypedContractMethod<[], [bigint], 'view'>;
+
+  getUserAtIndex: TypedContractMethod<[index: BigNumberish], [string], 'view'>;
+
+  getUserBalance: TypedContractMethod<[], [bigint], 'view'>;
 
   getUserContracts: TypedContractMethod<
     [],
     [ICacheManagerAutomationV2.ContractConfigStructOutput[]],
-    "view"
+    'view'
   >;
 
   initialize: TypedContractMethod<
     [_cacheManager: AddressLike, _arbWasmCache: AddressLike],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
 
   insertContract: TypedContractMethod<
     [_contract: AddressLike, _maxBid: BigNumberish, _enabled: boolean],
     [void],
-    "payable"
+    'payable'
   >;
 
-  owner: TypedContractMethod<[], [string], "view">;
+  owner: TypedContractMethod<[], [string], 'view'>;
 
   placeBids: TypedContractMethod<
     [_bidRequests: ICacheManagerAutomationV2.BidRequestStruct[]],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
 
-  proxiableUUID: TypedContractMethod<[], [string], "view">;
+  proxiableUUID: TypedContractMethod<[], [string], 'view'>;
 
-  removeAllContracts: TypedContractMethod<[], [void], "nonpayable">;
+  removeAllContracts: TypedContractMethod<[], [void], 'nonpayable'>;
 
   removeContract: TypedContractMethod<
     [_contract: AddressLike],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
 
-  renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+  renounceOwnership: TypedContractMethod<[], [void], 'nonpayable'>;
 
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
 
   updateContract: TypedContractMethod<
     [_contract: AddressLike, _maxBid: BigNumberish, _enabled: boolean],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
 
   upgradeTo: TypedContractMethod<
     [newImplementation: AddressLike],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
 
   upgradeToAndCall: TypedContractMethod<
     [newImplementation: AddressLike, data: BytesLike],
     [void],
-    "payable"
+    'payable'
   >;
 
   userContracts: TypedContractMethod<
@@ -746,251 +834,279 @@ export interface CacheManagerAutomation extends BaseContract {
         contractAddress: string;
         maxBid: bigint;
         enabled: boolean;
-      }
+      },
     ],
-    "view"
+    'view'
   >;
 
-  withdrawBalance: TypedContractMethod<[], [void], "nonpayable">;
+  withdrawBalance: TypedContractMethod<[], [void], 'nonpayable'>;
 
   getFunction<T extends ContractMethod = ContractMethod>(
-    key: string | FunctionFragment
+    key: string | FunctionFragment,
   ): T;
 
   getFunction(
-    nameOrSignature: "arbWasmCache"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: 'arbWasmCache',
+  ): TypedContractMethod<[], [string], 'view'>;
   getFunction(
-    nameOrSignature: "cacheManager"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: 'cacheManager',
+  ): TypedContractMethod<[], [string], 'view'>;
   getFunction(
-    nameOrSignature: "escrow"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: 'escrow',
+  ): TypedContractMethod<[], [string], 'view'>;
   getFunction(
-    nameOrSignature: "fundBalance"
-  ): TypedContractMethod<[], [void], "payable">;
+    nameOrSignature: 'fundBalance',
+  ): TypedContractMethod<[], [void], 'payable'>;
   getFunction(
-    nameOrSignature: "getContracts"
+    nameOrSignature: 'getContracts',
   ): TypedContractMethod<
     [],
     [ICacheManagerAutomationV2.UserContractsDataStructOutput[]],
-    "view"
+    'view'
+  >;
+  getFunction(nameOrSignature: 'getContractsPaginated'): TypedContractMethod<
+    [offset: BigNumberish, limit: BigNumberish],
+    [
+      [ICacheManagerAutomationV2.UserContractsDataStructOutput[], boolean] & {
+        userData: ICacheManagerAutomationV2.UserContractsDataStructOutput[];
+        hasMore: boolean;
+      },
+    ],
+    'view'
   >;
   getFunction(
-    nameOrSignature: "getUserBalance"
-  ): TypedContractMethod<[], [bigint], "view">;
+    nameOrSignature: 'getTotalUsersCount',
+  ): TypedContractMethod<[], [bigint], 'view'>;
   getFunction(
-    nameOrSignature: "getUserContracts"
+    nameOrSignature: 'getUserAtIndex',
+  ): TypedContractMethod<[index: BigNumberish], [string], 'view'>;
+  getFunction(
+    nameOrSignature: 'getUserBalance',
+  ): TypedContractMethod<[], [bigint], 'view'>;
+  getFunction(
+    nameOrSignature: 'getUserContracts',
   ): TypedContractMethod<
     [],
     [ICacheManagerAutomationV2.ContractConfigStructOutput[]],
-    "view"
+    'view'
   >;
   getFunction(
-    nameOrSignature: "initialize"
+    nameOrSignature: 'initialize',
   ): TypedContractMethod<
     [_cacheManager: AddressLike, _arbWasmCache: AddressLike],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
   getFunction(
-    nameOrSignature: "insertContract"
+    nameOrSignature: 'insertContract',
   ): TypedContractMethod<
     [_contract: AddressLike, _maxBid: BigNumberish, _enabled: boolean],
     [void],
-    "payable"
+    'payable'
   >;
   getFunction(
-    nameOrSignature: "owner"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: 'owner',
+  ): TypedContractMethod<[], [string], 'view'>;
   getFunction(
-    nameOrSignature: "placeBids"
+    nameOrSignature: 'placeBids',
   ): TypedContractMethod<
     [_bidRequests: ICacheManagerAutomationV2.BidRequestStruct[]],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
   getFunction(
-    nameOrSignature: "proxiableUUID"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: 'proxiableUUID',
+  ): TypedContractMethod<[], [string], 'view'>;
   getFunction(
-    nameOrSignature: "removeAllContracts"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+    nameOrSignature: 'removeAllContracts',
+  ): TypedContractMethod<[], [void], 'nonpayable'>;
   getFunction(
-    nameOrSignature: "removeContract"
-  ): TypedContractMethod<[_contract: AddressLike], [void], "nonpayable">;
+    nameOrSignature: 'removeContract',
+  ): TypedContractMethod<[_contract: AddressLike], [void], 'nonpayable'>;
   getFunction(
-    nameOrSignature: "renounceOwnership"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+    nameOrSignature: 'renounceOwnership',
+  ): TypedContractMethod<[], [void], 'nonpayable'>;
   getFunction(
-    nameOrSignature: "transferOwnership"
-  ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+    nameOrSignature: 'transferOwnership',
+  ): TypedContractMethod<[newOwner: AddressLike], [void], 'nonpayable'>;
   getFunction(
-    nameOrSignature: "updateContract"
+    nameOrSignature: 'updateContract',
   ): TypedContractMethod<
     [_contract: AddressLike, _maxBid: BigNumberish, _enabled: boolean],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
   getFunction(
-    nameOrSignature: "upgradeTo"
+    nameOrSignature: 'upgradeTo',
   ): TypedContractMethod<
     [newImplementation: AddressLike],
     [void],
-    "nonpayable"
+    'nonpayable'
   >;
   getFunction(
-    nameOrSignature: "upgradeToAndCall"
+    nameOrSignature: 'upgradeToAndCall',
   ): TypedContractMethod<
     [newImplementation: AddressLike, data: BytesLike],
     [void],
-    "payable"
+    'payable'
   >;
-  getFunction(
-    nameOrSignature: "userContracts"
-  ): TypedContractMethod<
+  getFunction(nameOrSignature: 'userContracts'): TypedContractMethod<
     [arg0: AddressLike, arg1: BigNumberish],
     [
       [string, bigint, boolean] & {
         contractAddress: string;
         maxBid: bigint;
         enabled: boolean;
-      }
+      },
     ],
-    "view"
+    'view'
   >;
   getFunction(
-    nameOrSignature: "withdrawBalance"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+    nameOrSignature: 'withdrawBalance',
+  ): TypedContractMethod<[], [void], 'nonpayable'>;
 
   getEvent(
-    key: "AdminChanged"
+    key: 'AdminChanged',
   ): TypedContractEvent<
     AdminChangedEvent.InputTuple,
     AdminChangedEvent.OutputTuple,
     AdminChangedEvent.OutputObject
   >;
   getEvent(
-    key: "BalanceUpdated"
+    key: 'BalanceUpdated',
   ): TypedContractEvent<
     BalanceUpdatedEvent.InputTuple,
     BalanceUpdatedEvent.OutputTuple,
     BalanceUpdatedEvent.OutputObject
   >;
   getEvent(
-    key: "BeaconUpgraded"
+    key: 'BeaconUpgraded',
   ): TypedContractEvent<
     BeaconUpgradedEvent.InputTuple,
     BeaconUpgradedEvent.OutputTuple,
     BeaconUpgradedEvent.OutputObject
   >;
   getEvent(
-    key: "BidAttempted"
+    key: 'BidAttempted',
   ): TypedContractEvent<
     BidAttemptedEvent.InputTuple,
     BidAttemptedEvent.OutputTuple,
     BidAttemptedEvent.OutputObject
   >;
   getEvent(
-    key: "BidDetails"
+    key: 'BidDetails',
   ): TypedContractEvent<
     BidDetailsEvent.InputTuple,
     BidDetailsEvent.OutputTuple,
     BidDetailsEvent.OutputObject
   >;
   getEvent(
-    key: "BidError"
+    key: 'BidError',
   ): TypedContractEvent<
     BidErrorEvent.InputTuple,
     BidErrorEvent.OutputTuple,
     BidErrorEvent.OutputObject
   >;
   getEvent(
-    key: "BidPlaced"
+    key: 'BidPlaced',
   ): TypedContractEvent<
     BidPlacedEvent.InputTuple,
     BidPlacedEvent.OutputTuple,
     BidPlacedEvent.OutputObject
   >;
   getEvent(
-    key: "ContractAdded"
+    key: 'ContractAdded',
   ): TypedContractEvent<
     ContractAddedEvent.InputTuple,
     ContractAddedEvent.OutputTuple,
     ContractAddedEvent.OutputObject
   >;
   getEvent(
-    key: "ContractOperationPerformed"
+    key: 'ContractOperationPerformed',
   ): TypedContractEvent<
     ContractOperationPerformedEvent.InputTuple,
     ContractOperationPerformedEvent.OutputTuple,
     ContractOperationPerformedEvent.OutputObject
   >;
   getEvent(
-    key: "ContractRemoved"
+    key: 'ContractRemoved',
   ): TypedContractEvent<
     ContractRemovedEvent.InputTuple,
     ContractRemovedEvent.OutputTuple,
     ContractRemovedEvent.OutputObject
   >;
   getEvent(
-    key: "ContractUpdated"
+    key: 'ContractUpdated',
   ): TypedContractEvent<
     ContractUpdatedEvent.InputTuple,
     ContractUpdatedEvent.OutputTuple,
     ContractUpdatedEvent.OutputObject
   >;
   getEvent(
-    key: "Initialized"
+    key: 'DebugBidCheck',
+  ): TypedContractEvent<
+    DebugBidCheckEvent.InputTuple,
+    DebugBidCheckEvent.OutputTuple,
+    DebugBidCheckEvent.OutputObject
+  >;
+  getEvent(
+    key: 'DebugMinBidFetch',
+  ): TypedContractEvent<
+    DebugMinBidFetchEvent.InputTuple,
+    DebugMinBidFetchEvent.OutputTuple,
+    DebugMinBidFetchEvent.OutputObject
+  >;
+  getEvent(
+    key: 'Initialized',
   ): TypedContractEvent<
     InitializedEvent.InputTuple,
     InitializedEvent.OutputTuple,
     InitializedEvent.OutputObject
   >;
   getEvent(
-    key: "MinBidCheck"
+    key: 'MinBidCheck',
   ): TypedContractEvent<
     MinBidCheckEvent.InputTuple,
     MinBidCheckEvent.OutputTuple,
     MinBidCheckEvent.OutputObject
   >;
   getEvent(
-    key: "OwnershipTransferred"
+    key: 'OwnershipTransferred',
   ): TypedContractEvent<
     OwnershipTransferredEvent.InputTuple,
     OwnershipTransferredEvent.OutputTuple,
     OwnershipTransferredEvent.OutputObject
   >;
   getEvent(
-    key: "Paused"
+    key: 'Paused',
   ): TypedContractEvent<
     PausedEvent.InputTuple,
     PausedEvent.OutputTuple,
     PausedEvent.OutputObject
   >;
   getEvent(
-    key: "Unpaused"
+    key: 'Unpaused',
   ): TypedContractEvent<
     UnpausedEvent.InputTuple,
     UnpausedEvent.OutputTuple,
     UnpausedEvent.OutputObject
   >;
   getEvent(
-    key: "Upgraded"
+    key: 'Upgraded',
   ): TypedContractEvent<
     UpgradedEvent.InputTuple,
     UpgradedEvent.OutputTuple,
     UpgradedEvent.OutputObject
   >;
   getEvent(
-    key: "UpkeepPerformed"
+    key: 'UpkeepPerformed',
   ): TypedContractEvent<
     UpkeepPerformedEvent.InputTuple,
     UpkeepPerformedEvent.OutputTuple,
     UpkeepPerformedEvent.OutputObject
   >;
   getEvent(
-    key: "UserBalanceOperation"
+    key: 'UserBalanceOperation',
   ): TypedContractEvent<
     UserBalanceOperationEvent.InputTuple,
     UserBalanceOperationEvent.OutputTuple,
@@ -998,7 +1114,7 @@ export interface CacheManagerAutomation extends BaseContract {
   >;
 
   filters: {
-    "AdminChanged(address,address)": TypedContractEvent<
+    'AdminChanged(address,address)': TypedContractEvent<
       AdminChangedEvent.InputTuple,
       AdminChangedEvent.OutputTuple,
       AdminChangedEvent.OutputObject
@@ -1009,7 +1125,7 @@ export interface CacheManagerAutomation extends BaseContract {
       AdminChangedEvent.OutputObject
     >;
 
-    "BalanceUpdated(address,uint256)": TypedContractEvent<
+    'BalanceUpdated(address,uint256)': TypedContractEvent<
       BalanceUpdatedEvent.InputTuple,
       BalanceUpdatedEvent.OutputTuple,
       BalanceUpdatedEvent.OutputObject
@@ -1020,7 +1136,7 @@ export interface CacheManagerAutomation extends BaseContract {
       BalanceUpdatedEvent.OutputObject
     >;
 
-    "BeaconUpgraded(address)": TypedContractEvent<
+    'BeaconUpgraded(address)': TypedContractEvent<
       BeaconUpgradedEvent.InputTuple,
       BeaconUpgradedEvent.OutputTuple,
       BeaconUpgradedEvent.OutputObject
@@ -1031,7 +1147,7 @@ export interface CacheManagerAutomation extends BaseContract {
       BeaconUpgradedEvent.OutputObject
     >;
 
-    "BidAttempted(address,address,uint256,bool)": TypedContractEvent<
+    'BidAttempted(address,address,uint256,bool)': TypedContractEvent<
       BidAttemptedEvent.InputTuple,
       BidAttemptedEvent.OutputTuple,
       BidAttemptedEvent.OutputObject
@@ -1042,7 +1158,7 @@ export interface CacheManagerAutomation extends BaseContract {
       BidAttemptedEvent.OutputObject
     >;
 
-    "BidDetails(address,address,uint256,uint256,uint256,uint256,bool)": TypedContractEvent<
+    'BidDetails(address,address,uint256,uint256,uint256,uint256,bool)': TypedContractEvent<
       BidDetailsEvent.InputTuple,
       BidDetailsEvent.OutputTuple,
       BidDetailsEvent.OutputObject
@@ -1053,7 +1169,7 @@ export interface CacheManagerAutomation extends BaseContract {
       BidDetailsEvent.OutputObject
     >;
 
-    "BidError(address,address,uint256,string)": TypedContractEvent<
+    'BidError(address,address,uint256,string)': TypedContractEvent<
       BidErrorEvent.InputTuple,
       BidErrorEvent.OutputTuple,
       BidErrorEvent.OutputObject
@@ -1064,7 +1180,7 @@ export interface CacheManagerAutomation extends BaseContract {
       BidErrorEvent.OutputObject
     >;
 
-    "BidPlaced(address,address,uint256,uint256,uint256)": TypedContractEvent<
+    'BidPlaced(address,address,uint256,uint256,uint256)': TypedContractEvent<
       BidPlacedEvent.InputTuple,
       BidPlacedEvent.OutputTuple,
       BidPlacedEvent.OutputObject
@@ -1075,7 +1191,7 @@ export interface CacheManagerAutomation extends BaseContract {
       BidPlacedEvent.OutputObject
     >;
 
-    "ContractAdded(address,address,uint256)": TypedContractEvent<
+    'ContractAdded(address,address,uint256)': TypedContractEvent<
       ContractAddedEvent.InputTuple,
       ContractAddedEvent.OutputTuple,
       ContractAddedEvent.OutputObject
@@ -1086,7 +1202,7 @@ export interface CacheManagerAutomation extends BaseContract {
       ContractAddedEvent.OutputObject
     >;
 
-    "ContractOperationPerformed(address,address,string,uint256)": TypedContractEvent<
+    'ContractOperationPerformed(address,address,string,uint256)': TypedContractEvent<
       ContractOperationPerformedEvent.InputTuple,
       ContractOperationPerformedEvent.OutputTuple,
       ContractOperationPerformedEvent.OutputObject
@@ -1097,7 +1213,7 @@ export interface CacheManagerAutomation extends BaseContract {
       ContractOperationPerformedEvent.OutputObject
     >;
 
-    "ContractRemoved(address,address)": TypedContractEvent<
+    'ContractRemoved(address,address)': TypedContractEvent<
       ContractRemovedEvent.InputTuple,
       ContractRemovedEvent.OutputTuple,
       ContractRemovedEvent.OutputObject
@@ -1108,7 +1224,7 @@ export interface CacheManagerAutomation extends BaseContract {
       ContractRemovedEvent.OutputObject
     >;
 
-    "ContractUpdated(address,address,uint256)": TypedContractEvent<
+    'ContractUpdated(address,address,uint256)': TypedContractEvent<
       ContractUpdatedEvent.InputTuple,
       ContractUpdatedEvent.OutputTuple,
       ContractUpdatedEvent.OutputObject
@@ -1119,7 +1235,29 @@ export interface CacheManagerAutomation extends BaseContract {
       ContractUpdatedEvent.OutputObject
     >;
 
-    "Initialized(uint8)": TypedContractEvent<
+    'DebugBidCheck(address,address,string)': TypedContractEvent<
+      DebugBidCheckEvent.InputTuple,
+      DebugBidCheckEvent.OutputTuple,
+      DebugBidCheckEvent.OutputObject
+    >;
+    DebugBidCheck: TypedContractEvent<
+      DebugBidCheckEvent.InputTuple,
+      DebugBidCheckEvent.OutputTuple,
+      DebugBidCheckEvent.OutputObject
+    >;
+
+    'DebugMinBidFetch(address,uint192,bool)': TypedContractEvent<
+      DebugMinBidFetchEvent.InputTuple,
+      DebugMinBidFetchEvent.OutputTuple,
+      DebugMinBidFetchEvent.OutputObject
+    >;
+    DebugMinBidFetch: TypedContractEvent<
+      DebugMinBidFetchEvent.InputTuple,
+      DebugMinBidFetchEvent.OutputTuple,
+      DebugMinBidFetchEvent.OutputObject
+    >;
+
+    'Initialized(uint8)': TypedContractEvent<
       InitializedEvent.InputTuple,
       InitializedEvent.OutputTuple,
       InitializedEvent.OutputObject
@@ -1130,7 +1268,7 @@ export interface CacheManagerAutomation extends BaseContract {
       InitializedEvent.OutputObject
     >;
 
-    "MinBidCheck(address,uint256)": TypedContractEvent<
+    'MinBidCheck(address,uint256)': TypedContractEvent<
       MinBidCheckEvent.InputTuple,
       MinBidCheckEvent.OutputTuple,
       MinBidCheckEvent.OutputObject
@@ -1141,7 +1279,7 @@ export interface CacheManagerAutomation extends BaseContract {
       MinBidCheckEvent.OutputObject
     >;
 
-    "OwnershipTransferred(address,address)": TypedContractEvent<
+    'OwnershipTransferred(address,address)': TypedContractEvent<
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
       OwnershipTransferredEvent.OutputObject
@@ -1152,7 +1290,7 @@ export interface CacheManagerAutomation extends BaseContract {
       OwnershipTransferredEvent.OutputObject
     >;
 
-    "Paused(address)": TypedContractEvent<
+    'Paused(address)': TypedContractEvent<
       PausedEvent.InputTuple,
       PausedEvent.OutputTuple,
       PausedEvent.OutputObject
@@ -1163,7 +1301,7 @@ export interface CacheManagerAutomation extends BaseContract {
       PausedEvent.OutputObject
     >;
 
-    "Unpaused(address)": TypedContractEvent<
+    'Unpaused(address)': TypedContractEvent<
       UnpausedEvent.InputTuple,
       UnpausedEvent.OutputTuple,
       UnpausedEvent.OutputObject
@@ -1174,7 +1312,7 @@ export interface CacheManagerAutomation extends BaseContract {
       UnpausedEvent.OutputObject
     >;
 
-    "Upgraded(address)": TypedContractEvent<
+    'Upgraded(address)': TypedContractEvent<
       UpgradedEvent.InputTuple,
       UpgradedEvent.OutputTuple,
       UpgradedEvent.OutputObject
@@ -1185,7 +1323,7 @@ export interface CacheManagerAutomation extends BaseContract {
       UpgradedEvent.OutputObject
     >;
 
-    "UpkeepPerformed(uint256,uint256,uint256,uint256)": TypedContractEvent<
+    'UpkeepPerformed(uint256,uint256,uint256,uint256)': TypedContractEvent<
       UpkeepPerformedEvent.InputTuple,
       UpkeepPerformedEvent.OutputTuple,
       UpkeepPerformedEvent.OutputObject
@@ -1196,7 +1334,7 @@ export interface CacheManagerAutomation extends BaseContract {
       UpkeepPerformedEvent.OutputObject
     >;
 
-    "UserBalanceOperation(address,string,uint256,uint256,uint256)": TypedContractEvent<
+    'UserBalanceOperation(address,string,uint256,uint256,uint256)': TypedContractEvent<
       UserBalanceOperationEvent.InputTuple,
       UserBalanceOperationEvent.OutputTuple,
       UserBalanceOperationEvent.OutputObject
