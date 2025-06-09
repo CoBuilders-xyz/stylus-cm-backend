@@ -45,18 +45,7 @@ export class CmaService implements OnModuleInit {
     this.logger.log(
       `Selected ${selectedContracts.length} contracts for automation`,
     );
-    // DO NOT DELETE EXAMPLE
-    try {
-      const result = await this.engineUtil.readContract(
-        blockchain.chainId,
-        blockchain.cacheManagerAutomationAddress,
-        'function getContracts() external view returns ((address,(address,uint256,      bool)[])[])',
-        [],
-      );
-      this.logger.log(`Result: ${JSON.stringify(result)}`);
-    } catch (error) {
-      this.logger.error(`Error: ${error}`);
-    }
+
     if (selectedContracts.length > 0) {
       try {
         // Prepare arguments for placeBids function - array of [user, contractAddress] tuples
