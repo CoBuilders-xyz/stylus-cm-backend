@@ -19,6 +19,11 @@ export enum ContractType {
 }
 
 /**
+ * Callback type for handling provider reconnection
+ */
+export type ReconnectionCallback = (blockchainId: string) => Promise<void>;
+
+/**
  * A cache for ethers providers to avoid creating new instances
  */
 export class ProviderManager {
@@ -27,6 +32,91 @@ export class ProviderManager {
   private wssProviders: Map<string, ethers.WebSocketProvider> = new Map();
   private contracts: Map<string, Map<ContractType, ethers.Contract>> =
     new Map();
+
+  // Simple reconnection management
+  private reconnectionCallbacks: ReconnectionCallback[] = [];
+  private reconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map();
+
+  /**
+   * Get WebSocket connection state for debugging
+   */
+  getWebSocketState(blockchainId: string): string {
+    const provider = this.wssProviders.get(blockchainId);
+    if (!provider || !provider.websocket) {
+      return 'No WebSocket provider';
+    }
+
+    const readyStates = {
+      0: 'CONNECTING',
+      1: 'OPEN',
+      2: 'CLOSING',
+      3: 'CLOSED',
+    };
+
+    return (
+      readyStates[provider.websocket.readyState as 0 | 1 | 2 | 3] ||
+      `Unknown (${provider.websocket.readyState})`
+    );
+  }
+
+  /**
+   * Check all WebSocket connections and log their states
+   */
+  checkAllWebSocketConnections(): void {
+    logger.log('Checking all WebSocket connections:');
+    this.wssProviders.forEach((provider, blockchainId) => {
+      const state = this.getWebSocketState(blockchainId);
+      logger.log(`  Blockchain ${blockchainId}: ${state}`);
+    });
+  }
+
+  /**
+   * Register a callback to be called when a provider disconnects and needs reconnection
+   */
+  registerReconnectionCallback(callback: ReconnectionCallback): void {
+    this.reconnectionCallbacks.push(callback);
+  }
+
+  /**
+   * Unregister a reconnection callback
+   */
+  unregisterReconnectionCallback(callback: ReconnectionCallback): void {
+    const index = this.reconnectionCallbacks.indexOf(callback);
+    if (index > -1) {
+      this.reconnectionCallbacks.splice(index, 1);
+    }
+  }
+
+  /**
+   * Simple reconnection - just try to reconnect after a short delay
+   */
+  private scheduleReconnection(blockchainId: string): void {
+    // Don't schedule if already scheduled
+    if (this.reconnectionTimeouts.has(blockchainId)) {
+      return;
+    }
+
+    logger.log(
+      `Scheduling reconnection for blockchain ${blockchainId} in 5 seconds`,
+    );
+
+    const timeout = setTimeout(() => {
+      this.reconnectionTimeouts.delete(blockchainId);
+
+      // Try to reconnect by notifying callbacks
+      this.reconnectionCallbacks.forEach((callback) => {
+        callback(blockchainId).catch((error) => {
+          logger.error(
+            `Reconnection failed for blockchain ${blockchainId}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+      });
+    }, 5000);
+
+    this.reconnectionTimeouts.set(blockchainId, timeout);
+  }
 
   /**
    * Gets a provider for a blockchain, creating it if necessary
@@ -96,24 +186,30 @@ export class ProviderManager {
 
       // Set up reconnection with a ping interval
       const pingInterval = setInterval(() => {
+        const connectionState = this.getWebSocketState(blockchain.id);
+
         // Check if provider is still in our map (not already removed)
-        if (this.wssProviders.has(blockchain.id)) {
-          // Send a simple request to check if connection is alive
-          wsProvider.getBlockNumber().catch((error) => {
-            logger.error(
-              `WebSocket ping failed for blockchain ${blockchain.id}: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            );
-            // Connection failed, clean up
-            clearInterval(pingInterval);
-            this.handleProviderDisconnect(blockchain.id);
-          });
-        } else {
-          // Provider was already removed, clear the interval
+        if (!this.wssProviders.has(blockchain.id)) {
           clearInterval(pingInterval);
+          return;
         }
-      }, 30000); // Check every 30 seconds
+
+        // Check WebSocket connection state
+        if (wsProvider.websocket && wsProvider.websocket.readyState !== 1) {
+          // 1 = OPEN
+          logger.warn(
+            `WebSocket disconnected for blockchain ${blockchain.id}, state: ${connectionState}`,
+          );
+          clearInterval(pingInterval);
+          this.handleProviderDisconnect(blockchain.id);
+          return;
+        }
+
+        // Connection looks good, just do a simple ping
+        logger.debug(
+          `WebSocket connected for blockchain ${blockchain.id}, state: ${connectionState}`,
+        );
+      }, 15000); // Check every 15 seconds for faster disconnection detection
 
       this.wssProviders.set(blockchain.id, provider);
       logger.log(
@@ -128,6 +224,10 @@ export class ProviderManager {
    * Handles provider disconnection by removing it from the cache and cleaning up listeners
    */
   private handleProviderDisconnect(blockchainId: string): void {
+    logger.warn(
+      `WebSocket provider disconnected for blockchain ${blockchainId}`,
+    );
+
     // Get provider before removing it
     const provider = this.wssProviders.get(blockchainId);
 
@@ -156,6 +256,9 @@ export class ProviderManager {
         }`,
       );
     });
+
+    // Trigger automatic reconnection
+    this.scheduleReconnection(blockchainId);
   }
 
   /**
@@ -341,6 +444,13 @@ export class ProviderManager {
    * Clears all providers and contracts
    */
   clear(): void {
+    // Cancel any pending reconnection attempts
+    this.reconnectionTimeouts.forEach((timeout, blockchainId) => {
+      clearTimeout(timeout);
+      logger.debug(`Cancelled reconnection for blockchain ${blockchainId}`);
+    });
+    this.reconnectionTimeouts.clear();
+
     // Close all WebSocket connections before clearing
     this.wssProviders.forEach((provider, blockchainId) => {
       try {
