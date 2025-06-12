@@ -20,6 +20,8 @@ import { StateFetcherModule } from './state-fetcher/state-fetcher.module';
 import { UserContractsModule } from './user-contracts/user-contracts.module';
 import { AuthModule } from './auth/auth.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { CmaModule } from './cma/cma.module';
 
 // entities
 import { User } from './users/entities/user.entity';
@@ -33,7 +35,6 @@ import { Contract } from './contracts/entities/contract.entity';
 import { ContractMetric } from './contracts/entities/contract-metric.entity';
 import { ContractBytecodeMetric } from './contracts/entities/bytecode.metric.entity';
 import { Alert } from './alerts/entities/alert.entity';
-import { NotificationsModule } from './notifications/notifications.module';
 
 const appModules = [
   BlockchainsModule,
@@ -46,6 +47,7 @@ const appModules = [
   UserContractsModule,
   AuthModule,
   AlertsModule,
+  CmaModule,
   NotificationsModule,
 ];
 const entities = [
@@ -82,9 +84,7 @@ const entities = [
     }),
     BullModule.forRoot({
       connection: process.env.REDIS_URL
-        ? { url: process.env.REDIS_URL, 
-           family: 0,
-          }
+        ? { url: process.env.REDIS_URL, family: 0 }
         : {
             host: process.env.REDIS_HOST,
             port: parseInt(process.env.REDIS_PORT || '6380'),

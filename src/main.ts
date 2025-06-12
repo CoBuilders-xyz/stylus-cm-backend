@@ -1,5 +1,10 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import {
+  ValidationPipe,
+  Logger,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { AppModule } from './app.module';
 import { HttpAdapterHost } from '@nestjs/core';
 import {
@@ -27,6 +32,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     cors: {
       origin: (origin, callback) => {
+        // Allow requests with no origin (like Postman, curl, etc.) for development
+        if (!origin && process.env.ENVIRONMENT === 'local') {
+          callback(null, true);
+          return;
+        }
+
         // Allow origins that start with https://stylus-cm-frontend
         if (
           process.env.ENVIRONMENT !== 'production' &&
@@ -41,8 +52,10 @@ async function bootstrap() {
           callback(null, true);
           return;
         }
-
-        callback(new Error('Not allowed by CORS'));
+        // Send Correct Cors error
+        callback(
+          new HttpException('Not allowed by CORS', HttpStatus.FORBIDDEN),
+        );
       },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
