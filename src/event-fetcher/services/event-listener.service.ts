@@ -5,6 +5,7 @@ import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import {
   ContractType,
   ProviderManager,
+  ReconnectionCallback,
 } from '../../common/utils/provider.util';
 import { EthersEvent } from '../interfaces/event.interface';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -19,6 +20,11 @@ export class EventListenerService {
   private readonly activeListeners = new Set<string>();
   // Add a set to track events being processed to prevent duplicates
   private readonly processingEvents = new Set<string>();
+  // Store blockchain configurations for reconnection
+  private blockchainConfigs: Map<
+    string,
+    { blockchain: Blockchain; eventTypes: string[] }
+  > = new Map();
 
   constructor(
     private readonly eventStorageService: EventStorageService,
@@ -26,7 +32,76 @@ export class EventListenerService {
     private readonly eventEmitter: EventEmitter2,
     @InjectRepository(BlockchainEvent)
     private readonly blockchainEventRepository: Repository<BlockchainEvent>,
-  ) {}
+  ) {
+    // Register this service for reconnection callbacks
+    this.providerManager.registerReconnectionCallback(
+      this.handleReconnection.bind(this),
+    );
+  }
+
+  /**
+   * Handles reconnection attempts for a specific blockchain
+   */
+  private handleReconnection: ReconnectionCallback = async (
+    blockchainId: string,
+  ) => {
+    this.logger.log(`Handling reconnection for blockchain ${blockchainId}`);
+
+    const config = this.blockchainConfigs.get(blockchainId);
+    if (!config) {
+      this.logger.warn(
+        `No configuration found for blockchain ${blockchainId}, skipping reconnection`,
+      );
+      return;
+    }
+
+    try {
+      // Clear the active listener status to allow reconnection
+      this.activeListeners.delete(blockchainId);
+
+      // Attempt to reconnect
+      await this.setupEventListeners(config.blockchain, config.eventTypes);
+
+      this.logger.log(
+        `Successfully reconnected event listeners for blockchain ${blockchainId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to reconnect event listeners for blockchain ${blockchainId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      throw error; // Re-throw to trigger exponential backoff
+    }
+  };
+
+  /**
+   * Clears active listener tracking for a blockchain (used by ProviderManager)
+   */
+  clearActiveListener(blockchainId: string): void {
+    this.activeListeners.delete(blockchainId);
+    this.logger.debug(
+      `Cleared active listener status for blockchain ${blockchainId}`,
+    );
+  }
+
+  /**
+   * Manually restart event listeners for a blockchain
+   */
+  async restartEventListeners(
+    blockchain: Blockchain,
+    eventTypes: string[],
+  ): Promise<void> {
+    this.logger.log(
+      `Manually restarting event listeners for blockchain ${blockchain.id}`,
+    );
+
+    // Clear any existing state
+    this.clearActiveListener(blockchain.id);
+
+    // Set up listeners again
+    await this.setupEventListeners(blockchain, eventTypes);
+  }
 
   /**
    * Sets up event listeners for a blockchain
@@ -49,6 +124,9 @@ export class EventListenerService {
       );
       return;
     }
+
+    // Store configuration for reconnection
+    this.blockchainConfigs.set(blockchain.id, { blockchain, eventTypes });
 
     try {
       // We still need a regular HTTP provider for transaction lookups and other RPC calls
@@ -108,11 +186,17 @@ export class EventListenerService {
         `Successfully set up WebSocket-based event listener for blockchain ${blockchain.id}`,
       );
     } catch (error) {
+      // Remove configuration if setup failed
+      this.blockchainConfigs.delete(blockchain.id);
+
       this.logger.error(
         `Failed to setup WebSocket event listener for blockchain ${blockchain.id}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
+
+      // Re-throw the error so reconnection logic can handle it
+      throw error;
     }
   }
 
@@ -316,5 +400,15 @@ export class EventListenerService {
       );
       throw error; // Re-throw to be caught by the caller
     }
+  }
+
+  /**
+   * Cleanup method to unregister reconnection callback
+   */
+  onDestroy(): void {
+    this.providerManager.unregisterReconnectionCallback(
+      this.handleReconnection,
+    );
+    this.logger.log('EventListenerService cleanup completed');
   }
 }
