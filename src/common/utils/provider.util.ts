@@ -33,9 +33,12 @@ export class ProviderManager {
   private contracts: Map<string, Map<ContractType, ethers.Contract>> =
     new Map();
 
-  // Simple reconnection management
+  // Reconnection management
   private reconnectionCallbacks: ReconnectionCallback[] = [];
+  private reconnectionAttempts: Map<string, number> = new Map();
   private reconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private baseReconnectionDelay = 5000; // 5 seconds
+  private maxReconnectionDelay = 300000; // 5 minutes maximum delay
 
   /**
    * Get WebSocket connection state for debugging
@@ -88,34 +91,66 @@ export class ProviderManager {
   }
 
   /**
-   * Simple reconnection - just try to reconnect after a short delay
+   * Attempts to reconnect to a blockchain with exponential backoff
    */
-  private scheduleReconnection(blockchainId: string): void {
-    // Don't schedule if already scheduled
-    if (this.reconnectionTimeouts.has(blockchainId)) {
-      return;
-    }
+  private attemptReconnection(blockchainId: string): void {
+    const currentAttempts = this.reconnectionAttempts.get(blockchainId) || 0;
+
+    const calculatedDelay =
+      this.baseReconnectionDelay * Math.pow(2, currentAttempts);
+    const delay = Math.min(calculatedDelay, this.maxReconnectionDelay);
+    this.reconnectionAttempts.set(blockchainId, currentAttempts + 1);
 
     logger.log(
-      `Scheduling reconnection for blockchain ${blockchainId} in 5 seconds`,
+      `Attempting reconnection ${currentAttempts + 1} for blockchain ${blockchainId} in ${delay}ms`,
     );
 
     const timeout = setTimeout(() => {
+      // Clear the timeout from our tracking
       this.reconnectionTimeouts.delete(blockchainId);
 
-      // Try to reconnect by notifying callbacks
-      this.reconnectionCallbacks.forEach((callback) => {
+      // Notify all registered callbacks about the reconnection attempt
+      const reconnectionPromises = this.reconnectionCallbacks.map((callback) =>
         callback(blockchainId).catch((error) => {
           logger.error(
-            `Reconnection failed for blockchain ${blockchainId}: ${
+            `Reconnection callback failed for blockchain ${blockchainId}: ${
               error instanceof Error ? error.message : String(error)
             }`,
           );
+        }),
+      );
+
+      Promise.allSettled(reconnectionPromises)
+        .then(() => {
+          // Reset reconnection attempts on successful reconnection
+          this.reconnectionAttempts.delete(blockchainId);
+          logger.log(`Successfully reconnected to blockchain ${blockchainId}`);
+        })
+        .catch((error) => {
+          logger.error(
+            `Reconnection attempt failed for blockchain ${blockchainId}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+
+          // Schedule next reconnection attempt
+          this.attemptReconnection(blockchainId);
         });
-      });
-    }, 5000);
+    }, delay);
 
     this.reconnectionTimeouts.set(blockchainId, timeout);
+  }
+
+  /**
+   * Cancels any pending reconnection attempts for a blockchain
+   */
+  private cancelReconnectionAttempts(blockchainId: string): void {
+    const timeout = this.reconnectionTimeouts.get(blockchainId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.reconnectionTimeouts.delete(blockchainId);
+    }
+    this.reconnectionAttempts.delete(blockchainId);
   }
 
   /**
@@ -187,28 +222,50 @@ export class ProviderManager {
       // Set up reconnection with a ping interval
       const pingInterval = setInterval(() => {
         const connectionState = this.getWebSocketState(blockchain.id);
-
-        // Check if provider is still in our map (not already removed)
-        if (!this.wssProviders.has(blockchain.id)) {
-          clearInterval(pingInterval);
-          return;
-        }
-
-        // Check WebSocket connection state
-        if (wsProvider.websocket && wsProvider.websocket.readyState !== 1) {
-          // 1 = OPEN
-          logger.warn(
-            `WebSocket disconnected for blockchain ${blockchain.id}, state: ${connectionState}`,
-          );
-          clearInterval(pingInterval);
-          this.handleProviderDisconnect(blockchain.id);
-          return;
-        }
-
-        // Connection looks good, just do a simple ping
-        logger.debug(
-          `WebSocket connected for blockchain ${blockchain.id}, state: ${connectionState}`,
+        logger.log(
+          `Pinging WebSocket provider for blockchain ${blockchain.name} (state: ${connectionState})`,
         );
+        // Check if provider is still in our map (not already removed)
+        if (this.wssProviders.has(blockchain.id)) {
+          // Check WebSocket connection state first
+          if (wsProvider.websocket && wsProvider.websocket.readyState !== 1) {
+            logger.warn(
+              `WebSocket connection is not open for blockchain ${blockchain.id}, readyState: ${wsProvider.websocket.readyState} (${connectionState})`,
+            );
+            clearInterval(pingInterval);
+            this.handleProviderDisconnect(blockchain.id);
+            return;
+          }
+
+          // Create a timeout promise that rejects after 10 seconds
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error('WebSocket ping timeout after 10 seconds'));
+            }, 10000);
+          });
+
+          // Race the getBlockNumber call against the timeout
+          Promise.race([wsProvider.getBlockNumber(), timeoutPromise])
+            .then((blockNumber) => {
+              logger.log(
+                `WebSocket ping successful for blockchain ${blockchain.name}: blockNumber=${blockNumber}`,
+              );
+            })
+            .catch((error) => {
+              logger.error(
+                `WebSocket ping failed for blockchain ${blockchain.id}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              );
+              // Connection failed, clean up
+              clearInterval(pingInterval);
+              this.handleProviderDisconnect(blockchain.id);
+            });
+        } else {
+          // Provider was already removed, clear the interval
+          clearInterval(pingInterval);
+          return;
+        }
       }, 15000); // Check every 15 seconds for faster disconnection detection
 
       this.wssProviders.set(blockchain.id, provider);
@@ -258,7 +315,7 @@ export class ProviderManager {
     });
 
     // Trigger automatic reconnection
-    this.scheduleReconnection(blockchainId);
+    this.attemptReconnection(blockchainId);
   }
 
   /**
@@ -444,12 +501,15 @@ export class ProviderManager {
    * Clears all providers and contracts
    */
   clear(): void {
-    // Cancel any pending reconnection attempts
+    // Cancel all pending reconnection attempts
     this.reconnectionTimeouts.forEach((timeout, blockchainId) => {
       clearTimeout(timeout);
-      logger.debug(`Cancelled reconnection for blockchain ${blockchainId}`);
+      logger.debug(
+        `Cancelled reconnection attempts for blockchain ${blockchainId}`,
+      );
     });
     this.reconnectionTimeouts.clear();
+    this.reconnectionAttempts.clear();
 
     // Close all WebSocket connections before clearing
     this.wssProviders.forEach((provider, blockchainId) => {
