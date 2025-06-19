@@ -74,7 +74,9 @@ export class AlertMonitoringService implements OnModuleInit {
   @Cron(CronExpression.EVERY_MINUTE)
   async handleRealTimeDataAlerts(): Promise<void> {
     this.logger.log('Checking real-time data alerts...');
-    const blockchains = await this.blockchainRepository.find({});
+    const blockchains = await this.blockchainRepository.find({
+      where: { enabled: true },
+    });
 
     for (const blockchain of blockchains) {
       await this.processRealTimeDataAlerts(blockchain);

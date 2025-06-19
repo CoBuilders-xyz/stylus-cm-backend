@@ -11,7 +11,6 @@ import { BullModule } from '@nestjs/bullmq';
 
 // app modules
 import { UsersModule } from './users/users.module';
-import { TasksModule } from './tasks/tasks.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { BlockchainsModule } from './blockchains/blockchains.module';
 import { DataProcessingModule } from './data-processing/data-processing.module';
@@ -40,7 +39,6 @@ const appModules = [
   BlockchainsModule,
   UsersModule,
   ContractsModule,
-  TasksModule,
   StateFetcherModule,
   EventFetcherModule,
   DataProcessingModule,

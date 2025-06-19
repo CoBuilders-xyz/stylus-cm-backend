@@ -77,7 +77,9 @@ export class EventProcessorService {
 
     try {
       // Get all blockchains
-      const blockchains = await this.blockchainRepository.find();
+      const blockchains = await this.blockchainRepository.find({
+        where: { enabled: true },
+      });
 
       for (const blockchain of blockchains) {
         await this.processBlockchainAllEvents(blockchain);

@@ -18,7 +18,7 @@ export class DataProcessingService implements OnModuleInit {
    * Waits a brief period to ensure database connections are established
    * before starting the initial event processing.
    */
-  async onModuleInit(): Promise<void> {
+  onModuleInit() {
     this.logger.log('Initializing blockchain event processor...');
     // TODO: Make a check instead of timeout
 

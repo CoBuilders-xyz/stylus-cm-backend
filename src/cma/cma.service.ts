@@ -31,7 +31,9 @@ export class CmaService implements OnModuleInit {
   @Cron(CronExpression.EVERY_MINUTE)
   async handleCmaAutomation() {
     this.logger.log('CMA automation started.');
-    const blockchains = await this.blockchainRepository.find({});
+    const blockchains = await this.blockchainRepository.find({
+      where: { enabled: true },
+    });
 
     for (const blockchain of blockchains) {
       await this.processCmaAutomation(blockchain);

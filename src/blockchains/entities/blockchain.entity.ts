@@ -10,22 +10,22 @@ export class Blockchain {
   @Column()
   rpcUrl: string;
 
-  @Column({ nullable: true })
+  @Column()
   fastSyncRpcUrl: string;
 
-  @Column({ nullable: true })
+  @Column()
   rpcWssUrl: string;
 
-  @Column({})
+  @Column()
   cacheManagerAddress: string;
 
-  @Column({})
+  @Column({ nullable: true })
   cacheManagerAutomationAddress: string;
 
-  @Column({})
+  @Column()
   arbWasmCacheAddress: string;
 
-  @Column({})
+  @Column()
   arbWasmAddress: string;
 
   @Column({ unique: true })
@@ -34,12 +34,12 @@ export class Blockchain {
   @Column({ default: 0 })
   originBlock: number;
 
-  @Column('jsonb', { nullable: true }) // Flexible field for extra metadata
-  otherInfo: Record<string, any>;
-
   @Column({ default: 0 })
   lastSyncedBlock: number;
 
   @Column({ default: 0 })
   lastProcessedBlockNumber: number;
+
+  @Column({ default: true })
+  enabled: boolean;
 }

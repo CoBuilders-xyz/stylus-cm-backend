@@ -21,7 +21,9 @@ export class StateFetcherService implements OnModuleInit {
 
   async onModuleInit() {
     this.logger.log('Checking for initial blockchain state data...');
-    const blockchains = await this.blockchainRepository.find();
+    const blockchains = await this.blockchainRepository.find({
+      where: { enabled: true },
+    });
 
     for (const blockchain of blockchains) {
       if (!blockchain.rpcUrl || !blockchain.cacheManagerAddress) {
@@ -55,7 +57,9 @@ export class StateFetcherService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
-    const blockchains = await this.blockchainRepository.find();
+    const blockchains = await this.blockchainRepository.find({
+      where: { enabled: true },
+    });
     for (const blockchain of blockchains) {
       if (!blockchain.rpcUrl || !blockchain.cacheManagerAddress) {
         this.logger.warn(
