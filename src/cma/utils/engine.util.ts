@@ -51,9 +51,10 @@ export class EngineUtil {
       this.configService.get<string>('ENGINE_BACKEND_WALLET_ADDRESS') || '';
     this.authToken = this.configService.get<string>('ENGINE_AUTH_TOKEN') || '';
 
-    // Create HTTPS agent that accepts self-signed certificates
+    // Create HTTPS agent that works with IPv6
     this.httpsAgent = new https.Agent({
       rejectUnauthorized: false,
+      family: 0, // Force IPv6
     });
 
     if (!this.engineBaseUrl || !this.backendWalletAddress || !this.authToken) {
