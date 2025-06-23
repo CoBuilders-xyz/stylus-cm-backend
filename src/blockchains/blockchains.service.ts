@@ -27,7 +27,6 @@ export class BlockchainsService {
     const blockchainsConfig = this.configService.get(
       'blockchains',
     ) as Blockchain[];
-    //
     if (!blockchainsConfig || !Array.isArray(blockchainsConfig)) {
       return [];
     }
