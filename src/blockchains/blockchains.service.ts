@@ -27,24 +27,34 @@ export class BlockchainsService {
     const blockchainsConfig = this.configService.get(
       'blockchains',
     ) as Blockchain[];
-
     if (!blockchainsConfig || !Array.isArray(blockchainsConfig)) {
       return [];
     }
 
     for (const blockchain of blockchainsConfig) {
       const existingBlockchain = await this.blockchainRepository.findOne({
-        where: { chainId: blockchain.chainId, rpcUrl: blockchain.rpcUrl },
+        where: { chainId: blockchain.chainId },
       });
-
       if (!existingBlockchain) {
         await this.blockchainRepository.insert(blockchain);
+      } else {
+        await this.blockchainRepository.update(
+          { chainId: blockchain.chainId },
+          {
+            rpcUrl: blockchain.rpcUrl,
+            rpcWssUrl: blockchain.rpcWssUrl,
+            fastSyncRpcUrl: blockchain.fastSyncRpcUrl,
+            cacheManagerAutomationAddress:
+              blockchain.cacheManagerAutomationAddress,
+            enabled: blockchain.enabled,
+          },
+        );
       }
     }
   }
 
   findAll() {
-    return this.blockchainRepository.find(); // TODO Add interceptor to only share the necessary data
+    return this.blockchainRepository.find({ where: { enabled: true } }); // TODO Add interceptor to only share the necessary data
   }
 
   async getBlockchainData(blockchainId: string) {
