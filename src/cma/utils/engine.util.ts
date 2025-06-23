@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import * as https from 'https';
+import * as http from 'http';
 
 export interface EngineTransactionOverrides {
   gas?: string;
@@ -40,6 +41,7 @@ export class EngineUtil {
   private readonly backendWalletAddress: string;
   private readonly authToken: string;
   private readonly httpsAgent: https.Agent;
+  private readonly httpAgent: http.Agent;
 
   constructor(
     private readonly httpService: HttpService,
@@ -51,9 +53,15 @@ export class EngineUtil {
       this.configService.get<string>('ENGINE_BACKEND_WALLET_ADDRESS') || '';
     this.authToken = this.configService.get<string>('ENGINE_AUTH_TOKEN') || '';
 
-    // Create HTTPS agent that accepts self-signed certificates
+    // Create HTTPS agent that works with IPv6
     this.httpsAgent = new https.Agent({
       rejectUnauthorized: false,
+      family: 0,
+    });
+
+    // Create HTTP agent that works with IPv6
+    this.httpAgent = new http.Agent({
+      family: 0,
     });
 
     if (!this.engineBaseUrl || !this.backendWalletAddress || !this.authToken) {
@@ -76,9 +84,11 @@ export class EngineUtil {
       Authorization: `Bearer ${this.authToken}`,
     };
 
+    const isHttps = this.engineBaseUrl.startsWith('https://');
     const config = {
       headers,
-      httpsAgent: this.httpsAgent,
+      httpsAgent: isHttps ? this.httpsAgent : undefined,
+      httpAgent: !isHttps ? this.httpAgent : undefined,
     };
 
     try {
@@ -125,10 +135,12 @@ export class EngineUtil {
       ...(args.length > 0 && { args: args.join(',') }),
     };
 
+    const isHttps = this.engineBaseUrl.startsWith('https://');
     const config = {
       headers,
       params,
-      httpsAgent: this.httpsAgent,
+      httpsAgent: isHttps ? this.httpsAgent : undefined,
+      httpAgent: !isHttps ? this.httpAgent : undefined,
     };
 
     try {
@@ -162,9 +174,11 @@ export class EngineUtil {
       Authorization: `Bearer ${this.authToken}`,
     };
 
+    const isHttps = this.engineBaseUrl.startsWith('https://');
     const config = {
       headers,
-      httpsAgent: this.httpsAgent,
+      httpsAgent: isHttps ? this.httpsAgent : undefined,
+      httpAgent: !isHttps ? this.httpAgent : undefined,
     };
 
     try {
