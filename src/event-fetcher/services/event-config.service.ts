@@ -58,7 +58,9 @@ export class EventConfigService {
    * Gets all configured blockchains
    */
   async getBlockchains(): Promise<Blockchain[]> {
-    return this.blockchainRepository.find();
+    return this.blockchainRepository.find({
+      where: { enabled: true },
+    });
   }
 
   /**
