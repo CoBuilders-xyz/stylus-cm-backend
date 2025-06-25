@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import config from './common/config/config';
 import databaseConfig from './common/config/database.config';
+import redisConfig from './common/config/redis.config';
 
 // nestjs modules
 import { ScheduleModule } from '@nestjs/schedule';
@@ -41,30 +42,16 @@ const appModules = [
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [config, databaseConfig],
+      load: [config, databaseConfig, redisConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) =>
         configService.get('database')!,
     }),
-    BullModule.forRoot({
-      connection: process.env.REDIS_URL
-        ? { url: process.env.REDIS_URL, family: 0 }
-        : {
-            host: process.env.REDIS_HOST,
-            port: parseInt(process.env.REDIS_PORT || '6380'),
-            family: 0,
-          },
-      defaultJobOptions: {
-        attempts: parseInt(process.env.BULLMQ_ATTEMPTS || '5'),
-        backoff: {
-          type: 'exponential',
-          delay: parseInt(process.env.BULLMQ_BACKOFF_DELAY || '10000'),
-        },
-        removeOnComplete: false,
-        removeOnFail: false,
-      },
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => configService.get('redis')!,
     }),
     ScheduleModule.forRoot(),
     CacheModule.register(),
