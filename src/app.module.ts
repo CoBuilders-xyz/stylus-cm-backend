@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import config from './common/config/config';
 import databaseConfig from './common/config/database.config';
 import redisConfig from './common/config/redis.config';
+import appConfig from './common/config/app.config';
 
 // nestjs modules
 import { ScheduleModule } from '@nestjs/schedule';
@@ -42,7 +43,7 @@ const appModules = [
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [config, databaseConfig, redisConfig],
+      load: [config, databaseConfig, redisConfig, appConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

@@ -4,7 +4,6 @@ import {
   Logger,
   HttpException,
   HttpStatus,
-  LogLevel,
 } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { HttpAdapterHost } from '@nestjs/core';
@@ -15,83 +14,10 @@ import {
   ValidationExceptionFilter,
   RpcExceptionFilter,
 } from './common/filters';
-
-// Configuration constants
-const DEFAULT_PORT = 3000;
-const DEFAULT_LOGGER_LEVELS: LogLevel[] = ['log', 'error'];
-const ALLOWED_HTTP_METHODS = [
-  'GET',
-  'POST',
-  'PUT',
-  'DELETE',
-  'PATCH',
-  'OPTIONS',
-];
-
-interface AppConfig {
-  environment: 'local' | 'develop' | 'staging' | 'production';
-  port: number;
-  frontendUrl?: string;
-  allowedOriginPrefix?: string;
-  loggerLevels: LogLevel[];
-}
-
-function createAppConfig(): AppConfig {
-  const environment = process.env.ENVIRONMENT || 'local';
-  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : DEFAULT_PORT;
-  const frontendUrl = process.env.FRONTEND_URL;
-  const allowedOriginPrefix = process.env.ALLOWED_ORIGIN_PREFIX;
-
-  // Parse logger levels from environment variable
-  const loggerLevelsEnv = process.env.LOGGER_LEVELS;
-  let loggerLevels: LogLevel[] = DEFAULT_LOGGER_LEVELS;
-
-  if (loggerLevelsEnv) {
-    const parsedLevels = loggerLevelsEnv
-      .split(',')
-      .map((level) => level.trim());
-    const validLevels: LogLevel[] = [
-      'error',
-      'warn',
-      'log',
-      'debug',
-      'verbose',
-    ];
-
-    // Validate all levels are valid
-    for (const level of parsedLevels) {
-      if (!validLevels.includes(level as LogLevel)) {
-        throw new Error(
-          `Invalid LOGGER_LEVELS: '${level}'. Valid levels are: ${validLevels.join(', ')}`,
-        );
-      }
-    }
-
-    loggerLevels = parsedLevels as LogLevel[];
-  }
-
-  // Validate environment
-  if (!['local', 'develop', 'staging', 'production'].includes(environment)) {
-    throw new Error(
-      `Invalid ENVIRONMENT: ${environment}. Must be 'local', 'develop', 'staging', or 'production'.`,
-    );
-  }
-
-  // Validate port
-  if (isNaN(port) || port < 1 || port > 65535) {
-    throw new Error(
-      `Invalid PORT: ${process.env.PORT}. Must be a number between 1 and 65535.`,
-    );
-  }
-
-  return {
-    environment: environment as AppConfig['environment'],
-    port,
-    frontendUrl,
-    allowedOriginPrefix,
-    loggerLevels,
-  };
-}
+import appConfig, {
+  AppConfig,
+  shouldAllowOrigin,
+} from './common/config/app.config';
 
 function setupGlobalExceptionHandlers(logger: Logger): void {
   process.on('unhandledRejection', (reason) => {
@@ -119,35 +45,9 @@ function createCorsConfig(config: AppConfig) {
 
       callback(new HttpException('Not allowed by CORS', HttpStatus.FORBIDDEN));
     },
-    methods: ALLOWED_HTTP_METHODS,
+    methods: config.cors.allowedHttpMethods,
     credentials: true,
   };
-}
-
-function shouldAllowOrigin(
-  origin: string | undefined,
-  config: AppConfig,
-): boolean {
-  // Allow requests with no origin (like Postman, curl, etc.) for development
-  if (!origin && config.environment === 'local') {
-    return true;
-  }
-
-  // Allow origins that start with the configured prefix in non-production
-  if (
-    config.environment !== 'production' &&
-    config.allowedOriginPrefix &&
-    origin?.startsWith(config.allowedOriginPrefix)
-  ) {
-    return true;
-  }
-
-  // Allow the main frontend URL if specified in config
-  if (config.frontendUrl && origin === config.frontendUrl) {
-    return true;
-  }
-
-  return false;
 }
 
 async function createNestApp(config: AppConfig): Promise<INestApplication> {
@@ -191,26 +91,25 @@ async function startServer(
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
-  try {
-    const config = createAppConfig();
-    logger.log(
-      `Configuration loaded successfully for environment: ${config.environment}`,
-    );
+  // Load configuration directly from config file (no NestJS app needed)
+  const config = appConfig();
 
-    setupGlobalExceptionHandlers(logger);
-    const app = await createNestApp(config);
-    setupAppMiddleware(app);
-    await startServer(app, config, logger);
-  } catch (error) {
-    logger.error(
-      'Failed to load configuration',
-      error instanceof Error ? error.stack : error,
-    );
-    throw error;
-  }
+  logger.log(
+    `Configuration loaded successfully for environment: ${config.environment}`,
+  );
+
+  // Create app once with proper configuration
+  const app = await createNestApp(config);
+
+  setupGlobalExceptionHandlers(logger);
+  setupAppMiddleware(app);
+  await startServer(app, config, logger);
 }
 
 bootstrap().catch((error) => {
-  console.error('Failed to start application:', error);
+  const logger = new Logger('Bootstrap');
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  logger.error(`Failed to start application: ${message}`, stack);
   process.exit(1);
 });
