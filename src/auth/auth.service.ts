@@ -26,14 +26,7 @@ export class AuthService {
   ) {}
 
   async generateNonce(address: string) {
-    const nonce = `Hello, welcome to Stylus Cache Manager UI. Please sign this message to verify your wallet.
-
-This action has no cost.
-
-Address:
-${address}
-Nonce:
-${crypto.randomUUID()}`;
+    const nonce = `Hello, `;
 
     const authConfig = this.configService.get<AuthConfig>('auth')!;
     this.logger.debug(

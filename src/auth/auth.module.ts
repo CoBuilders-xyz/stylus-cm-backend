@@ -8,10 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
 import { AuthConfig } from './auth.config';
+import { DevelopmentOnlyGuard } from './development-only.guard';
 
 @Module({
   providers: [
     AuthService,
+    DevelopmentOnlyGuard,
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
