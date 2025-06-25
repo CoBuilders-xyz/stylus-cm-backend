@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Post, Body, UseGuards } from '@nestjs/common';
 import { GenerateNonceDto } from './dto/generate-nonce.dto';
 import { VerifySignatureDto } from './dto/verify-signature.dto';
+import { SignMessageDto } from './dto/sign-message.dto';
 import { AuthService } from './auth.service';
 import { Public } from './auth.guard';
 import { DevelopmentOnlyGuard } from './development-only.guard';
@@ -26,7 +27,7 @@ export class AuthController {
   @Public()
   @UseGuards(DevelopmentOnlyGuard)
   @Post('sign-message')
-  sign(@Body() body: { pk: string; message: string }) {
+  sign(@Body() body: SignMessageDto) {
     return this.authService.signMessage(body.pk, body.message);
   }
 }
