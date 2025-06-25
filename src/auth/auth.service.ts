@@ -39,8 +39,15 @@ ${crypto.randomUUID()}`;
     return nonce;
   }
 
-  async getNonce(address: string) {
-    return await this.cacheManager.get(address);
+  async getNonce(address: string): Promise<string | null> {
+    const cachedValue = await this.cacheManager.get(address);
+
+    // Type guard: ensure we get a string or return null
+    if (typeof cachedValue === 'string' && cachedValue.length > 0) {
+      return cachedValue;
+    }
+
+    return null;
   }
 
   // Testing Purposes Only
@@ -51,21 +58,24 @@ ${crypto.randomUUID()}`;
   }
 
   async verifySignature(address: string, signature: string) {
-    // Get the stored nonce message from redis
-    const nonceMessage = (await this.getNonce(address)) as string;
+    // Get the stored nonce message from redis with proper type safety
+    const nonceMessage = await this.getNonce(address);
     if (!nonceMessage) {
       AuthErrorHelpers.throwNonceNotFound();
     }
 
+    // At this point, nonceMessage is guaranteed to be string (not null)
+    const validNonce = nonceMessage!; // Non-null assertion after validation
+
     this.logger.debug(
-      `Attempting to verify signature with message: ${nonceMessage.replaceAll(
+      `Attempting to verify signature with message: ${validNonce.replaceAll(
         '\n',
         ' ',
       )}`,
     );
 
     // Verify the signature using ethers.verifyMessage
-    const recoveredAddress = ethers.verifyMessage(nonceMessage, signature);
+    const recoveredAddress = ethers.verifyMessage(validNonce, signature);
 
     if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
       this.logger.debug('Signature verification successful!');
