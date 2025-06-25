@@ -1,0 +1,110 @@
+import { registerAs } from '@nestjs/config';
+import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+
+// Import entities
+import { User } from '../../users/entities/user.entity';
+import { UserContract } from '../../user-contracts/entities/user-contract.entity';
+import { Blockchain } from '../../blockchains/entities/blockchain.entity';
+import { Bytecode } from '../../contracts/entities/bytecode.entity';
+import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
+import { BlockchainMetric } from '../../blockchains/entities/blockchain-metric.entity';
+import { BlockchainState } from '../../blockchains/entities/blockchain-state.entity';
+import { Contract } from '../../contracts/entities/contract.entity';
+import { ContractMetric } from '../../contracts/entities/contract-metric.entity';
+import { ContractBytecodeMetric } from '../../contracts/entities/bytecode.metric.entity';
+import { Alert } from '../../alerts/entities/alert.entity';
+
+const entities = [
+  Bytecode,
+  Blockchain,
+  BlockchainEvent,
+  BlockchainMetric,
+  BlockchainState,
+  User,
+  UserContract,
+  Contract,
+  ContractMetric,
+  ContractBytecodeMetric,
+  Alert,
+];
+
+export default registerAs('database', (): TypeOrmModuleOptions => {
+  // Validate required environment variables
+  const validateConfig = () => {
+    if (process.env.DATABASE_URL) {
+      // URL connection - validate URL format
+      if (!process.env.DATABASE_URL.startsWith('postgres://')) {
+        throw new Error(
+          'DATABASE_URL must be a valid PostgreSQL connection string',
+        );
+      }
+    } else {
+      // Individual parameters - validate required fields
+      if (!process.env.POSTGRES_HOST) {
+        throw new Error(
+          'POSTGRES_HOST is required when DATABASE_URL is not provided',
+        );
+      }
+      if (!process.env.POSTGRES_USER) {
+        throw new Error(
+          'POSTGRES_USER is required when DATABASE_URL is not provided',
+        );
+      }
+      if (!process.env.POSTGRES_PASSWORD) {
+        throw new Error(
+          'POSTGRES_PASSWORD is required when DATABASE_URL is not provided',
+        );
+      }
+      if (!process.env.POSTGRES_DB) {
+        throw new Error(
+          'POSTGRES_DB is required when DATABASE_URL is not provided',
+        );
+      }
+    }
+  };
+
+  // Validate port if provided
+  const validatePort = (port: string): number => {
+    const portNum = parseInt(port, 10);
+    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+      throw new Error(
+        `Invalid POSTGRES_PORT: ${port}. Must be a number between 1 and 65535.`,
+      );
+    }
+    return portNum;
+  };
+
+  // Run validation
+  validateConfig();
+
+  // Get synchronize setting (default to false for production safety)
+  const environment = process.env.ENVIRONMENT || 'local';
+  const synchronize = environment === 'local' || environment === 'develop';
+
+  // Build base configuration
+  const baseConfig: TypeOrmModuleOptions = {
+    type: 'postgres',
+    entities,
+    synchronize,
+    logging: environment === 'local' ? ['error', 'warn'] : ['error'],
+  };
+
+  // Add connection configuration using spread syntax
+  if (process.env.DATABASE_URL) {
+    return {
+      ...baseConfig,
+      url: process.env.DATABASE_URL,
+    };
+  } else {
+    return {
+      ...baseConfig,
+      host: process.env.POSTGRES_HOST,
+      port: process.env.POSTGRES_PORT
+        ? validatePort(process.env.POSTGRES_PORT)
+        : 5432,
+      username: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+      database: process.env.POSTGRES_DB,
+    };
+  }
+});
