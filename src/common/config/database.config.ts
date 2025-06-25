@@ -36,10 +36,13 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
   // Validate required environment variables
   const validateConfig = () => {
     if (process.env.DATABASE_URL) {
-      // URL connection - validate URL format
-      if (!process.env.DATABASE_URL.startsWith('postgres://')) {
+      // URL connection - validate URL format (accept both postgres:// and postgresql://)
+      if (
+        !process.env.DATABASE_URL.startsWith('postgres://') &&
+        !process.env.DATABASE_URL.startsWith('postgresql://')
+      ) {
         throw new Error(
-          'DATABASE_URL must be a valid PostgreSQL connection string',
+          'DATABASE_URL must be a valid PostgreSQL connection string (postgres:// or postgresql://)',
         );
       }
     } else {
