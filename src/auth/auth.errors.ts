@@ -1,4 +1,8 @@
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 
 export enum AuthErrorCode {
   TOKEN_MISSING = 'TOKEN_MISSING',
@@ -7,6 +11,8 @@ export enum AuthErrorCode {
   TOKEN_NOT_ACTIVE = 'TOKEN_NOT_ACTIVE',
   USER_NOT_FOUND = 'USER_NOT_FOUND',
   TOKEN_VERIFICATION_FAILED = 'TOKEN_VERIFICATION_FAILED',
+  NONCE_NOT_FOUND = 'NONCE_NOT_FOUND',
+  SIGNATURE_VERIFICATION_FAILED = 'SIGNATURE_VERIFICATION_FAILED',
 }
 
 export const AuthErrors = {
@@ -34,6 +40,15 @@ export const AuthErrors = {
     error: AuthErrorCode.TOKEN_VERIFICATION_FAILED,
     message: 'Token verification failed',
   },
+  NONCE_NOT_FOUND: {
+    error: AuthErrorCode.NONCE_NOT_FOUND,
+    message: 'Nonce not found or expired. Please generate a new nonce',
+  },
+  SIGNATURE_VERIFICATION_FAILED: {
+    error: AuthErrorCode.SIGNATURE_VERIFICATION_FAILED,
+    message:
+      'Signature verification failed. Please check your signature and try again',
+  },
 } as const;
 
 /**
@@ -41,6 +56,18 @@ export const AuthErrors = {
  */
 export const throwAuthError = (errorType: keyof typeof AuthErrors): never => {
   throw new UnauthorizedException(AuthErrors[errorType]);
+};
+
+export const throwAuthNotFoundError = (
+  errorType: keyof typeof AuthErrors,
+): never => {
+  throw new NotFoundException(AuthErrors[errorType]);
+};
+
+export const throwAuthBadRequestError = (
+  errorType: keyof typeof AuthErrors,
+): never => {
+  throw new BadRequestException(AuthErrors[errorType]);
 };
 
 /**
@@ -54,4 +81,7 @@ export const AuthErrorHelpers = {
   throwUserNotFound: () => throwAuthError('USER_NOT_FOUND'),
   throwTokenVerificationFailed: () =>
     throwAuthError('TOKEN_VERIFICATION_FAILED'),
+  throwNonceNotFound: () => throwAuthNotFoundError('NONCE_NOT_FOUND'),
+  throwSignatureVerificationFailed: () =>
+    throwAuthBadRequestError('SIGNATURE_VERIFICATION_FAILED'),
 };

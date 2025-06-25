@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  Inject,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -12,6 +6,7 @@ import { ethers } from 'ethers';
 import { UsersService } from 'src/users/users.service';
 import { ConfigService } from '@nestjs/config';
 import { AuthConfig } from './auth.config';
+import { AuthErrorHelpers } from './auth.errors';
 import crypto from 'crypto';
 
 @Injectable()
@@ -59,7 +54,7 @@ ${crypto.randomUUID()}`;
     // Get the stored nonce message from redis
     const nonceMessage = (await this.getNonce(address)) as string;
     if (!nonceMessage) {
-      throw new NotFoundException('Nonce not found or expired');
+      AuthErrorHelpers.throwNonceNotFound();
     }
 
     this.logger.debug(
@@ -81,7 +76,7 @@ ${crypto.randomUUID()}`;
 
       const user = await this.usersService.findOrCreate(address);
       if (!user) {
-        throw new NotFoundException('User not found');
+        AuthErrorHelpers.throwUserNotFound();
       }
 
       const accessToken = await this.jwtService.signAsync({
@@ -96,9 +91,8 @@ ${crypto.randomUUID()}`;
       this.logger.error(`Expected: ${address.toLowerCase()}`);
       this.logger.error(`Recovered: ${recoveredAddress.toLowerCase()}`);
 
-      throw new BadRequestException(
-        `Error verifying signature: ${signature} for address: ${address}`,
-      );
+      // Use centralized error without leaking sensitive information
+      AuthErrorHelpers.throwSignatureVerificationFailed();
     }
   }
 }
