@@ -1,7 +1,5 @@
 import { Controller, Get, Param, Post, Body, UseGuards } from '@nestjs/common';
-import { GenerateNonceDto } from './dto/generate-nonce.dto';
-import { VerifySignatureDto } from './dto/verify-signature.dto';
-import { SignMessageDto } from './dto/sign-message.dto';
+import { GenerateNonceDto, VerifySignatureDto, SignMessageDto } from './dto';
 import { AuthService } from './auth.service';
 import { Public } from './auth.guard';
 import { DevelopmentOnlyGuard } from './development-only.guard';
