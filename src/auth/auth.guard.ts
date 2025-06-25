@@ -4,15 +4,28 @@ import {
   Injectable,
   UnauthorizedException,
   SetMetadata,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { jwtConstants } from './constants';
 import { Request } from 'express';
 import { Reflector } from '@nestjs/core';
 import { UsersService } from 'src/users/users.service';
+import { AuthErrorHelpers } from './auth.errors';
+
+interface JwtPayload {
+  userAddress: string;
+  iat?: number;
+  exp?: number;
+}
+
+interface AuthenticatedRequest extends Request {
+  user: any;
+}
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly logger = new Logger(AuthGuard.name);
+
   constructor(
     private jwtService: JwtService,
     private reflector: Reflector,
@@ -27,20 +40,53 @@ export class AuthGuard implements CanActivate {
     if (isPublic) {
       return true;
     }
-    const request = context.switchToHttp().getRequest();
+
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.extractTokenFromHeader(request);
+
     if (!token) {
-      throw new UnauthorizedException();
+      AuthErrorHelpers.throwTokenMissing();
     }
+
     try {
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: jwtConstants.secret,
-      });
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token!);
       const user = await this.userService.findOne(payload.userAddress);
-      request['user'] = user;
-    } catch {
-      throw new UnauthorizedException();
+
+      if (!user) {
+        AuthErrorHelpers.throwUserNotFound();
+      }
+
+      request.user = user;
+    } catch (error: any) {
+      // Handle different JWT errors specifically
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (error?.name === 'TokenExpiredError') {
+        this.logger.debug('JWT token expired');
+        AuthErrorHelpers.throwTokenExpired();
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (error?.name === 'JsonWebTokenError') {
+        this.logger.debug('Invalid JWT token');
+        AuthErrorHelpers.throwTokenInvalid();
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (error?.name === 'NotBeforeError') {
+        this.logger.debug('JWT token not active yet');
+        AuthErrorHelpers.throwTokenNotActive();
+      }
+
+      // If it's already an UnauthorizedException, re-throw it
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      // Generic fallback for other errors
+      this.logger.error('Unexpected error during JWT verification', error);
+      AuthErrorHelpers.throwTokenVerificationFailed();
     }
+
     return true;
   }
 

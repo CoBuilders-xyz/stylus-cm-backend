@@ -11,6 +11,7 @@ import { Cache } from 'cache-manager';
 import { ethers } from 'ethers';
 import { UsersService } from 'src/users/users.service';
 import { ConfigService } from '@nestjs/config';
+import { AuthConfig } from './auth.config';
 import crypto from 'crypto';
 
 @Injectable()
@@ -34,11 +35,12 @@ ${address}
 Nonce:
 ${crypto.randomUUID()}`;
 
-    const nonceExpiration = this.configService.get<number>(
-      'AUTH_NONCE_EXPIRATION',
-      10000,
+    const authConfig = this.configService.get<AuthConfig>('auth')!;
+    this.logger.debug(
+      `Setting nonce expiration to: ${authConfig.nonceExpiration}ms`,
     );
-    await this.cacheManager.set(address, nonce, nonceExpiration);
+
+    await this.cacheManager.set(address, nonce, authConfig.nonceExpiration);
     return nonce;
   }
 
@@ -56,8 +58,9 @@ ${crypto.randomUUID()}`;
   async verifySignature(address: string, signature: string) {
     // Get the stored nonce message from redis
     const nonceMessage = (await this.getNonce(address)) as string;
-    if (!nonceMessage)
+    if (!nonceMessage) {
       throw new NotFoundException('Nonce not found or expired');
+    }
 
     this.logger.debug(
       `Attempting to verify signature with message: ${nonceMessage.replaceAll(
@@ -71,6 +74,10 @@ ${crypto.randomUUID()}`;
 
     if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
       this.logger.debug('Signature verification successful!');
+
+      // CRITICAL: Delete the nonce immediately after successful verification
+      await this.cacheManager.del(address);
+      this.logger.debug(`Nonce deleted for address: ${address}`);
 
       const user = await this.usersService.findOrCreate(address);
       if (!user) {
