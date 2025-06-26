@@ -13,11 +13,6 @@ import { CacheStats } from '../interfaces/contract.interfaces';
  */
 @Injectable()
 export class CacheStatisticsService {
-  // Base risk multipliers that will be adjusted based on cache usage
-  private readonly BASE_HIGH_RISK_MULTIPLIER = 1.0; // Minimum viable bid
-  private readonly BASE_MID_RISK_MULTIPLIER = 1.5; // Better chance of staying cached
-  private readonly BASE_LOW_RISK_MULTIPLIER = 2.5; // Very likely to stay cached
-
   // Cache analysis timeframe (in days)
   private readonly ANALYSIS_PERIOD_DAYS = 7;
   private readonly logger = new Logger(CacheStatisticsService.name);
@@ -31,45 +26,6 @@ export class CacheStatisticsService {
     private readonly blockchainRepository: Repository<Blockchain>,
     private readonly bidCalculatorService: ContractBidCalculatorService,
   ) {}
-
-  /**
-   * Calculate dynamic risk multipliers based on cache statistics
-   * @param stats Cache usage statistics
-   * @returns Object with adjusted risk multipliers
-   */
-  calculateDynamicRiskMultipliers(stats: CacheStats): {
-    highRisk: number;
-    midRisk: number;
-    lowRisk: number;
-  } {
-    // 1. Adjust for cache utilization
-    // As utilization increases, risk multipliers should increase
-    const utilizationFactor = 1 + stats.utilization;
-
-    // 2. Adjust for eviction rate
-    // Higher eviction rate means more competition, so increase multipliers
-    // Normalize eviction rate to a factor between 1-1.5
-    const evictionFactor = 1 + Math.min(stats.evictionRate / 10, 0.5);
-
-    // 3. Adjust for cache competitiveness
-    // More competitive cache requires higher bids
-    const competitivenessFactor = 1 + stats.competitiveness;
-
-    // Combine factors with different weights
-    // These weights can be tuned based on observed importance of each factor
-    const combinedAdjustment =
-      utilizationFactor * 0.5 +
-      evictionFactor * 0.3 +
-      competitivenessFactor * 0.2;
-
-    // Apply the combined adjustment to base multipliers
-    // Keep highRisk at 1.0 (minimum bid) but adjust others
-    return {
-      highRisk: this.BASE_HIGH_RISK_MULTIPLIER,
-      midRisk: this.BASE_MID_RISK_MULTIPLIER * combinedAdjustment,
-      lowRisk: this.BASE_LOW_RISK_MULTIPLIER * combinedAdjustment,
-    };
-  }
 
   /**
    * Gather cache statistics by analyzing contract state and blockchain events

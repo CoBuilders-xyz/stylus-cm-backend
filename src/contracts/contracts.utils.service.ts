@@ -19,6 +19,8 @@ import {
   BidHistoryItem,
 } from './interfaces/contract.interfaces';
 
+// TODOREFACTOR: This file is deprecated. only kept until other services are updated.
+
 /**
  * This service contains utility functions for processing contract data
  * and calculating derived values that need to be computed at request time.
@@ -47,32 +49,6 @@ export class ContractsUtilsService {
     private readonly enrichmentService: ContractEnrichmentService,
     private readonly cacheStatisticsService: CacheStatisticsService,
   ) {}
-
-  /**
-   * @deprecated Use ContractBidCalculatorService.getCacheManagerContract() instead
-   * Get a cache manager contract instance for a specific blockchain
-   * @param blockchainId The ID of the blockchain to get the contract for
-   * @returns The cache manager contract instance
-   */
-  private async getCacheManagerContract(
-    blockchainId: string,
-  ): Promise<CacheManagerContract> {
-    return this.bidCalculatorService.getCacheManagerContract(blockchainId);
-  }
-
-  /**
-   * @deprecated Use ContractBidCalculatorService.getDecayRate() instead
-   * Get the decay rate from blockchain events for a specific blockchain at a specific timestamp
-   * @param blockchainId The ID of the blockchain to get the decay rate for
-   * @param timestamp Optional timestamp to get the decay rate at, defaults to current time
-   * @returns The decay rate as a string
-   */
-  private async getDecayRate(
-    blockchainId: string,
-    timestamp: Date,
-  ): Promise<string> {
-    return this.bidCalculatorService.getDecayRate(blockchainId, timestamp);
-  }
 
   /**
    * @deprecated Use ContractBidCalculatorService.calculateEffectiveBid() instead
@@ -156,6 +132,7 @@ export class ContractsUtilsService {
     includeBiddingHistory = false,
   ): Promise<
     Contract & {
+      minBid: string;
       effectiveBid?: string;
       evictionRisk?: {
         riskLevel: RiskLevel;
@@ -173,7 +150,6 @@ export class ContractsUtilsService {
         cacheStats: CacheStats;
       };
       biddingHistory?: BidHistoryItem[];
-      minBid: string;
     }
   > {
     return this.enrichmentService.processContract(
@@ -194,6 +170,7 @@ export class ContractsUtilsService {
     includeBiddingHistory = false,
   ): Promise<
     (Contract & {
+      minBid: string;
       effectiveBid?: string;
       evictionRisk?: {
         riskLevel: RiskLevel;
@@ -211,7 +188,6 @@ export class ContractsUtilsService {
         cacheStats: CacheStats;
       };
       biddingHistory?: BidHistoryItem[];
-      minBid: string;
     })[]
   > {
     return this.enrichmentService.processContracts(
@@ -249,5 +225,31 @@ export class ContractsUtilsService {
       address,
       blockchainId,
     );
+  }
+
+  /**
+   * @deprecated Use ContractBidCalculatorService.getCacheManagerContract() instead
+   * Get a cache manager contract instance for a specific blockchain
+   * @param blockchainId The ID of the blockchain to get the contract for
+   * @returns The cache manager contract instance
+   */
+  private async getCacheManagerContract(
+    blockchainId: string,
+  ): Promise<CacheManagerContract> {
+    return this.bidCalculatorService.getCacheManagerContract(blockchainId);
+  }
+
+  /**
+   * @deprecated Use ContractBidCalculatorService.getDecayRate() instead
+   * Get the decay rate from blockchain events for a specific blockchain at a specific timestamp
+   * @param blockchainId The ID of the blockchain to get the decay rate for
+   * @param timestamp Optional timestamp to get the decay rate at, defaults to current time
+   * @returns The decay rate as a string
+   */
+  private async getDecayRate(
+    blockchainId: string,
+    timestamp: Date,
+  ): Promise<string> {
+    return this.bidCalculatorService.getDecayRate(blockchainId, timestamp);
   }
 }

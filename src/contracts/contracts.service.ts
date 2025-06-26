@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Contract } from './entities/contract.entity';
-import { ContractsUtilsService } from './contracts.utils.service';
+import {
+  ContractEnrichmentService,
+  ContractBidAssessmentService,
+} from './services';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
 import {
@@ -25,54 +28,9 @@ export class ContractsService {
     private readonly contractRepository: Repository<Contract>,
     @InjectRepository(UserContract)
     private readonly userContractRepository: Repository<UserContract>,
-    private readonly contractsUtilsService: ContractsUtilsService,
+    private readonly contractEnrichmentService: ContractEnrichmentService,
+    private readonly contractBidAssessmentService: ContractBidAssessmentService,
   ) {}
-
-  /**
-   * Check if contracts are saved by a user
-   * @param user The user to check
-   * @param contractIds Array of contract IDs to check
-   * @param blockchainId Optional blockchain ID filter
-   * @returns A map of contract IDs to boolean values indicating if they are saved by the user
-   */
-  private async checkContractsSavedByUser(
-    user: User,
-    contractIds: string[],
-    blockchainId?: string,
-  ): Promise<Record<string, boolean>> {
-    if (!contractIds.length) {
-      return {};
-    }
-
-    // Create query to find all user contracts for these contract IDs and user
-    const queryBuilder = this.userContractRepository
-      .createQueryBuilder('userContract')
-      .leftJoin('userContract.contract', 'contract')
-      .select('contract.id', 'contractId')
-      .where('userContract.user = :userId', { userId: user.id })
-      .andWhere('contract.id IN (:...contractIds)', { contractIds });
-
-    // Add optional blockchain filter
-    if (blockchainId) {
-      queryBuilder.andWhere('userContract.blockchain = :blockchainId', {
-        blockchainId,
-      });
-    }
-
-    // Execute query to get all saved contract IDs
-    const savedContractResults = await queryBuilder.getRawMany();
-    const savedContractIds = savedContractResults.map(
-      (result: { contractId: string }) => result.contractId,
-    );
-
-    // Create result map with true for saved contracts, false for others
-    const resultMap: Record<string, boolean> = {};
-    contractIds.forEach((id) => {
-      resultMap[id] = savedContractIds.includes(id);
-    });
-
-    return resultMap;
-  }
 
   async findAll(
     user: User,
@@ -131,7 +89,7 @@ export class ContractsService {
 
     // Process contracts to add calculated fields
     const processedContracts =
-      await this.contractsUtilsService.processContracts(contracts);
+      await this.contractEnrichmentService.processContracts(contracts);
 
     // Get contract IDs to check if they're saved by the user
     const contractIds = contracts.map((contract) => contract.id);
@@ -179,7 +137,7 @@ export class ContractsService {
 
     // Process the single contract to add calculated fields
     const processedContract =
-      await this.contractsUtilsService.processContract(contract);
+      await this.contractEnrichmentService.processContract(contract);
 
     // Check if contract is saved by user if a user is provided
     if (user) {
@@ -208,7 +166,7 @@ export class ContractsService {
     address: string,
     blockchainId: string,
   ): Promise<SuggestedBidsResponse> {
-    return this.contractsUtilsService.getSuggestedBidsByAddress(
+    return this.contractBidAssessmentService.getSuggestedBidsByAddress(
       address,
       blockchainId,
     );
@@ -224,6 +182,55 @@ export class ContractsService {
     size: number,
     blockchainId: string,
   ): Promise<SuggestedBidsResponse> {
-    return this.contractsUtilsService.getSuggestedBids(size, blockchainId);
+    return this.contractBidAssessmentService.getSuggestedBids(
+      size,
+      blockchainId,
+    );
+  }
+
+  /**
+   * Check if contracts are saved by a user
+   * @param user The user to check
+   * @param contractIds Array of contract IDs to check
+   * @param blockchainId Optional blockchain ID filter
+   * @returns A map of contract IDs to boolean values indicating if they are saved by the user
+   */
+  private async checkContractsSavedByUser(
+    user: User,
+    contractIds: string[],
+    blockchainId?: string,
+  ): Promise<Record<string, boolean>> {
+    if (!contractIds.length) {
+      return {};
+    }
+
+    // Create query to find all user contracts for these contract IDs and user
+    const queryBuilder = this.userContractRepository
+      .createQueryBuilder('userContract')
+      .leftJoin('userContract.contract', 'contract')
+      .select('contract.id', 'contractId')
+      .where('userContract.user = :userId', { userId: user.id })
+      .andWhere('contract.id IN (:...contractIds)', { contractIds });
+
+    // Add optional blockchain filter
+    if (blockchainId) {
+      queryBuilder.andWhere('userContract.blockchain = :blockchainId', {
+        blockchainId,
+      });
+    }
+
+    // Execute query to get all saved contract IDs
+    const savedContractResults = await queryBuilder.getRawMany();
+    const savedContractIds = savedContractResults.map(
+      (result: { contractId: string }) => result.contractId,
+    );
+
+    // Create result map with true for saved contracts, false for others
+    const resultMap: Record<string, boolean> = {};
+    contractIds.forEach((id) => {
+      resultMap[id] = savedContractIds.includes(id);
+    });
+
+    return resultMap;
   }
 }

@@ -35,6 +35,7 @@ export class ContractEnrichmentService {
     includeBiddingHistory = false,
   ): Promise<
     Contract & {
+      minBid: string;
       effectiveBid?: string;
       evictionRisk?: {
         riskLevel: RiskLevel;
@@ -52,10 +53,10 @@ export class ContractEnrichmentService {
         cacheStats: CacheStats;
       };
       biddingHistory?: BidHistoryItem[];
-      minBid: string;
     }
   > {
     let processedContract: Contract & {
+      minBid: string;
       effectiveBid?: string;
       evictionRisk?: {
         riskLevel: RiskLevel;
@@ -72,7 +73,6 @@ export class ContractEnrichmentService {
         suggestedBids: BidRiskLevels;
         cacheStats: CacheStats;
       };
-      minBid: string;
     } = {
       ...contract,
       minBid: '0',
@@ -133,6 +133,7 @@ export class ContractEnrichmentService {
     includeBiddingHistory = false,
   ): Promise<
     (Contract & {
+      minBid: string;
       effectiveBid?: string;
       evictionRisk?: {
         riskLevel: RiskLevel;
@@ -150,7 +151,6 @@ export class ContractEnrichmentService {
         cacheStats: CacheStats;
       };
       biddingHistory?: BidHistoryItem[];
-      minBid: string;
     })[]
   > {
     if (contracts.length === 0) {
