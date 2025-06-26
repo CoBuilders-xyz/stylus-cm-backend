@@ -1,6 +1,13 @@
 import { registerAs } from '@nestjs/config';
 import { LogLevel } from '@nestjs/common';
 import { validatePort } from '../utils/validation.util';
+import {
+  DEFAULT_PORT,
+  DEFAULT_LOGGER_LEVELS,
+  ALLOWED_HTTP_METHODS,
+  VALID_ENVIRONMENTS,
+  VALID_LOGGER_LEVELS,
+} from './constants';
 
 export interface AppConfig {
   cors: {
@@ -13,24 +20,12 @@ export interface AppConfig {
   frontendUrl?: string;
 }
 
-const DEFAULT_PORT = 3000;
-const DEFAULT_LOGGER_LEVELS: LogLevel[] = ['log', 'error'];
-const ALLOWED_HTTP_METHODS = [
-  'GET',
-  'POST',
-  'PUT',
-  'DELETE',
-  'PATCH',
-  'OPTIONS',
-];
-
 export default registerAs('app', (): AppConfig => {
   // Validate environment
   const validateEnvironment = (env: string): AppConfig['environment'] => {
-    const validEnvironments = ['local', 'develop', 'staging', 'production'];
-    if (!validEnvironments.includes(env)) {
+    if (!VALID_ENVIRONMENTS.includes(env)) {
       throw new Error(
-        `Invalid ENVIRONMENT: ${env}. Must be one of: ${validEnvironments.join(', ')}.`,
+        `Invalid ENVIRONMENT: ${env}. Must be one of: ${VALID_ENVIRONMENTS.join(', ')}.`,
       );
     }
     return env as AppConfig['environment'];
@@ -39,19 +34,12 @@ export default registerAs('app', (): AppConfig => {
   // Validate logger levels
   const validateLoggerLevels = (levelsString: string): LogLevel[] => {
     const parsedLevels = levelsString.split(',').map((level) => level.trim());
-    const validLevels: LogLevel[] = [
-      'error',
-      'warn',
-      'log',
-      'debug',
-      'verbose',
-    ];
 
     // Validate all levels are valid
     for (const level of parsedLevels) {
-      if (!validLevels.includes(level as LogLevel)) {
+      if (!VALID_LOGGER_LEVELS.includes(level as LogLevel)) {
         throw new Error(
-          `Invalid LOGGER_LEVELS: '${level}'. Valid levels are: ${validLevels.join(', ')}`,
+          `Invalid LOGGER_LEVELS: '${level}'. Valid levels are: ${VALID_LOGGER_LEVELS.join(', ')}`,
         );
       }
     }

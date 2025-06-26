@@ -1,5 +1,12 @@
 import { registerAs } from '@nestjs/config';
 import { validatePort } from '../utils/validation.util';
+import {
+  DEFAULT_REDIS_PORT,
+  DEFAULT_REDIS_FAMILY,
+  DEFAULT_BULLMQ_ATTEMPTS,
+  DEFAULT_BULLMQ_BACKOFF_DELAY,
+  MIN_BULLMQ_BACKOFF_DELAY,
+} from './constants';
 
 export interface RedisConfig {
   connection: {
@@ -56,28 +63,28 @@ export default registerAs('redis', (): RedisConfig => {
   const connection = process.env.REDIS_URL
     ? {
         url: process.env.REDIS_URL,
-        family: 0,
+        family: DEFAULT_REDIS_FAMILY,
       }
     : {
         host: process.env.REDIS_HOST!,
         port: process.env.REDIS_PORT
           ? validatePort(process.env.REDIS_PORT, 'REDIS_PORT')
-          : 6380,
-        family: 0,
+          : DEFAULT_REDIS_PORT,
+        family: DEFAULT_REDIS_FAMILY,
       };
 
   // Build job options with validation
   const attempts = process.env.BULLMQ_ATTEMPTS
     ? validateJobOption(process.env.BULLMQ_ATTEMPTS, 'BULLMQ_ATTEMPTS', 1)
-    : 5;
+    : DEFAULT_BULLMQ_ATTEMPTS;
 
   const backoffDelay = process.env.BULLMQ_BACKOFF_DELAY
     ? validateJobOption(
         process.env.BULLMQ_BACKOFF_DELAY,
         'BULLMQ_BACKOFF_DELAY',
-        1000,
+        MIN_BULLMQ_BACKOFF_DELAY,
       )
-    : 10000;
+    : DEFAULT_BULLMQ_BACKOFF_DELAY;
 
   return {
     connection,

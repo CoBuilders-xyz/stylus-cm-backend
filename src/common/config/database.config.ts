@@ -1,6 +1,7 @@
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { validatePort } from '../utils/validation.util';
+import { DEFAULT_POSTGRES_PORT } from './constants';
 
 // Import entities
 import { User } from '../../users/entities';
@@ -98,7 +99,7 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
       host: process.env.POSTGRES_HOST,
       port: process.env.POSTGRES_PORT
         ? validatePort(process.env.POSTGRES_PORT, 'POSTGRES_PORT')
-        : 5432,
+        : DEFAULT_POSTGRES_PORT,
       username: process.env.POSTGRES_USER,
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB,
