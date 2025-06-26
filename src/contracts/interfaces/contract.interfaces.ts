@@ -59,3 +59,28 @@ export type BidHistoryItem = {
     userBalance: string;
   };
 };
+
+export interface RiskMultipliers {
+  highRisk: number;
+  midRisk: number;
+  lowRisk: number;
+}
+
+export interface ComparisonPercentages {
+  vsHighRisk: number;
+  vsMidRisk: number;
+  vsLowRisk: number;
+}
+
+export interface EvictionRiskResult {
+  riskLevel: RiskLevel;
+  remainingEffectiveBid: string;
+  suggestedBids: BidRiskLevels;
+  comparisonPercentages: ComparisonPercentages;
+  cacheStats: CacheStats;
+}
+
+export interface SuggestedBidsResult {
+  suggestedBids: BidRiskLevels;
+  cacheStats: CacheStats;
+}
