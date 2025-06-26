@@ -60,8 +60,10 @@ ${crypto.randomUUID()}`;
       throw new NotFoundException('Nonce not found or expired');
 
     this.logger.debug(
-      'Attempting to verify signature with message:',
-      nonceMessage,
+      `Attempting to verify signature with message: ${nonceMessage.replaceAll(
+        '\n',
+        ' ',
+      )}`,
     );
 
     // Verify the signature using ethers.verifyMessage

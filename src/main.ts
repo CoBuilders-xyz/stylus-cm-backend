@@ -7,17 +7,19 @@ import {
 } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { HttpAdapterHost } from '@nestjs/core';
+import { INestApplication } from '@nestjs/common';
 import {
   AllExceptionsFilter,
   HttpExceptionFilter,
   ValidationExceptionFilter,
   RpcExceptionFilter,
 } from './common/filters';
+import appConfig, {
+  AppConfig,
+  shouldAllowOrigin,
+} from './common/config/app.config';
 
-async function bootstrap() {
-  const logger = new Logger('Bootstrap');
-
-  // Global unhandled exception handlers
+function setupGlobalExceptionHandlers(logger: Logger): void {
   process.on('unhandledRejection', (reason) => {
     logger.error(
       `Unhandled Promise Rejection: ${reason instanceof Error ? reason.message : String(reason)}`,
@@ -28,41 +30,34 @@ async function bootstrap() {
   process.on('uncaughtException', (error) => {
     logger.error(`Uncaught Exception: ${error.message}`, error.stack);
   });
+}
 
-  const app = await NestFactory.create(AppModule, {
-    cors: {
-      origin: (origin, callback) => {
-        // Allow requests with no origin (like Postman, curl, etc.) for development
-        if (!origin && process.env.ENVIRONMENT === 'local') {
-          callback(null, true);
-          return;
-        }
+function createCorsConfig(config: AppConfig) {
+  return {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      if (shouldAllowOrigin(origin, config)) {
+        callback(null, true);
+        return;
+      }
 
-        // Allow origins that start with https://stylus-cm-frontend
-        if (
-          process.env.ENVIRONMENT !== 'production' &&
-          origin?.startsWith('https://stylus-cm-frontend')
-        ) {
-          callback(null, true);
-          return;
-        }
-
-        // Allow the main frontend URL if specified in env
-        if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
-          callback(null, true);
-          return;
-        }
-        // Send Correct Cors error
-        callback(
-          new HttpException('Not allowed by CORS', HttpStatus.FORBIDDEN),
-        );
-      },
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      credentials: true,
+      callback(new HttpException('Not allowed by CORS', HttpStatus.FORBIDDEN));
     },
-    logger: ['error', 'debug', 'warn', 'log'],
-  });
+    methods: config.cors.allowedHttpMethods,
+    credentials: true,
+  };
+}
 
+async function createNestApp(config: AppConfig): Promise<INestApplication> {
+  return await NestFactory.create(AppModule, {
+    cors: createCorsConfig(config),
+    logger: config.loggerLevels,
+  });
+}
+
+function setupAppMiddleware(app: INestApplication): void {
   // Apply validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
@@ -78,8 +73,43 @@ async function bootstrap() {
     new HttpExceptionFilter(),
     new AllExceptionsFilter(httpAdapterHost),
   );
-
-  await app.listen(process.env.PORT ?? 3000, '::');
-  logger.log(`Application is running on: ${await app.getUrl()}`);
 }
-bootstrap();
+
+async function startServer(
+  app: INestApplication,
+  config: AppConfig,
+  logger: Logger,
+): Promise<void> {
+  await app.listen(config.port, '::');
+  logger.log(`Application is running on: ${await app.getUrl()}`);
+  logger.log(`Environment: ${config.environment}`);
+  if (config.frontendUrl) {
+    logger.log(`Frontend URL: ${config.frontendUrl}`);
+  }
+}
+
+async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+
+  // Load configuration directly from config file (no NestJS app needed)
+  const config = appConfig();
+
+  logger.log(
+    `Configuration loaded successfully for environment: ${config.environment}`,
+  );
+
+  // Create app once with proper configuration
+  const app = await createNestApp(config);
+
+  setupGlobalExceptionHandlers(logger);
+  setupAppMiddleware(app);
+  await startServer(app, config, logger);
+}
+
+bootstrap().catch((error) => {
+  const logger = new Logger('Bootstrap');
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  logger.error(`Failed to start application: ${message}`, stack);
+  process.exit(1);
+});

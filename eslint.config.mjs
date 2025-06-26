@@ -29,7 +29,24 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn'
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/member-ordering': [
+        'error',
+        {
+          default: {
+            optionalityOrder: 'required-first',
+            order: 'alphabetically',
+          },
+          interfaces: {
+            optionalityOrder: 'required-first',
+            order: 'alphabetically',
+          },
+          typeLiterals: {
+            optionalityOrder: 'required-first',
+            order: 'alphabetically',
+          },
+        },
+      ],
     },
   },
 );
