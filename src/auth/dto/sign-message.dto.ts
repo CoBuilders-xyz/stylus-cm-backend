@@ -1,6 +1,13 @@
 import { IsString, IsNotEmpty, Length, Matches } from 'class-validator';
 
 export class SignMessageDto {
+  @IsString({ message: 'Message must be a string' })
+  @IsNotEmpty({ message: 'Message is required' })
+  @Length(1, 1000, {
+    message: 'Message must be between 1 and 1000 characters',
+  })
+  message: string;
+
   @IsString({ message: 'Private key must be a string' })
   @IsNotEmpty({ message: 'Private key is required' })
   @Length(64, 66, {
@@ -11,11 +18,4 @@ export class SignMessageDto {
     message: 'Private key must be a valid hexadecimal string',
   })
   pk: string;
-
-  @IsString({ message: 'Message must be a string' })
-  @IsNotEmpty({ message: 'Message is required' })
-  @Length(1, 1000, {
-    message: 'Message must be between 1 and 1000 characters',
-  })
-  message: string;
 }

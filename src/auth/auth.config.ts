@@ -1,8 +1,8 @@
 import { registerAs } from '@nestjs/config';
 
 export interface AuthConfig {
-  jwtSecret: string;
   jwtExpiresIn: string;
+  jwtSecret: string;
   nonceExpiration: number;
 }
 

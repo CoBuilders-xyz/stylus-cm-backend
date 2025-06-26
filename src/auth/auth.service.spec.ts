@@ -47,9 +47,9 @@ jest.mock('ethers', () => ({
 
 // Type definitions for mocks
 interface MockCacheManager {
+  del: jest.Mock;
   get: jest.Mock;
   set: jest.Mock;
-  del: jest.Mock;
 }
 
 interface MockUsersService {
@@ -74,9 +74,9 @@ describe('AuthService', () => {
   beforeEach(async () => {
     // Create mocks for all dependencies
     mockCacheManager = {
+      del: jest.fn(),
       get: jest.fn(),
       set: jest.fn(),
-      del: jest.fn(),
     };
 
     mockUsersService = {

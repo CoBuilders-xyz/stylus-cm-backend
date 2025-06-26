@@ -14,8 +14,8 @@ import { AuthErrorHelpers } from './auth.errors';
 
 interface JwtPayload {
   userAddress: string;
-  iat?: number;
   exp?: number;
+  iat?: number;
 }
 
 interface AuthenticatedRequest extends Request {

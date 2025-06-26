@@ -15,17 +15,17 @@ export class AuthController {
     return { nonce };
   }
 
-  @Public()
-  @Post('login')
-  verifySignature(@Body() body: VerifySignatureDto) {
-    return this.authService.verifySignature(body.address, body.signature);
-  }
-
   // Testing Purposes Only - RESTRICTED TO DEVELOPMENT ENVIRONMENTS
   @Public()
   @UseGuards(DevelopmentOnlyGuard)
   @Post('sign-message')
   sign(@Body() body: SignMessageDto) {
     return this.authService.signMessage(body.pk, body.message);
+  }
+
+  @Public()
+  @Post('login')
+  verifySignature(@Body() body: VerifySignatureDto) {
+    return this.authService.verifySignature(body.address, body.signature);
   }
 }
