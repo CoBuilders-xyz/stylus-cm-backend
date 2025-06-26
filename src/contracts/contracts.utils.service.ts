@@ -6,67 +6,21 @@ import { BlockchainState } from '../blockchains/entities/blockchain-state.entity
 import { BlockchainEvent } from '../blockchains/entities/blockchain-event.entity';
 import { ProviderManager, ContractType } from '../common/utils/provider.util';
 import { Blockchain } from '../blockchains/entities/blockchain.entity';
-
-// Define proper types for contract and provider
-interface CacheManagerContract {
-  'getMinBid(uint64)'(size: number): Promise<bigint>;
-  'getMinBid(address)'(address: string): Promise<bigint>;
-  decay(): Promise<bigint>;
-  getCachedBid(
-    address: string,
-  ): Promise<{ bid: bigint; timestamp: bigint; size: bigint }>;
-  getEntries(): Promise<Array<{ code: string; size: bigint; bid: bigint }>>;
-  cacheSize(): Promise<bigint>;
-  queueSize(): Promise<bigint>;
-}
-
-interface BidRiskLevels {
-  highRisk: string;
-  midRisk: string;
-  lowRisk: string;
-}
-
-/**
- * Risk level descriptor
- */
-export type RiskLevel = 'high' | 'medium' | 'low';
-
-/**
- * Cache statistics for risk assessment
- */
-interface CacheStats {
-  utilization: number; // Current cache utilization (0-1)
-  evictionRate: number; // Recent eviction rate (events per day)
-  medianBidPerByte: string;
-  competitiveness: number; // How competitive the cache is (0-1)
-  cacheSizeBytes: string;
-  usedCacheSizeBytes: string;
-  minBid: string; // Minimum required bid for the current request
-}
-
-// Define the result type to match the return type
-type BidHistoryItem = {
-  bytecodeHash: string;
-  contractAddress: string;
-  bid: string;
-  actualBid: string;
-  size: string;
-  timestamp: Date;
-  blockNumber: number;
-  transactionHash: string;
-  originAddress: string;
-  isAutomated: boolean;
-  automationDetails?: {
-    user: string;
-    minBid: string;
-    maxBid: string;
-    userBalance: string;
-  };
-};
+import { ContractBidCalculatorService } from './services/contract-bid-calculator.service';
+import {
+  CacheManagerContract,
+  BidRiskLevels,
+  RiskLevel,
+  CacheStats,
+  BidHistoryItem,
+} from './interfaces/contract.interfaces';
 
 /**
  * This service contains utility functions for processing contract data
  * and calculating derived values that need to be computed at request time.
+ *
+ * NOTE: This service is being refactored to extract responsibilities into focused services.
+ * Some methods now delegate to specialized services.
  */
 @Injectable()
 export class ContractsUtilsService {
@@ -89,9 +43,11 @@ export class ContractsUtilsService {
     private readonly blockchainRepository: Repository<Blockchain>,
     @InjectRepository(Contract)
     private readonly contractRepository: Repository<Contract>,
+    private readonly bidCalculatorService: ContractBidCalculatorService,
   ) {}
 
   /**
+   * @deprecated Use ContractBidCalculatorService.getCacheManagerContract() instead
    * Get a cache manager contract instance for a specific blockchain
    * @param blockchainId The ID of the blockchain to get the contract for
    * @returns The cache manager contract instance
@@ -99,24 +55,11 @@ export class ContractsUtilsService {
   private async getCacheManagerContract(
     blockchainId: string,
   ): Promise<CacheManagerContract> {
-    // Get the blockchain entity
-    const blockchain = await this.blockchainRepository.findOne({
-      where: { id: blockchainId },
-    });
-
-    if (!blockchain) {
-      throw new Error(`Blockchain with ID ${blockchainId} not found`);
-    }
-
-    // Get the contract instance from the provider manager using the CACHE_MANAGER contract type
-    // Use the string literal that matches the enum value to avoid TypeScript errors
-    return this.providerManager.getContract(
-      blockchain,
-      'cacheManager' as ContractType,
-    ) as unknown as CacheManagerContract;
+    return this.bidCalculatorService.getCacheManagerContract(blockchainId);
   }
 
   /**
+   * @deprecated Use ContractBidCalculatorService.getDecayRate() instead
    * Get the decay rate from blockchain events for a specific blockchain at a specific timestamp
    * @param blockchainId The ID of the blockchain to get the decay rate for
    * @param timestamp Optional timestamp to get the decay rate at, defaults to current time
@@ -126,54 +69,19 @@ export class ContractsUtilsService {
     blockchainId: string,
     timestamp: Date,
   ): Promise<string> {
-    try {
-      // Try to find the most recent setDecayRate event before the target timestamp
-      const decayRateEvent = await this.blockchainEventRepository.findOne({
-        where: {
-          blockchain: { id: blockchainId },
-          eventName: 'SetDecayRate',
-          blockTimestamp: LessThanOrEqual(timestamp),
-        },
-        order: { blockTimestamp: 'DESC' },
-      });
-
-      if (decayRateEvent) {
-        // Parse the event data to get the decay rate
-        const eventData = decayRateEvent.eventData as string[];
-        // Assuming decay rate is the first parameter in the event data
-        const decayRate = eventData[0];
-        return decayRate;
-      }
-
-      // Fallback to checking the blockchain state if no event is found
-      const latestState = await this.blockchainStateRepository.findOne({
-        where: { blockchain: { id: blockchainId } },
-        order: { blockNumber: 'DESC' },
-      });
-
-      if (latestState) {
-        return latestState.decayRate;
-      }
-
-      this.logger.warn(
-        `No decay rate information found for blockchain ${blockchainId}, using default decay rate of 0`,
-      );
-      return '0';
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(`Error fetching decay rate: ${err.message}`);
-      // If there's an error, return 0 as a safe default
-      return '0';
-    }
+    return this.bidCalculatorService.getDecayRate(blockchainId, timestamp);
   }
 
   /**
+   * @deprecated Use ContractBidCalculatorService.calculateEffectiveBid() instead
    * Calculate the effective bid for a contract
    * Formula: lastBid - (currentTimestamp - bidBlockTimestamp) * currentDecayRate
    * Minimum value is 0
    *
-   * @param contract The contract to calculate the effective bid for
-   * @param decayRate Optional decay rate to use (if already fetched)
+   * @param startTimestamp The timestamp when the bid was placed
+   * @param endTimestamp The current timestamp to calculate against
+   * @param bidSize The original bid amount
+   * @param decayRate The decay rate to apply
    * @returns The calculated effective bid value
    */
   calculateEffectiveBid(
@@ -182,40 +90,16 @@ export class ContractsUtilsService {
     bidSize: string,
     decayRate: string,
   ): string {
-    try {
-      const timeElapsed = Math.floor(
-        endTimestamp.getTime() / 1000 - startTimestamp.getTime() / 1000,
-      );
-
-      // Parse the values to BigInt to avoid precision issues
-      const lastBidBigInt = BigInt(bidSize);
-      const timeElapsedBigInt = BigInt(timeElapsed);
-      const decayRateBigInt = BigInt(decayRate);
-
-      // Calculate the decay amount
-      const decayAmount = timeElapsedBigInt * decayRateBigInt;
-
-      // Calculate the effective bid
-      let effectiveBid = lastBidBigInt;
-
-      // Only subtract if decay amount is less than the last bid
-      if (decayAmount < lastBidBigInt) {
-        effectiveBid = lastBidBigInt - decayAmount;
-      } else {
-        // If the decay amount is greater than or equal to the last bid, set to 0
-        effectiveBid = BigInt(0);
-      }
-
-      return effectiveBid.toString();
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(`Error calculating effective bid: ${err.message}`);
-      // In case of an error, return 0 as a safe default
-      return '0';
-    }
+    return this.bidCalculatorService.calculateEffectiveBid(
+      startTimestamp,
+      endTimestamp,
+      bidSize,
+      decayRate,
+    );
   }
 
   /**
+   * @deprecated Use ContractBidCalculatorService.calculateCurrentContractEffectiveBid() instead
    * Calculate the effective bid for a contract
    * @param contract The contract to calculate the effective bid for
    * @returns The calculated effective bid value
@@ -223,19 +107,8 @@ export class ContractsUtilsService {
   async calculateCurrentContractEffectiveBid(
     contract: Contract,
   ): Promise<string> {
-    const currentTimestamp = new Date();
-    const decayRate = await this.getDecayRate(
-      contract.blockchain.id,
-      currentTimestamp,
-    );
-    const bidSize = contract.lastBid;
-    const startTimestamp = contract.bidBlockTimestamp;
-    const endTimestamp = new Date();
-    return this.calculateEffectiveBid(
-      startTimestamp,
-      endTimestamp,
-      bidSize,
-      decayRate,
+    return this.bidCalculatorService.calculateCurrentContractEffectiveBid(
+      contract,
     );
   }
 

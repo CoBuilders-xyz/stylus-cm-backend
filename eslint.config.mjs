@@ -35,15 +35,12 @@ export default tseslint.config(
         {
           default: {
             optionalityOrder: 'required-first',
-            order: 'alphabetically',
           },
           interfaces: {
             optionalityOrder: 'required-first',
-            order: 'alphabetically',
           },
           typeLiterals: {
             optionalityOrder: 'required-first',
-            order: 'alphabetically',
           },
         },
       ],

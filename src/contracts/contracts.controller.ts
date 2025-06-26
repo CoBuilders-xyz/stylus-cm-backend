@@ -12,7 +12,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
 import { ContractSortingDto } from './dto/contract-sorting.dto';
 import { SearchDto } from '../common/dto/search.dto';
-import { RiskLevel } from './contracts.utils.service';
+import { RiskLevel } from './interfaces/contract.interfaces';
 import { AuthenticatedRequest } from '../common/types/custom-types';
 
 // Define risk-related types
