@@ -8,6 +8,8 @@ import { ContractsUtilsService } from './contracts.utils.service';
 import { ContractBidCalculatorService } from './services/contract-bid-calculator.service';
 import { ContractBidAssessmentService } from './services/contract-bid-assessment.service';
 import { ContractHistoryService } from './services/contract-history.service';
+import { ContractEnrichmentService } from './services/contract-enrichment.service';
+import { CacheStatisticsService } from './services/cache-statistics.service';
 import { BlockchainState } from '../blockchains/entities/blockchain-state.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
@@ -31,12 +33,16 @@ import { UserContract } from '../user-contracts/entities/user-contract.entity';
     ContractBidCalculatorService,
     ContractBidAssessmentService,
     ContractHistoryService,
+    ContractEnrichmentService,
+    CacheStatisticsService,
   ],
   exports: [
     ContractsUtilsService,
     ContractBidCalculatorService,
     ContractBidAssessmentService,
     ContractHistoryService,
+    ContractEnrichmentService,
+    CacheStatisticsService,
   ],
 })
 export class ContractsModule {}
