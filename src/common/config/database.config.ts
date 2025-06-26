@@ -1,5 +1,6 @@
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { validatePort } from '../utils/validation.util';
 
 // Import entities
 import { User } from '../../users/entities';
@@ -70,17 +71,6 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
     }
   };
 
-  // Validate port if provided
-  const validatePort = (port: string): number => {
-    const portNum = parseInt(port, 10);
-    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      throw new Error(
-        `Invalid POSTGRES_PORT: ${port}. Must be a number between 1 and 65535.`,
-      );
-    }
-    return portNum;
-  };
-
   // Run validation
   validateConfig();
 
@@ -107,7 +97,7 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
       ...baseConfig,
       host: process.env.POSTGRES_HOST,
       port: process.env.POSTGRES_PORT
-        ? validatePort(process.env.POSTGRES_PORT)
+        ? validatePort(process.env.POSTGRES_PORT, 'POSTGRES_PORT')
         : 5432,
       username: process.env.POSTGRES_USER,
       password: process.env.POSTGRES_PASSWORD,

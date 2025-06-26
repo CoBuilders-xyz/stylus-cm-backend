@@ -1,17 +1,18 @@
 import { registerAs } from '@nestjs/config';
+import { validatePort } from '../utils/validation.util';
 
 export interface RedisConfig {
   connection: {
-    url?: string;
+    family: number;
     host?: string;
     port?: number;
-    family: number;
+    url?: string;
   };
   defaultJobOptions: {
     attempts: number;
     backoff: {
-      type: string;
       delay: number;
+      type: string;
     };
     removeOnComplete: boolean;
     removeOnFail: boolean;
@@ -33,17 +34,6 @@ export default registerAs('redis', (): RedisConfig => {
         'REDIS_URL must be a valid Redis connection string starting with redis://',
       );
     }
-  };
-
-  // Validate port if provided
-  const validatePort = (port: string): number => {
-    const portNum = parseInt(port, 10);
-    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      throw new Error(
-        `Invalid REDIS_PORT: ${port}. Must be a number between 1 and 65535.`,
-      );
-    }
-    return portNum;
   };
 
   // Validate numeric job options
@@ -71,7 +61,7 @@ export default registerAs('redis', (): RedisConfig => {
     : {
         host: process.env.REDIS_HOST!,
         port: process.env.REDIS_PORT
-          ? validatePort(process.env.REDIS_PORT)
+          ? validatePort(process.env.REDIS_PORT, 'REDIS_PORT')
           : 6380,
         family: 0,
       };

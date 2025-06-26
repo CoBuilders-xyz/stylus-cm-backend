@@ -1,15 +1,16 @@
 import { registerAs } from '@nestjs/config';
 import { LogLevel } from '@nestjs/common';
+import { validatePort } from '../utils/validation.util';
 
 export interface AppConfig {
-  environment: 'local' | 'develop' | 'staging' | 'production';
-  port: number;
-  frontendUrl?: string;
-  allowedOriginPrefix?: string;
-  loggerLevels: LogLevel[];
   cors: {
     allowedHttpMethods: string[];
   };
+  environment: 'local' | 'develop' | 'staging' | 'production';
+  loggerLevels: LogLevel[];
+  port: number;
+  allowedOriginPrefix?: string;
+  frontendUrl?: string;
 }
 
 const DEFAULT_PORT = 3000;
@@ -33,17 +34,6 @@ export default registerAs('app', (): AppConfig => {
       );
     }
     return env as AppConfig['environment'];
-  };
-
-  // Validate port
-  const validatePort = (port: string): number => {
-    const portNum = parseInt(port, 10);
-    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      throw new Error(
-        `Invalid PORT: ${port}. Must be a number between 1 and 65535.`,
-      );
-    }
-    return portNum;
   };
 
   // Validate logger levels
@@ -71,7 +61,9 @@ export default registerAs('app', (): AppConfig => {
 
   // Get and validate configuration values
   const environment = validateEnvironment(process.env.ENVIRONMENT || 'local');
-  const port = process.env.PORT ? validatePort(process.env.PORT) : DEFAULT_PORT;
+  const port = process.env.PORT
+    ? validatePort(process.env.PORT, 'PORT')
+    : DEFAULT_PORT;
   const frontendUrl = process.env.FRONTEND_URL;
   const allowedOriginPrefix = process.env.ALLOWED_ORIGIN_PREFIX;
 
