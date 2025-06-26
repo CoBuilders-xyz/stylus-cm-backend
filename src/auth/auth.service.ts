@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
-  logger = new Logger('AuthService');
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -31,11 +31,9 @@ Nonce:
 ${crypto.randomUUID()}`;
 
     const authConfig = this.configService.get<AuthConfig>('auth')!;
-    this.logger.debug(
-      `Setting nonce expiration to: ${authConfig.nonceExpiration}ms`,
-    );
 
     await this.cacheManager.set(address, nonce, authConfig.nonceExpiration);
+    this.logger.log(`Nonce generated for address: ${address}`);
     return nonce;
   }
 
@@ -61,6 +59,9 @@ ${crypto.randomUUID()}`;
     // Get the stored nonce message from redis with proper type safety
     const nonceMessage = await this.getNonce(address);
     if (!nonceMessage) {
+      this.logger.warn(
+        `Login attempt without valid nonce for address: ${address}`,
+      );
       AuthErrorHelpers.throwNonceNotFound();
     }
 
@@ -78,7 +79,7 @@ ${crypto.randomUUID()}`;
     const recoveredAddress = ethers.verifyMessage(validNonce, signature);
 
     if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
-      this.logger.debug('Signature verification successful!');
+      this.logger.log(`Login successful for address: ${address}`);
 
       // CRITICAL: Delete the nonce immediately after successful verification
       await this.cacheManager.del(address);
@@ -95,11 +96,11 @@ ${crypto.randomUUID()}`;
       });
       return { accessToken };
     } else {
-      this.logger.error(
-        'Signature verification FAILED - addresses do not match',
+      this.logger.warn(
+        `Login failed for address: ${address} - signature verification failed`,
       );
-      this.logger.error(`Expected: ${address.toLowerCase()}`);
-      this.logger.error(`Recovered: ${recoveredAddress.toLowerCase()}`);
+      this.logger.debug(`Expected: ${address.toLowerCase()}`);
+      this.logger.debug(`Recovered: ${recoveredAddress.toLowerCase()}`);
 
       // Use centralized error without leaking sensitive information
       AuthErrorHelpers.throwSignatureVerificationFailed();

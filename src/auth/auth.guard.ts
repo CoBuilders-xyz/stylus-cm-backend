@@ -45,6 +45,7 @@ export class AuthGuard implements CanActivate {
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
+      this.logger.warn(`Unauthorized access attempt - missing token`);
       AuthErrorHelpers.throwTokenMissing();
     }
 
@@ -53,27 +54,31 @@ export class AuthGuard implements CanActivate {
       const user = await this.userService.findOne(payload.userAddress);
 
       if (!user) {
+        this.logger.warn(
+          `Token valid but user not found: ${payload.userAddress}`,
+        );
         AuthErrorHelpers.throwUserNotFound();
       }
 
+      this.logger.log(`Authenticated access for user: ${payload.userAddress}`);
       request.user = user;
     } catch (error: any) {
       // Handle different JWT errors specifically
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error?.name === 'TokenExpiredError') {
-        this.logger.debug('JWT token expired');
+        this.logger.warn(`JWT token expired for request`);
         AuthErrorHelpers.throwTokenExpired();
       }
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error?.name === 'JsonWebTokenError') {
-        this.logger.debug('Invalid JWT token');
+        this.logger.warn(`Invalid JWT token provided`);
         AuthErrorHelpers.throwTokenInvalid();
       }
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error?.name === 'NotBeforeError') {
-        this.logger.debug('JWT token not active yet');
+        this.logger.warn(`JWT token not active yet`);
         AuthErrorHelpers.throwTokenNotActive();
       }
 
