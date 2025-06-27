@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual } from 'typeorm';
+import { Repository } from 'typeorm';
 import { BlockchainState } from '../../blockchains/entities/blockchain-state.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { ContractBidCalculatorService } from './contract-bid-calculator.service';
 import { CacheStats } from '../interfaces/contract.interfaces';
+import { CACHE_ANALYSIS } from '../constants/risk-multipliers.constants';
 
 /**
  * Service responsible for cache statistics analysis and calculations.
@@ -13,8 +14,6 @@ import { CacheStats } from '../interfaces/contract.interfaces';
  */
 @Injectable()
 export class CacheStatisticsService {
-  // Cache analysis timeframe (in days)
-  private readonly ANALYSIS_PERIOD_DAYS = 7;
   private readonly logger = new Logger(CacheStatisticsService.name);
 
   constructor(
@@ -63,26 +62,8 @@ export class CacheStatisticsService {
         ? Number((usedCacheSize * BigInt(100)) / totalCacheSize) / 100
         : 0;
 
-    // Get eviction events from the last analysis period
-    const eventsTimeCutoff = new Date();
-    eventsTimeCutoff.setDate(
-      eventsTimeCutoff.getDate() - this.ANALYSIS_PERIOD_DAYS,
-    );
-
-    const recentEvictionEvents = await this.blockchainEventRepository.find({
-      where: {
-        eventName: 'DeleteBid',
-        blockchain: { id: blockchainId },
-        blockTimestamp: MoreThanOrEqual(eventsTimeCutoff),
-      },
-      order: {
-        blockTimestamp: 'DESC',
-      },
-    });
-
-    // Calculate eviction rate (evictions per day)
-    const evictionRate =
-      recentEvictionEvents.length / this.ANALYSIS_PERIOD_DAYS;
+    // Calculate eviction rate based on recent eviction events
+    const evictionRate = await this.calculateEvictionRate(blockchainId);
 
     // Calculate median bid per byte
     let medianBidPerByte = BigInt(0);
@@ -111,6 +92,28 @@ export class CacheStatisticsService {
       usedCacheSizeBytes: usedCacheSize.toString(),
       minBid,
     };
+  }
+
+  /**
+   * Calculate eviction rate based on recent eviction events
+   */
+  private async calculateEvictionRate(blockchainId: string): Promise<number> {
+    // Get eviction events from the last analysis period
+    const eventsTimeCutoff = new Date();
+    eventsTimeCutoff.setDate(
+      eventsTimeCutoff.getDate() - CACHE_ANALYSIS.ANALYSIS_PERIOD_DAYS,
+    );
+
+    const recentEvictionEvents = await this.blockchainEventRepository.find({
+      where: {
+        blockchain: { id: blockchainId },
+        eventName: 'Evict',
+        blockTimestamp: { $gte: eventsTimeCutoff } as any,
+      },
+    });
+
+    // Calculate eviction rate as evictions per day
+    return recentEvictionEvents.length / CACHE_ANALYSIS.ANALYSIS_PERIOD_DAYS;
   }
 
   /**
