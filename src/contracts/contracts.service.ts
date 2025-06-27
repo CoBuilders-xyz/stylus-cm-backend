@@ -11,7 +11,7 @@ import { PaginationResponse } from '../common/interfaces/pagination-response.int
 import {
   ContractResponse,
   SuggestedBidsResponse,
-} from './contracts.controller';
+} from './interfaces/contract.interfaces';
 import { SortDirection } from '../common/dto/sort.dto';
 import {
   ContractSortingDto,
