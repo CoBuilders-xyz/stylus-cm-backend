@@ -6,38 +6,6 @@ import { UsersService } from 'src/users/users.service';
 import { AuthService } from './auth.service';
 import { ethers } from 'ethers';
 
-// 🚀 TESTING CONFIGURATION
-const ENABLE_TEST_LOGS = true; // ← SET TO false TO DISABLE LOGS
-
-// 📝 Clean test logging utility
-const logTestResult = (
-  testTitle: string,
-  values: Record<string, unknown>,
-  result?: any,
-) => {
-  if (ENABLE_TEST_LOGS) {
-    process.stdout.write('\n' + '='.repeat(60) + '\n');
-    process.stdout.write(`📋 ${testTitle}\n`);
-    process.stdout.write('='.repeat(60) + '\n');
-
-    if (values) {
-      process.stdout.write('🔧 VALUES:\n');
-      Object.entries(values).forEach(([key, value]) => {
-        const displayValue =
-          typeof value === 'string' ? value : JSON.stringify(value);
-        process.stdout.write(`   ${key}: ${displayValue}\n`);
-      });
-    }
-
-    if (result !== undefined) {
-      process.stdout.write('✅ RESULT:\n');
-      process.stdout.write(`   ${JSON.stringify(result, null, 2)}\n`);
-    }
-
-    process.stdout.write('='.repeat(60) + '\n\n');
-  }
-};
-
 // Mock ethers module
 jest.mock('ethers', () => ({
   ethers: {
@@ -123,20 +91,6 @@ describe('AuthService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
-
-    logTestResult(
-      'SERVICE INITIALIZATION TEST',
-      {
-        testType: 'Basic service setup validation',
-        dependencies: [
-          'CacheManager',
-          'UsersService',
-          'JwtService',
-          'ConfigService',
-        ],
-      },
-      { serviceExists: service !== undefined, testPassed: true },
-    );
   });
 
   describe('generateNonce', () => {
@@ -171,18 +125,6 @@ describe('AuthService', () => {
         mockAuthConfig.nonceExpiration,
       );
       expect(mockCacheManager.set).toHaveBeenCalledTimes(1);
-
-      logTestResult(
-        'GENERATE NONCE - FORMAT & CACHE VALIDATION',
-        {
-          testAddress: testAddress,
-          mockConfig: mockAuthConfig,
-          generatedNonce: result.substring(0, 80) + '...',
-          configCalls: mockConfigService.get.mock.calls.length,
-          cacheCalls: mockCacheManager.set.mock.calls.length,
-        },
-        { testPassed: true, nonceGenerated: true },
-      );
     });
 
     it('should generate unique nonces for multiple calls', async () => {
@@ -203,17 +145,6 @@ describe('AuthService', () => {
       // Assert
       expect(nonce1).not.toBe(nonce2);
       expect(mockCacheManager.set).toHaveBeenCalledTimes(2);
-
-      logTestResult(
-        'GENERATE NONCE - UNIQUENESS TEST',
-        {
-          testAddress: testAddress,
-          nonce1Preview: nonce1.substring(0, 50) + '...',
-          nonce2Preview: nonce2.substring(0, 50) + '...',
-          cacheSetCalls: mockCacheManager.set.mock.calls.length,
-        },
-        { testPassed: true, areUnique: nonce1 !== nonce2 },
-      );
     });
   });
 
@@ -232,16 +163,6 @@ describe('AuthService', () => {
       expect(result).toBe(testNonce);
       expect(mockCacheManager.get).toHaveBeenCalledWith(testAddress);
       expect(mockCacheManager.get).toHaveBeenCalledTimes(1);
-
-      logTestResult(
-        'GET NONCE - SUCCESS CASE',
-        {
-          testAddress: testAddress,
-          mockCacheValue: testNonce,
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-        },
-        { testPassed: true, returnedValue: result },
-      );
     });
 
     it('should return null when nonce does not exist in cache', async () => {
@@ -256,16 +177,6 @@ describe('AuthService', () => {
       // Assert
       expect(result).toBeNull();
       expect(mockCacheManager.get).toHaveBeenCalledWith(testAddress);
-
-      logTestResult(
-        'GET NONCE - NOT FOUND CASE',
-        {
-          testAddress: testAddress,
-          mockCacheValue: undefined,
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-        },
-        { testPassed: true, returnedValue: result },
-      );
     });
 
     it('should return null when cached value is not a string', async () => {
@@ -280,17 +191,6 @@ describe('AuthService', () => {
       // Assert
       expect(result).toBeNull();
       expect(mockCacheManager.get).toHaveBeenCalledWith(testAddress);
-
-      logTestResult(
-        'GET NONCE - INVALID TYPE CASE',
-        {
-          testAddress: testAddress,
-          mockCacheValue: 12345,
-          mockCacheType: 'number',
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-        },
-        { testPassed: true, returnedValue: result },
-      );
     });
 
     it('should return null when cached value is an empty string', async () => {
@@ -305,16 +205,6 @@ describe('AuthService', () => {
       // Assert
       expect(result).toBeNull();
       expect(mockCacheManager.get).toHaveBeenCalledWith(testAddress);
-
-      logTestResult(
-        'GET NONCE - EMPTY STRING CASE',
-        {
-          testAddress: testAddress,
-          mockCacheValue: '(empty string)',
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-        },
-        { testPassed: true, returnedValue: result },
-      );
     });
 
     it('should return null when cached value is null', async () => {
@@ -329,16 +219,6 @@ describe('AuthService', () => {
       // Assert
       expect(result).toBeNull();
       expect(mockCacheManager.get).toHaveBeenCalledWith(testAddress);
-
-      logTestResult(
-        'GET NONCE - NULL VALUE CASE',
-        {
-          testAddress: testAddress,
-          mockCacheValue: null,
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-        },
-        { testPassed: true, returnedValue: result },
-      );
     });
   });
 
@@ -376,24 +256,6 @@ describe('AuthService', () => {
         userId: testUser.id,
         userAddress: testUser.address,
       });
-
-      logTestResult(
-        'VERIFY SIGNATURE - SUCCESS CASE',
-        {
-          inputAddress: testAddress,
-          inputSignature: testSignature,
-          mockNonce: testNonce.substring(0, 40) + '...',
-          mockUser: testUser,
-          mockJwt: testJwt,
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-          ethersVerifyCalls: (ethers.verifyMessage as jest.Mock).mock.calls
-            .length,
-          cacheDelCalls: mockCacheManager.del.mock.calls.length,
-          userServiceCalls: mockUsersService.findOrCreate.mock.calls.length,
-          jwtSignCalls: mockJwtService.signAsync.mock.calls.length,
-        },
-        { testPassed: true, returnedToken: result },
-      );
     });
 
     it('should throw error when nonce does not exist', async () => {
@@ -424,20 +286,6 @@ describe('AuthService', () => {
       expect(mockCacheManager.del).not.toHaveBeenCalled();
       expect(mockUsersService.findOrCreate).not.toHaveBeenCalled();
       expect(mockJwtService.signAsync).not.toHaveBeenCalled();
-
-      logTestResult(
-        'VERIFY SIGNATURE - NONCE NOT FOUND',
-        {
-          inputAddress: testAddress,
-          inputSignature: testSignature,
-          mockCacheValue: null,
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-          ethersNotCalled:
-            (ethers.verifyMessage as jest.Mock).mock.calls.length === 0,
-          cacheDelNotCalled: mockCacheManager.del.mock.calls.length === 0,
-        },
-        { testPassed: true, errorThrown: errorMessage },
-      );
     });
 
     it('should throw error when signature verification fails', async () => {
@@ -470,23 +318,6 @@ describe('AuthService', () => {
       expect(mockCacheManager.del).not.toHaveBeenCalled();
       expect(mockUsersService.findOrCreate).not.toHaveBeenCalled();
       expect(mockJwtService.signAsync).not.toHaveBeenCalled();
-
-      logTestResult(
-        'VERIFY SIGNATURE - INVALID SIGNATURE',
-        {
-          inputAddress: testAddress,
-          inputSignature: testSignature,
-          mockNonce: testNonce.substring(0, 40) + '...',
-          mockEthersError: 'Invalid signature',
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-          ethersVerifyCalls: (ethers.verifyMessage as jest.Mock).mock.calls
-            .length,
-          cacheDelNotCalled: mockCacheManager.del.mock.calls.length === 0,
-          userServiceNotCalled:
-            mockUsersService.findOrCreate.mock.calls.length === 0,
-        },
-        { testPassed: true, errorPropagated: true },
-      );
     });
 
     it('should throw error when recovered address does not match provided address', async () => {
@@ -527,21 +358,6 @@ describe('AuthService', () => {
       expect(mockCacheManager.del).not.toHaveBeenCalled();
       expect(mockUsersService.findOrCreate).not.toHaveBeenCalled();
       expect(mockJwtService.signAsync).not.toHaveBeenCalled();
-
-      logTestResult(
-        'VERIFY SIGNATURE - ADDRESS MISMATCH',
-        {
-          inputAddress: testAddress,
-          recoveredAddress: differentAddress,
-          inputSignature: testSignature,
-          mockNonce: testNonce.substring(0, 40) + '...',
-          cacheGetCalls: mockCacheManager.get.mock.calls.length,
-          ethersVerifyCalls: (ethers.verifyMessage as jest.Mock).mock.calls
-            .length,
-          cacheDelNotCalled: mockCacheManager.del.mock.calls.length === 0,
-        },
-        { testPassed: true, errorThrown: errorMessage },
-      );
     });
 
     it('should clean up nonce only after successful verification', async () => {
@@ -565,19 +381,6 @@ describe('AuthService', () => {
 
       // Nonce should NOT be deleted if verification fails
       expect(mockCacheManager.del).not.toHaveBeenCalled();
-
-      logTestResult(
-        'VERIFY SIGNATURE - NONCE CLEANUP SECURITY TEST',
-        {
-          inputAddress: testAddress,
-          inputSignature: testSignature,
-          mockNonce: testNonce.substring(0, 40) + '...',
-          mockEthersError: 'Invalid signature format',
-          cacheDelCalls: mockCacheManager.del.mock.calls.length,
-          noncePreserved: mockCacheManager.del.mock.calls.length === 0,
-        },
-        { testPassed: true, securityTestPassed: true, errorPropagated: true },
-      );
     });
   });
 });
