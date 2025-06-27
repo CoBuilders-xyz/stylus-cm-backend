@@ -2,6 +2,8 @@
  * Shared types and interfaces for contract services
  */
 
+import { Contract } from '../entities/contract.entity';
+
 // TODOREFACTOR: Import this interface from the common ABI. Should not be defined here.
 // Define proper types for cache manager contract
 export interface CacheManagerContract {
@@ -81,6 +83,26 @@ export interface EvictionRiskResult {
 }
 
 export interface SuggestedBidsResult {
+  suggestedBids: BidRiskLevels;
+  cacheStats: CacheStats;
+}
+
+// API Response interfaces (moved from controller)
+/**
+ * Response interface for contract API endpoints that includes calculated fields
+ */
+export interface ContractResponse extends Contract {
+  effectiveBid?: string;
+  evictionRisk?: EvictionRiskResult;
+  suggestedBids?: SuggestedBidsResult;
+  biddingHistory?: BidHistoryItem[];
+  isSavedByUser?: boolean;
+}
+
+/**
+ * Response interface for suggested bids endpoints
+ */
+export interface SuggestedBidsResponse {
   suggestedBids: BidRiskLevels;
   cacheStats: CacheStats;
 }
