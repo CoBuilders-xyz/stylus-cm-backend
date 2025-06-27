@@ -140,6 +140,7 @@ export class AlertMonitoringService implements OnModuleInit {
           'userContract',
           'userContract.contract',
           'userContract.contract.blockchain',
+          'userContract.contract.bytecode',
         ],
       });
 
