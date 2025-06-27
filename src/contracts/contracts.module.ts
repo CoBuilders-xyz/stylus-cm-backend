@@ -4,7 +4,6 @@ import { ContractsController } from './contracts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Bytecode } from './entities/bytecode.entity';
 import { Contract } from './entities/contract.entity';
-import { ContractsUtilsService } from './contracts.utils.service';
 import {
   ContractBidCalculatorService,
   ContractBidAssessmentService,
@@ -31,7 +30,6 @@ import { UserContract } from '../user-contracts/entities/user-contract.entity';
   controllers: [ContractsController],
   providers: [
     ContractsService,
-    ContractsUtilsService,
     ContractBidCalculatorService,
     ContractBidAssessmentService,
     ContractHistoryService,
@@ -39,7 +37,6 @@ import { UserContract } from '../user-contracts/entities/user-contract.entity';
     CacheStatisticsService,
   ],
   exports: [
-    ContractsUtilsService,
     ContractBidCalculatorService,
     ContractBidAssessmentService,
     ContractHistoryService,
