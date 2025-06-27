@@ -10,6 +10,7 @@ import {
   ContractType,
 } from '../../common/utils/provider.util';
 import { CacheManagerContract } from '../interfaces/contract.interfaces';
+import { ContractErrorHelpers } from '../contracts.errors';
 
 /**
  * Service responsible for core bid calculations and decay rate operations.
@@ -37,24 +38,66 @@ export class ContractBidCalculatorService {
   async getCacheManagerContract(
     blockchainId: string,
   ): Promise<CacheManagerContract> {
-    // Get the blockchain entity
-    const blockchain = await this.blockchainRepository.findOne({
-      where: { id: blockchainId },
-    });
+    try {
+      this.logger.debug(
+        `Getting cache manager contract for blockchain ${blockchainId}`,
+      );
 
-    if (!blockchain) {
-      throw new Error(`Blockchain with ID ${blockchainId} not found`);
+      // Validate blockchain ID
+      if (!blockchainId || typeof blockchainId !== 'string') {
+        this.logger.warn(`Invalid blockchain ID provided: ${blockchainId}`);
+        ContractErrorHelpers.throwInvalidBlockchainId();
+      }
+
+      // Get blockchain entity to get the blockchain name
+      const blockchain = await this.blockchainRepository.findOne({
+        where: { id: blockchainId },
+      });
+
+      if (!blockchain) {
+        this.logger.warn(`Blockchain not found with ID: ${blockchainId}`);
+        ContractErrorHelpers.throwBlockchainNotFound();
+      }
+
+      // At this point blockchain is guaranteed to be non-null due to the throw above
+      const validBlockchain = blockchain!;
+
+      const cacheManagerContract = this.providerManager.getContract(
+        validBlockchain,
+        ContractType.CACHE_MANAGER,
+      ) as unknown as CacheManagerContract;
+
+      if (!cacheManagerContract) {
+        this.logger.error(
+          `Cache manager contract not available for blockchain ${validBlockchain.name}`,
+        );
+        ContractErrorHelpers.throwCacheManagerUnavailable();
+      }
+
+      this.logger.debug(
+        `Successfully retrieved cache manager contract for blockchain ${blockchainId}`,
+      );
+      return cacheManagerContract;
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Failed to get cache manager contract for blockchain ${blockchainId}: ${err.message}`,
+        err.stack,
+      );
+
+      // Re-throw known contract errors
+      if (
+        err.name === 'NotFoundException' ||
+        err.name === 'BadRequestException' ||
+        err.name === 'ServiceUnavailableException'
+      ) {
+        throw error;
+      }
+
+      // For unknown errors, throw cache manager unavailable
+      ContractErrorHelpers.throwCacheManagerUnavailable();
+      throw new Error('Unexpected error in getCacheManagerContract');
     }
-
-    // Get the contract instance from the provider manager using the proper enum value
-    const contract = this.providerManager.getContract(
-      blockchain,
-      ContractType.CACHE_MANAGER,
-    );
-
-    // Safe type assertion: we know this contract implements CacheManagerContract interface
-    // because it's created with the CACHE_MANAGER type and the correct ABI
-    return contract as unknown as CacheManagerContract;
   }
 
   /**
@@ -163,19 +206,61 @@ export class ContractBidCalculatorService {
   async calculateCurrentContractEffectiveBid(
     contract: Contract,
   ): Promise<string> {
-    const currentTimestamp = new Date();
-    const decayRate = await this.getDecayRate(
-      contract.blockchain.id,
-      currentTimestamp,
-    );
-    const bidSize = contract.lastBid;
-    const startTimestamp = contract.bidBlockTimestamp;
-    const endTimestamp = new Date();
-    return this.calculateEffectiveBid(
-      startTimestamp,
-      endTimestamp,
-      bidSize,
-      decayRate,
-    );
+    try {
+      this.logger.debug(
+        `Calculating current effective bid for contract ${contract.id}`,
+      );
+
+      // Validate contract has required data
+      if (!contract.bytecode) {
+        this.logger.warn(
+          `Contract ${contract.id} missing bytecode information`,
+        );
+        ContractErrorHelpers.throwBidCalculationFailed();
+      }
+
+      const currentTimestamp = new Date();
+      const decayRate = await this.getDecayRate(
+        contract.blockchain.id,
+        currentTimestamp,
+      );
+
+      // Get the correct fields from contract.bytecode
+      const bidSize = contract.bytecode.lastBid;
+      const startTimestamp = contract.bytecode.bidBlockTimestamp;
+      const endTimestamp = new Date();
+
+      const effectiveBid = this.calculateEffectiveBid(
+        startTimestamp,
+        endTimestamp,
+        bidSize,
+        decayRate,
+      );
+
+      this.logger.debug(
+        `Successfully calculated effective bid for contract ${contract.id}: ${effectiveBid}`,
+      );
+      return effectiveBid;
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Failed to calculate current effective bid for contract ${contract.id}: ${err.message}`,
+        err.stack,
+      );
+
+      // Re-throw known contract errors
+      if (
+        err.name === 'BadRequestException' ||
+        err.name === 'InternalServerErrorException'
+      ) {
+        throw error;
+      }
+
+      // For unknown errors, throw bid calculation failed
+      ContractErrorHelpers.throwBidCalculationFailed();
+      throw new Error(
+        'Unexpected error in calculateCurrentContractEffectiveBid',
+      );
+    }
   }
 }
