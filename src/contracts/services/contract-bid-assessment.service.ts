@@ -13,10 +13,9 @@ import {
   RiskMultipliers,
   EvictionRiskResult,
   SuggestedBidsResult,
-  BidRiskLevels,
-  SuggestedBidsResponse,
 } from '../interfaces/contract.interfaces';
 import { RISK_MULTIPLIERS } from '../constants/risk-multipliers.constants';
+import { ContractErrorHelpers } from '../contracts.errors';
 
 /**
  * Service responsible for bid assessment, risk analysis, and bid recommendations.
@@ -44,6 +43,16 @@ export class ContractBidAssessmentService {
    */
   async calculateEvictionRisk(contract: Contract): Promise<EvictionRiskResult> {
     try {
+      this.logger.log(`Calculating eviction risk for contract ${contract.id}`);
+
+      // Validate contract has required data
+      if (!contract.bytecode) {
+        this.logger.warn(
+          `Contract ${contract.id} missing bytecode information`,
+        );
+        ContractErrorHelpers.throwRiskAssessmentFailed();
+      }
+
       // Get data from the bytecode entity directly
       const bid = BigInt(contract.bytecode.lastBid);
       const size = BigInt(contract.bytecode.size);
@@ -109,6 +118,10 @@ export class ContractBidAssessmentService {
         riskLevel = 'low';
       }
 
+      this.logger.log(
+        `Successfully calculated eviction risk for contract ${contract.id}: ${riskLevel} risk, effective bid: ${effectiveBid.toString()}`,
+      );
+
       return {
         riskLevel,
         remainingEffectiveBid: effectiveBid.toString(),
@@ -118,9 +131,24 @@ export class ContractBidAssessmentService {
       };
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Error calculating eviction risk: ${err.message}`);
+      this.logger.error(
+        `Error calculating eviction risk for contract ${contract.id}: ${err.message}`,
+        err.stack,
+      );
+
+      // Re-throw known contract errors
+      if (
+        err.name === 'BadRequestException' ||
+        err.name === 'InternalServerErrorException' ||
+        err.name === 'ServiceUnavailableException'
+      ) {
+        throw error;
+      }
 
       // Return a default high-risk assessment in case of errors
+      this.logger.warn(
+        `Returning default high-risk assessment for contract ${contract.id} due to error`,
+      );
       return {
         riskLevel: 'high',
         remainingEffectiveBid: '0',
