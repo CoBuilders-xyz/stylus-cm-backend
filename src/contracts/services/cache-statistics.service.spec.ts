@@ -6,7 +6,10 @@ import { ContractBidCalculatorService } from './contract-bid-calculator.service'
 
 describe('CacheStatisticsService', () => {
   let service: CacheStatisticsService;
-  let mockBlockchainEventRepository: { findOne: jest.Mock };
+  let mockBlockchainEventRepository: {
+    findOne: jest.Mock;
+    find: jest.Mock;
+  };
   let mockContractBidCalculatorService: {
     getCacheManagerContract: jest.Mock;
   };
@@ -15,6 +18,7 @@ describe('CacheStatisticsService', () => {
     // Create repository mock
     mockBlockchainEventRepository = {
       findOne: jest.fn(),
+      find: jest.fn(),
     };
 
     // Create service mock
@@ -69,6 +73,7 @@ describe('CacheStatisticsService', () => {
 
       // Mock the repository to return empty results (no recent evictions)
       mockBlockchainEventRepository.findOne.mockResolvedValue(null);
+      mockBlockchainEventRepository.find.mockResolvedValue([]); // Mock eviction events
 
       // Act
       const result = await service.getCacheStatistics(blockchainId, minBid);
@@ -105,6 +110,7 @@ describe('CacheStatisticsService', () => {
       );
 
       mockBlockchainEventRepository.findOne.mockResolvedValue(null);
+      mockBlockchainEventRepository.find.mockResolvedValue([]); // Mock eviction events
 
       // Act
       const result = await service.getCacheStatistics(blockchainId, minBid);
