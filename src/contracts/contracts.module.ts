@@ -10,6 +10,7 @@ import {
   ContractHistoryService,
   ContractEnrichmentService,
   CacheStatisticsService,
+  ContractQueryBuilderService,
 } from './services';
 import { BlockchainState } from '../blockchains/entities/blockchain-state.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
@@ -35,6 +36,7 @@ import { UserContract } from '../user-contracts/entities/user-contract.entity';
     ContractHistoryService,
     ContractEnrichmentService,
     CacheStatisticsService,
+    ContractQueryBuilderService,
   ],
   exports: [
     ContractBidCalculatorService,

@@ -5,6 +5,7 @@ import { Contract } from './entities/contract.entity';
 import {
   ContractEnrichmentService,
   ContractBidAssessmentService,
+  ContractQueryBuilderService,
 } from './services';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
@@ -12,11 +13,7 @@ import {
   ContractResponse,
   SuggestedBidsResponse,
 } from './interfaces/contract.interfaces';
-import { SortDirection } from '../common/dto/sort.dto';
-import {
-  ContractSortingDto,
-  ContractSortFieldNumeric,
-} from './dto/contract-sorting.dto';
+import { ContractSortingDto } from './dto/contract-sorting.dto';
 import { SearchDto } from '../common/dto/search.dto';
 import { User } from '../users/entities/user.entity';
 import { UserContract } from '../user-contracts/entities/user-contract.entity';
@@ -30,6 +27,7 @@ export class ContractsService {
     private readonly userContractRepository: Repository<UserContract>,
     private readonly contractEnrichmentService: ContractEnrichmentService,
     private readonly contractBidAssessmentService: ContractBidAssessmentService,
+    private readonly contractQueryBuilderService: ContractQueryBuilderService,
   ) {}
 
   async findAll(
@@ -40,49 +38,14 @@ export class ContractsService {
     searchDto: SearchDto,
   ): Promise<PaginationResponse<ContractResponse>> {
     const { page = 1, limit = 10 } = paginationDto;
-    const skip = (page - 1) * limit;
 
-    // Create query builder
-    const queryBuilder = this.contractRepository
-      .createQueryBuilder('contract')
-      .leftJoinAndSelect('contract.bytecode', 'bytecode')
-      .leftJoinAndSelect('contract.blockchain', 'blockchain')
-      .where('blockchain.id = :blockchainId', { blockchainId })
-      .skip(skip)
-      .take(limit);
-
-    if (searchDto.search) {
-      queryBuilder.andWhere('LOWER(contract.address) LIKE LOWER(:search)', {
-        search: `%${searchDto.search}%`,
-      });
-    } else if (sortingDto.sortBy) {
-      sortingDto.sortBy.forEach((field, index) => {
-        const direction =
-          sortingDto.sortDirection?.[index] || SortDirection.DESC;
-
-        // Check if the current field (string) is one of the string values in ContractSortFieldNumeric enum
-        if (
-          (Object.values(ContractSortFieldNumeric) as string[]).includes(field)
-        ) {
-          // Generate a safe, all-lowercase alias for the casted field
-          const alias = `${field.toLowerCase().replace(/\./g, '_')}_numeric`;
-          queryBuilder.addSelect(`CAST(${field} AS NUMERIC)`, alias);
-
-          if (index === 0) {
-            queryBuilder.orderBy(alias, direction);
-          } else {
-            queryBuilder.addOrderBy(alias, direction);
-          }
-        } else {
-          // Sort other fields normally
-          if (index === 0) {
-            queryBuilder.orderBy(field, direction);
-          } else {
-            queryBuilder.addOrderBy(field, direction);
-          }
-        }
-      });
-    }
+    // Use query builder service for complex query logic
+    const queryBuilder = this.contractQueryBuilderService.buildFindAllQuery(
+      blockchainId,
+      paginationDto,
+      sortingDto,
+      searchDto,
+    );
 
     // Execute query
     const [contracts, totalItems] = await queryBuilder.getManyAndCount();
@@ -94,7 +57,7 @@ export class ContractsService {
     // Get contract IDs to check if they're saved by the user
     const contractIds = contracts.map((contract) => contract.id);
 
-    // Check which contracts are saved by the user
+    // Check which contracts are saved by the user using query builder service
     const savedContractsMap = await this.checkContractsSavedByUser(
       user,
       contractIds,
@@ -113,7 +76,7 @@ export class ContractsService {
     const totalPages = Math.ceil(totalItems / limit);
 
     return {
-      data: processedContractsWithSavedStatus as ContractResponse[],
+      data: processedContractsWithSavedStatus,
       meta: {
         page,
         limit,
@@ -148,12 +111,11 @@ export class ContractsService {
       );
 
       // Add isSavedByUser property
-      (processedContract as ContractResponse).isSavedByUser =
-        savedContractsMap[contract.id] || false;
+      processedContract.isSavedByUser = savedContractsMap[contract.id] || false;
     }
 
-    // The types now match so we can safely cast
-    return processedContract as ContractResponse;
+    // The types now match so we can safely return without casting
+    return processedContract;
   }
 
   /**
@@ -204,20 +166,13 @@ export class ContractsService {
       return {};
     }
 
-    // Create query to find all user contracts for these contract IDs and user
-    const queryBuilder = this.userContractRepository
-      .createQueryBuilder('userContract')
-      .leftJoin('userContract.contract', 'contract')
-      .select('contract.id', 'contractId')
-      .where('userContract.user = :userId', { userId: user.id })
-      .andWhere('contract.id IN (:...contractIds)', { contractIds });
-
-    // Add optional blockchain filter
-    if (blockchainId) {
-      queryBuilder.andWhere('userContract.blockchain = :blockchainId', {
+    // Use query builder service for user contracts query
+    const queryBuilder =
+      this.contractQueryBuilderService.buildUserContractsQuery(
+        user,
+        contractIds,
         blockchainId,
-      });
-    }
+      );
 
     // Execute query to get all saved contract IDs
     const savedContractResults = await queryBuilder.getRawMany();
