@@ -8,7 +8,6 @@ import {
   ContractQueryBuilderService,
 } from './services';
 import { User } from '../users/entities/user.entity';
-import { logTestResult } from '../common/utils/test-logger.util';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { ContractSortingDto } from './dto';
 import { ContractSortField } from './dto/contract-sorting.dto';
@@ -153,20 +152,6 @@ describe('ContractsService', () => {
   describe('Basic Service Setup', () => {
     it('should be defined', () => {
       expect(service).toBeDefined();
-
-      logTestResult(
-        'SERVICE INITIALIZATION TEST',
-        {
-          testType: 'Basic service setup validation',
-          dependencies: [
-            'ContractRepository',
-            'ContractEnrichmentService',
-            'ContractBidAssessmentService',
-            'ContractQueryBuilderService',
-          ],
-        },
-        { serviceExists: service !== undefined, testPassed: true },
-      );
     });
   });
 
@@ -203,31 +188,6 @@ describe('ContractsService', () => {
       expect(
         mockContractEnrichmentService.processContract,
       ).toHaveBeenCalledTimes(1);
-
-      logTestResult(
-        'FIND ONE CONTRACT - SUCCESS CASE',
-        {
-          inputContractId: testContractId,
-          mockContract: {
-            id: mockContract.id,
-            address: mockContract.address,
-            size: mockContract.size,
-          },
-          mockUser: {
-            id: mockUser.id,
-            address: mockUser.address,
-          },
-          repositoryCallCount: mockContractRepository.findOne.mock.calls.length,
-          enrichmentCallCount:
-            mockContractEnrichmentService.processContract.mock.calls.length,
-        },
-        {
-          testPassed: true,
-          contractFound: true,
-          resultId: result.id,
-          resultAddress: result.address,
-        },
-      );
     });
 
     it('should find contract without user context', async () => {
@@ -255,23 +215,6 @@ describe('ContractsService', () => {
       expect(
         mockContractEnrichmentService.processContract,
       ).toHaveBeenCalledWith(mockContract);
-
-      logTestResult(
-        'FIND ONE CONTRACT - NO USER CONTEXT',
-        {
-          inputContractId: testContractId,
-          userProvided: false,
-          mockContract: {
-            id: mockContract.id,
-            address: mockContract.address,
-          },
-        },
-        {
-          testPassed: true,
-          contractFound: true,
-          resultId: result.id,
-        },
-      );
     });
   });
 
@@ -338,19 +281,6 @@ describe('ContractsService', () => {
       expect(
         mockContractEnrichmentService.processContracts,
       ).toHaveBeenCalledWith(mockContracts);
-
-      logTestResult(
-        'FIND ALL CONTRACTS - SUCCESS CASE',
-        {
-          contractCount: mockContracts.length,
-          resultCount: result.data.length,
-          totalItems: result.meta.totalItems,
-        },
-        {
-          testPassed: true,
-          contractsFound: true,
-        },
-      );
     });
   });
 
@@ -394,21 +324,6 @@ describe('ContractsService', () => {
       expect(
         mockContractBidAssessmentService.getSuggestedBidsByAddress,
       ).toHaveBeenCalledWith(testAddress, testBlockchainId);
-
-      logTestResult(
-        'SUGGESTED BIDS BY ADDRESS - SUCCESS CASE',
-        {
-          address: testAddress,
-          blockchainId: testBlockchainId,
-          highRiskBid: result.suggestedBids.highRisk,
-          midRiskBid: result.suggestedBids.midRisk,
-          lowRiskBid: result.suggestedBids.lowRisk,
-        },
-        {
-          testPassed: true,
-          bidsCalculated: true,
-        },
-      );
     });
   });
 
@@ -451,21 +366,6 @@ describe('ContractsService', () => {
       expect(
         mockContractBidAssessmentService.getSuggestedBids,
       ).toHaveBeenCalledWith(testSize, testBlockchainId);
-
-      logTestResult(
-        'SUGGESTED BIDS BY SIZE - SUCCESS CASE',
-        {
-          size: testSize,
-          blockchainId: testBlockchainId,
-          highRiskBid: result.suggestedBids.highRisk,
-          midRiskBid: result.suggestedBids.midRisk,
-          lowRiskBid: result.suggestedBids.lowRisk,
-        },
-        {
-          testPassed: true,
-          bidsCalculated: true,
-        },
-      );
     });
   });
 });
