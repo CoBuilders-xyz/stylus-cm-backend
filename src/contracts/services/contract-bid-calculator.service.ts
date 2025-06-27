@@ -46,12 +46,15 @@ export class ContractBidCalculatorService {
       throw new Error(`Blockchain with ID ${blockchainId} not found`);
     }
 
-    // Get the contract instance from the provider manager using the CACHE_MANAGER contract type
-    // Use the string literal that matches the enum value to avoid TypeScript errors
-    return this.providerManager.getContract(
+    // Get the contract instance from the provider manager using the proper enum value
+    const contract = this.providerManager.getContract(
       blockchain,
-      'cacheManager' as ContractType,
-    ) as unknown as CacheManagerContract;
+      ContractType.CACHE_MANAGER,
+    );
+
+    // Safe type assertion: we know this contract implements CacheManagerContract interface
+    // because it's created with the CACHE_MANAGER type and the correct ABI
+    return contract as unknown as CacheManagerContract;
   }
 
   /**
