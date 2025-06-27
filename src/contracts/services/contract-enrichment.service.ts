@@ -3,12 +3,7 @@ import { Contract } from '../entities/contract.entity';
 import { ContractBidCalculatorService } from './contract-bid-calculator.service';
 import { ContractBidAssessmentService } from './contract-bid-assessment.service';
 import { ContractHistoryService } from './contract-history.service';
-import {
-  BidRiskLevels,
-  RiskLevel,
-  CacheStats,
-  BidHistoryItem,
-} from '../interfaces/contract.interfaces';
+import { ContractResponse } from '../interfaces/contract.interfaces';
 
 /**
  * Service responsible for enriching contracts with calculated fields and processing.
@@ -33,47 +28,8 @@ export class ContractEnrichmentService {
   async processContract(
     contract: Contract,
     includeBiddingHistory = false,
-  ): Promise<
-    Contract & {
-      minBid: string;
-      effectiveBid?: string;
-      evictionRisk?: {
-        riskLevel: RiskLevel;
-        remainingEffectiveBid: string;
-        suggestedBids: BidRiskLevels;
-        comparisonPercentages: {
-          vsHighRisk: number;
-          vsMidRisk: number;
-          vsLowRisk: number;
-        };
-        cacheStats: CacheStats;
-      };
-      suggestedBids?: {
-        suggestedBids: BidRiskLevels;
-        cacheStats: CacheStats;
-      };
-      biddingHistory?: BidHistoryItem[];
-    }
-  > {
-    let processedContract: Contract & {
-      minBid: string;
-      effectiveBid?: string;
-      evictionRisk?: {
-        riskLevel: RiskLevel;
-        remainingEffectiveBid: string;
-        suggestedBids: BidRiskLevels;
-        comparisonPercentages: {
-          vsHighRisk: number;
-          vsMidRisk: number;
-          vsLowRisk: number;
-        };
-        cacheStats: CacheStats;
-      };
-      suggestedBids?: {
-        suggestedBids: BidRiskLevels;
-        cacheStats: CacheStats;
-      };
-    } = {
+  ): Promise<ContractResponse> {
+    let processedContract: ContractResponse = {
       ...contract,
       minBid: '0',
     };
@@ -131,28 +87,7 @@ export class ContractEnrichmentService {
   async processContracts(
     contracts: Contract[],
     includeBiddingHistory = false,
-  ): Promise<
-    (Contract & {
-      minBid: string;
-      effectiveBid?: string;
-      evictionRisk?: {
-        riskLevel: RiskLevel;
-        remainingEffectiveBid: string;
-        suggestedBids: BidRiskLevels;
-        comparisonPercentages: {
-          vsHighRisk: number;
-          vsMidRisk: number;
-          vsLowRisk: number;
-        };
-        cacheStats: CacheStats;
-      };
-      suggestedBids?: {
-        suggestedBids: BidRiskLevels;
-        cacheStats: CacheStats;
-      };
-      biddingHistory?: BidHistoryItem[];
-    })[]
-  > {
+  ): Promise<ContractResponse[]> {
     if (contracts.length === 0) {
       return [];
     }
