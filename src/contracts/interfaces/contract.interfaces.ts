@@ -92,6 +92,7 @@ export interface SuggestedBidsResult {
  * Response interface for contract API endpoints that includes calculated fields
  */
 export interface ContractResponse extends Contract {
+  minBid?: string;
   effectiveBid?: string;
   evictionRisk?: EvictionRiskResult;
   suggestedBids?: SuggestedBidsResult;
