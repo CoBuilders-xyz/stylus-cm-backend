@@ -1,9 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual } from 'typeorm';
-import { BlockchainState } from '../../blockchains/entities/blockchain-state.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { ContractBidCalculatorService } from './contract-bid-calculator.service';
 import { CacheStats } from '../interfaces/contract.interfaces';
 import { CACHE_ANALYSIS } from '../constants/risk-multipliers.constants';
@@ -18,12 +16,9 @@ export class CacheStatisticsService {
   private readonly logger = new Logger(CacheStatisticsService.name);
 
   constructor(
-    @InjectRepository(BlockchainState)
-    private readonly blockchainStateRepository: Repository<BlockchainState>,
     @InjectRepository(BlockchainEvent)
     private readonly blockchainEventRepository: Repository<BlockchainEvent>,
-    @InjectRepository(Blockchain)
-    private readonly blockchainRepository: Repository<Blockchain>,
+
     private readonly bidCalculatorService: ContractBidCalculatorService,
   ) {}
 
