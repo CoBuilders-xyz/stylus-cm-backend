@@ -17,7 +17,7 @@ import {
 } from 'src/contracts/dto/contract-sorting.dto';
 import { SearchDto } from 'src/common/dto/search.dto';
 import { SortDirection } from 'src/common/dto/sort.dto';
-import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
+import { ContractEnrichmentService } from 'src/contracts/services/contract-enrichment.service';
 import { UpdateUserContractNameDto } from './dto/update-user-contract-name.dto';
 import { AlertsService } from 'src/alerts/alerts.service';
 import { Bytecode } from 'src/contracts/entities/bytecode.entity';
@@ -34,7 +34,7 @@ export class UserContractsService {
     private contractRepository: Repository<Contract>,
     @InjectRepository(Bytecode)
     private bytecodeRepository: Repository<Bytecode>,
-    private readonly contractsUtilsService: ContractsUtilsService,
+    private readonly contractEnrichmentService: ContractEnrichmentService,
     private readonly alertsService: AlertsService,
     private readonly providerManager: ProviderManager,
   ) {}
@@ -206,7 +206,7 @@ export class UserContractsService {
         // If the userContract has an associated contract, process it
         if (userContract.contract) {
           const processedContract =
-            await this.contractsUtilsService.processContract(
+            await this.contractEnrichmentService.processContract(
               userContract.contract,
             );
 
@@ -263,7 +263,7 @@ export class UserContractsService {
     // If the userContract has an associated contract, process it
     if (userContract.contract) {
       const processedContract =
-        await this.contractsUtilsService.processContract(
+        await this.contractEnrichmentService.processContract(
           userContract.contract,
           true,
         );

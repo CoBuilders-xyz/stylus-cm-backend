@@ -8,7 +8,7 @@ import { CronExpression } from '@nestjs/schedule';
 import { ContractType, ProviderManager } from '../common/utils/provider.util';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
-import { ContractsUtilsService } from 'src/contracts/contracts.utils.service';
+import { ContractBidCalculatorService } from 'src/contracts/services/contract-bid-calculator.service';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 
@@ -29,7 +29,7 @@ export class AlertMonitoringService implements OnModuleInit {
     private blockchainRepository: Repository<Blockchain>,
     @InjectRepository(BlockchainEvent)
     private blockchainEventRepository: Repository<BlockchainEvent>,
-    private contractsUtilsService: ContractsUtilsService,
+    private contractBidCalculatorService: ContractBidCalculatorService,
     @InjectQueue('alerts') private alertsQueue: Queue,
   ) {}
 
@@ -158,7 +158,7 @@ export class AlertMonitoringService implements OnModuleInit {
         ](alert.userContract.address)) as bigint;
 
         const effectiveBid = BigInt(
-          await this.contractsUtilsService.calculateCurrentContractEffectiveBid(
+          await this.contractBidCalculatorService.calculateCurrentContractEffectiveBid(
             alert.userContract.contract,
           ),
         );
