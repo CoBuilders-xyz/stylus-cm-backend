@@ -4,6 +4,7 @@ import {
   Matches,
   IsOptional,
   IsNumber,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateUserContractDto {
@@ -16,6 +17,7 @@ export class CreateUserContractDto {
 
   @IsString()
   @IsNotEmpty()
+  @IsUUID(4, { message: 'blockchainId must be a valid UUID' })
   blockchainId: string;
 
   @IsString()
