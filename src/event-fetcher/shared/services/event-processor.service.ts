@@ -20,7 +20,7 @@ export class EventProcessorService {
   ) {}
 
   /**
-   * Processes a received event - main entry point
+   * Process a single blockchain event
    */
   async processEvent(
     blockchain: Blockchain,
@@ -32,7 +32,7 @@ export class EventProcessorService {
       // Check for duplicates first
       if (await this.isDuplicateEvent(blockchain, eventLog, eventType)) {
         this.logger.debug(
-          `Event already exists for ${eventType} on blockchain ${blockchain.id} at block ${eventLog.blockNumber}, skipping processing.`,
+          `Skipping duplicate ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
         );
         return;
       }
@@ -47,13 +47,13 @@ export class EventProcessorService {
       await this.emitEventStored(blockchain, eventLog);
 
       this.logger.log(
-        `Processed real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
+        `Successfully processed real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
       );
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Failed to process real-time ${eventType} event: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to process real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${err.message}`,
+        err.stack,
       );
       throw error; // Re-throw to be caught by the caller
     }
@@ -84,17 +84,17 @@ export class EventProcessorService {
 
         processed++;
       } catch (error) {
+        const err = error as Error;
         this.logger.error(
-          `Error in batch processing event: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Failed to process batch event ${eventType} on blockchain ${blockchain.id}: ${err.message}`,
+          err.stack,
         );
         errors++;
       }
     }
 
     this.logger.log(
-      `Batch processed ${events.length} events - Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`,
+      `Successfully batch processed ${events.length} events on blockchain ${blockchain.id} - Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`,
     );
 
     return { processed, skipped, errors };
@@ -121,10 +121,10 @@ export class EventProcessorService {
 
       return existingEvent !== null;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Error checking for duplicate event: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to check for duplicate event on blockchain ${blockchain.id}: ${err.message}`,
+        err.stack,
       );
       throw error;
     }
@@ -149,10 +149,10 @@ export class EventProcessorService {
 
       await this.eventStorageService.storeEvents(eventData);
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Error storing event: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to store event on blockchain ${blockchain.id}: ${err.message}`,
+        err.stack,
       );
       throw error;
     }
@@ -171,10 +171,10 @@ export class EventProcessorService {
         blockNumber,
       );
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Error updating sync status: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to update sync status for blockchain ${blockchain.id}: ${err.message}`,
+        err.stack,
       );
       throw error;
     }
@@ -199,7 +199,7 @@ export class EventProcessorService {
 
       if (!event) {
         this.logger.warn(
-          `No event found for blockchain ${blockchain.id} after storage`,
+          `No event found for blockchain ${blockchain.id} after storage at block ${eventLog.blockNumber}`,
         );
         return;
       }
@@ -211,13 +211,13 @@ export class EventProcessorService {
       });
 
       this.logger.debug(
-        `Emitted blockchain.event.stored for event ${event.id}`,
+        `Successfully emitted blockchain.event.stored for event ${event.id} on blockchain ${blockchain.id}`,
       );
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Error emitting event stored notification: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to emit event stored notification for blockchain ${blockchain.id}: ${err.message}`,
+        err.stack,
       );
       throw error;
     }

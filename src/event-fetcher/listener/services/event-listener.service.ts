@@ -52,7 +52,7 @@ export class EventListenerService {
     eventTypes: string[],
   ): Promise<void> {
     this.logger.log(
-      `Manually restarting event listeners for blockchain ${blockchain.id}`,
+      `Restarting event listeners for blockchain ${blockchain.id}`,
     );
 
     // ✅ Clear any existing state first
@@ -73,7 +73,7 @@ export class EventListenerService {
     // Use WebSocketManager to validate configuration
     if (!this.websocketManager.validateWebSocketConfig(blockchain)) {
       this.logger.warn(
-        `Skipping blockchain ${blockchain.id} due to missing WebSocket URL or contract address.`,
+        `Skipping event listener setup for blockchain ${blockchain.id} due to missing WebSocket URL or contract address`,
       );
       return;
     }
@@ -81,7 +81,7 @@ export class EventListenerService {
     // ✅ Atomic check and mark setup - prevents race conditions
     if (!this.listenerState.markSettingUpListener(blockchain.id)) {
       this.logger.log(
-        `Event listeners already set up or being set up for blockchain ${blockchain.id}, skipping.`,
+        `Event listeners already set up or being set up for blockchain ${blockchain.id}, skipping`,
       );
       return;
     }
@@ -118,17 +118,17 @@ export class EventListenerService {
       this.listenerState.setListenerActive(blockchain.id);
 
       this.logger.log(
-        `Successfully set up WebSocket-based event listener for blockchain ${blockchain.id}`,
+        `Successfully set up WebSocket-based event listeners for blockchain ${blockchain.id}`,
       );
     } catch (error) {
       // ✅ Clean up both config and setup state if setup failed
       this.listenerState.removeBlockchainConfig(blockchain.id);
       this.listenerState.clearListener(blockchain.id); // This clears setup state too
 
+      const err = error as Error;
       this.logger.error(
-        `Failed to setup WebSocket event listener for blockchain ${blockchain.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to setup WebSocket event listeners for blockchain ${blockchain.id}: ${err.message}`,
+        err.stack,
       );
 
       // Re-throw the error so reconnection logic can handle it
@@ -143,7 +143,7 @@ export class EventListenerService {
     this.providerManager.unregisterReconnectionCallback(
       this.handleReconnection,
     );
-    this.logger.log('EventListenerService cleanup completed');
+    this.logger.log('Successfully cleaned up EventListenerService');
   }
 
   /**
@@ -189,7 +189,7 @@ export class EventListenerService {
         // Check if this is an event type we're interested in
         if (eventTypes.length > 0 && !eventTypes.includes(eventType)) {
           this.logger.debug(
-            `Ignoring event ${eventType} as it's not in the list of tracked events`,
+            `Ignoring event ${eventType} on blockchain ${blockchain.id} as it's not in tracked events list`,
           );
           return;
         }
@@ -204,7 +204,7 @@ export class EventListenerService {
         // Check if we're already processing this event
         if (this.listenerState.isEventProcessing(eventKey)) {
           this.logger.debug(
-            `Event ${eventType} at block ${eventLog.blockNumber} is already being processed, skipping duplicate`,
+            `Event ${eventType} at block ${eventLog.blockNumber} on blockchain ${blockchain.id} is already being processed, skipping duplicate`,
           );
           return;
         }
@@ -216,8 +216,10 @@ export class EventListenerService {
         void this.eventProcessor
           .processEvent(blockchain, eventLog, provider, eventType)
           .catch((err) => {
+            const error = err as Error;
             this.logger.error(
-              `Error in event processing: ${err instanceof Error ? err.message : String(err)}`,
+              `Failed to process ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${error.message}`,
+              error.stack,
             );
           })
           .finally(() => {
@@ -225,15 +227,17 @@ export class EventListenerService {
             this.listenerState.unmarkEventProcessing(eventKey);
           });
       } catch (error) {
+        const err = error as Error;
         this.logger.error(
-          `Error processing event on blockchain ${blockchain.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Failed to handle event on blockchain ${blockchain.id}: ${err.message}`,
+          err.stack,
         );
       }
     });
 
-    this.logger.log(`Subscribed to all events for blockchain ${blockchain.id}`);
+    this.logger.log(
+      `Successfully subscribed to all events for blockchain ${blockchain.id}`,
+    );
   }
 
   /**
