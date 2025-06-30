@@ -75,6 +75,7 @@ export class EventStorageService {
     events: EthersEvent[],
     provider: ethers.JsonRpcProvider,
     isRealTime: boolean = false,
+    eventType?: string,
   ): Promise<BlockchainEventData[]> {
     if (events.length === 0) return [];
 
@@ -111,11 +112,29 @@ export class EventStorageService {
           );
         }
 
+        // Use provided eventType if available, otherwise try to extract from fragment
+        let finalEventName = '';
+        if (eventType) {
+          // Use the explicitly provided eventType (from queue)
+          finalEventName = eventType;
+          this.logger.debug(
+            `Using provided eventType: ${eventType} for event at block ${event.blockNumber}`,
+          );
+        } else {
+          // Fallback to fragment extraction (for historical sync)
+          finalEventName = hasFragment(event) ? event.fragment.name : '';
+          if (!finalEventName) {
+            this.logger.warn(
+              `Could not determine event name for event at block ${event.blockNumber}, address ${event.address}`,
+            );
+          }
+        }
+
         return {
           blockchain: blockchain,
           contractName: contractName,
           contractAddress: event.address,
-          eventName: hasFragment(event) ? event.fragment.name : '',
+          eventName: finalEventName,
           blockTimestamp: new Date(block ? block.timestamp * 1000 : 0),
           blockNumber: event.blockNumber,
           transactionHash: transactionHash,
