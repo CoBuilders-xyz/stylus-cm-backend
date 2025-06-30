@@ -11,6 +11,7 @@ import { EventConfigService } from './services/event-config.service';
 import { WebSocketManagerService } from './services/websocket-manager.service';
 import { ListenerStateService } from './services/listener-state.service';
 import { EventProcessorService } from './services/event-processor.service';
+import { ReconnectionHandlerService } from './services/reconnection-handler.service';
 import { ProviderManager } from '../common/utils/provider.util';
 import { BlockchainsModule } from 'src/blockchains/blockchains.module';
 
@@ -29,6 +30,7 @@ import { BlockchainsModule } from 'src/blockchains/blockchains.module';
     WebSocketManagerService,
     ListenerStateService,
     EventProcessorService,
+    ReconnectionHandlerService,
     ProviderManager,
   ],
   exports: [EventFetcherService],
