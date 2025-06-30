@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { WebSocketManagerService } from './websocket-manager.service';
 import { ListenerStateService } from './listener-state.service';
 import { EventProcessorService } from './event-processor.service';
+import { ReconnectionHandlerService } from './reconnection-handler.service';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import {
   ProviderManager,
@@ -18,8 +19,17 @@ export class EventListenerService {
     private readonly websocketManager: WebSocketManagerService,
     private readonly listenerState: ListenerStateService,
     private readonly eventProcessor: EventProcessorService,
+    private readonly reconnectionHandler: ReconnectionHandlerService,
     private readonly providerManager: ProviderManager,
   ) {
+    // Register callbacks for reconnection handler
+    this.reconnectionHandler.registerCallbacks({
+      setupEventListeners: (blockchain: Blockchain, eventTypes: string[]) =>
+        this.setupEventListeners(blockchain, eventTypes),
+      clearActiveListener: (blockchainId: string) =>
+        this.clearActiveListener(blockchainId),
+    });
+
     // Register this service for reconnection callbacks
     this.providerManager.registerReconnectionCallback(
       this.handleReconnection.bind(this),
@@ -271,33 +281,6 @@ export class EventListenerService {
   private handleReconnection: ReconnectionCallback = async (
     blockchainId: string,
   ) => {
-    this.logger.log(`Handling reconnection for blockchain ${blockchainId}`);
-
-    const config = this.listenerState.getBlockchainConfig(blockchainId);
-    if (!config) {
-      this.logger.warn(
-        `No configuration found for blockchain ${blockchainId}, skipping reconnection`,
-      );
-      return;
-    }
-
-    try {
-      // Clear the active listener status to allow reconnection
-      this.clearActiveListener(blockchainId);
-
-      // Attempt to reconnect
-      await this.setupEventListeners(config.blockchain, config.eventTypes);
-
-      this.logger.log(
-        `Successfully reconnected event listeners for blockchain ${blockchainId}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to reconnect event listeners for blockchain ${blockchainId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      throw error; // Re-throw to trigger exponential backoff
-    }
+    await this.reconnectionHandler.handleReconnection(blockchainId);
   };
 }
