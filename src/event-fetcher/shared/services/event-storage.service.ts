@@ -2,20 +2,20 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ethers } from 'ethers';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
+import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
+import { BlockchainEvent } from '../../../blockchains/entities/blockchain-event.entity';
 import {
   BlockchainEventData,
   EthersEvent,
   EventProcessResult,
-} from '../interfaces/event.interface';
+} from '../interfaces';
 import {
   getTransactionHash,
   getLogIndex,
   hasFragment,
   hasArgs,
   serializeEventArgs,
-} from '../utils/event-parser.util';
+} from '../../utils/event-parser.util';
 
 @Injectable()
 export class EventStorageService {

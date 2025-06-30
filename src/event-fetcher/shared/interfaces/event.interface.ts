@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
+import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 
 export interface BlockchainEventData {
   blockchain: Blockchain;
@@ -11,9 +11,9 @@ export interface BlockchainEventData {
   transactionHash: string;
   logIndex: number;
   isRealTime: boolean;
+  eventData: Record<string, any>;
   isSynced?: boolean;
   originAddress?: string;
-  eventData: Record<string, any>;
 }
 
 export interface EventOptions {

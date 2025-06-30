@@ -1,10 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-
-export interface BlockchainConfig {
-  blockchain: Blockchain;
-  eventTypes: string[];
-}
+import { BlockchainConfig } from '../interfaces';
 
 @Injectable()
 export class ListenerStateService {

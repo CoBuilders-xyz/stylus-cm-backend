@@ -1,17 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  ListenerStateService,
-  BlockchainConfig,
-} from './listener-state.service';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-
-export interface ReconnectionCallbacks {
-  setupEventListeners: (
-    blockchain: Blockchain,
-    eventTypes: string[],
-  ) => Promise<void>;
-  clearActiveListener: (blockchainId: string) => void;
-}
+import { ListenerStateService } from './listener-state.service';
+import { ReconnectionCallbacks, BlockchainConfig } from '../interfaces';
 
 @Injectable()
 export class ReconnectionHandlerService {
