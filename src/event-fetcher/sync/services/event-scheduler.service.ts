@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { EventConfigService } from '../../shared';
 import { EventSyncService } from './event-sync.service';
 import { ProviderManager } from '../../../common/utils/provider.util';
+import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
 
 @Injectable()
 export class EventSchedulerService {
@@ -105,9 +106,14 @@ export class EventSchedulerService {
         );
         return `Resynchronized events for blockchain ${blockchainId}`;
       } else {
-        throw new Error(
-          `Blockchain with ID ${blockchainId} not found or has no RPC URL`,
-        );
+        // Use standardized error - this covers both "not found" and "missing RPC URL"
+        if (!blockchain) {
+          EventFetcherErrorHelpers.throwInvalidBlockchainConfig();
+        } else {
+          EventFetcherErrorHelpers.throwMissingRpcUrl();
+        }
+        // This line never executes but satisfies TypeScript
+        return '';
       }
     } else {
       // Resync all blockchains
