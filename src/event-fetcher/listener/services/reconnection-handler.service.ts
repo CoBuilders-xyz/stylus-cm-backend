@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ListenerStateService } from './listener-state.service';
 import { ReconnectionCallbacks, BlockchainConfig } from '../interfaces';
+import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
 
 @Injectable()
 export class ReconnectionHandlerService {
@@ -25,7 +26,8 @@ export class ReconnectionHandlerService {
 
     if (!this.callbacks) {
       this.logger.error('Reconnection callbacks not registered');
-      throw new Error('Reconnection callbacks not registered');
+      EventFetcherErrorHelpers.throwReconnectionCallbacksNotRegistered();
+      return;
     }
 
     // Get stored configuration for this blockchain
@@ -153,11 +155,11 @@ export class ReconnectionHandlerService {
     config: BlockchainConfig,
   ): void {
     if (!config.blockchain) {
-      throw new Error(`Invalid blockchain configuration for ${blockchainId}`);
+      EventFetcherErrorHelpers.throwInvalidBlockchainConfig();
     }
 
     if (!config.eventTypes || !Array.isArray(config.eventTypes)) {
-      throw new Error(`Invalid event types configuration for ${blockchainId}`);
+      EventFetcherErrorHelpers.throwInvalidEventTypes();
     }
 
     this.logger.debug(

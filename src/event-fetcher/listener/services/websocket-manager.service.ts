@@ -6,6 +6,7 @@ import {
   ProviderManager,
 } from '../../../common/utils/provider.util';
 import { WebSocketContracts } from '../interfaces';
+import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
 
 @Injectable()
 export class WebSocketManagerService {
@@ -18,9 +19,12 @@ export class WebSocketManagerService {
    */
   createWebSocketContracts(blockchain: Blockchain): WebSocketContracts {
     if (!blockchain.rpcWssUrl || !blockchain.cacheManagerAddress) {
-      throw new Error(
-        `Missing WebSocket URL or contract address for blockchain ${blockchain.id}`,
-      );
+      if (!blockchain.rpcWssUrl) {
+        EventFetcherErrorHelpers.throwMissingWebSocketUrl();
+      }
+      if (!blockchain.cacheManagerAddress) {
+        EventFetcherErrorHelpers.throwMissingContractAddress();
+      }
     }
 
     let cacheManagerContract: ethers.Contract;
