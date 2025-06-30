@@ -41,42 +41,6 @@ export class EventListenerService {
   }
 
   /**
-   * Handles reconnection attempts for a specific blockchain
-   */
-  private handleReconnection: ReconnectionCallback = async (
-    blockchainId: string,
-  ) => {
-    this.logger.log(`Handling reconnection for blockchain ${blockchainId}`);
-
-    const config = this.blockchainConfigs.get(blockchainId);
-    if (!config) {
-      this.logger.warn(
-        `No configuration found for blockchain ${blockchainId}, skipping reconnection`,
-      );
-      return;
-    }
-
-    try {
-      // Clear the active listener status to allow reconnection
-      this.activeListeners.delete(blockchainId);
-
-      // Attempt to reconnect
-      await this.setupEventListeners(config.blockchain, config.eventTypes);
-
-      this.logger.log(
-        `Successfully reconnected event listeners for blockchain ${blockchainId}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to reconnect event listeners for blockchain ${blockchainId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      throw error; // Re-throw to trigger exponential backoff
-    }
-  };
-
-  /**
    * Clears active listener tracking for a blockchain (used by ProviderManager)
    */
   clearActiveListener(blockchainId: string): void {
@@ -171,6 +135,16 @@ export class EventListenerService {
       // Re-throw the error so reconnection logic can handle it
       throw error;
     }
+  }
+
+  /**
+   * Cleanup method to unregister reconnection callback
+   */
+  onDestroy(): void {
+    this.providerManager.unregisterReconnectionCallback(
+      this.handleReconnection,
+    );
+    this.logger.log('EventListenerService cleanup completed');
   }
 
   /**
@@ -376,12 +350,38 @@ export class EventListenerService {
   }
 
   /**
-   * Cleanup method to unregister reconnection callback
+   * Handles reconnection attempts for a specific blockchain
    */
-  onDestroy(): void {
-    this.providerManager.unregisterReconnectionCallback(
-      this.handleReconnection,
-    );
-    this.logger.log('EventListenerService cleanup completed');
-  }
+  private handleReconnection: ReconnectionCallback = async (
+    blockchainId: string,
+  ) => {
+    this.logger.log(`Handling reconnection for blockchain ${blockchainId}`);
+
+    const config = this.blockchainConfigs.get(blockchainId);
+    if (!config) {
+      this.logger.warn(
+        `No configuration found for blockchain ${blockchainId}, skipping reconnection`,
+      );
+      return;
+    }
+
+    try {
+      // Clear the active listener status to allow reconnection
+      this.activeListeners.delete(blockchainId);
+
+      // Attempt to reconnect
+      await this.setupEventListeners(config.blockchain, config.eventTypes);
+
+      this.logger.log(
+        `Successfully reconnected event listeners for blockchain ${blockchainId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to reconnect event listeners for blockchain ${blockchainId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      throw error; // Re-throw to trigger exponential backoff
+    }
+  };
 }
