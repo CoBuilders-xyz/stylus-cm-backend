@@ -55,10 +55,11 @@ export class EventListenerService {
       `Manually restarting event listeners for blockchain ${blockchain.id}`,
     );
 
-    // Clear any existing state
-    this.clearActiveListener(blockchain.id);
+    // ✅ Clear any existing state first
+    this.listenerState.clearListener(blockchain.id);
+    this.listenerState.removeBlockchainConfig(blockchain.id);
 
-    // Set up listeners again
+    // ✅ Then use the normal setup process with race protection
     await this.setupEventListeners(blockchain, eventTypes);
   }
 
@@ -77,10 +78,10 @@ export class EventListenerService {
       return;
     }
 
-    // Check if listeners are already set up for this blockchain
-    if (this.listenerState.isListenerActive(blockchain.id)) {
+    // ✅ Atomic check and mark setup - prevents race conditions
+    if (!this.listenerState.markSettingUpListener(blockchain.id)) {
       this.logger.log(
-        `Event listeners already set up for blockchain ${blockchain.id}, skipping.`,
+        `Event listeners already set up or being set up for blockchain ${blockchain.id}, skipping.`,
       );
       return;
     }
@@ -113,15 +114,16 @@ export class EventListenerService {
         httpProvider,
       );
 
-      // Track that we've set up listeners for this blockchain
+      // ✅ Complete setup - moves from "setting up" to "active"
       this.listenerState.setListenerActive(blockchain.id);
 
       this.logger.log(
         `Successfully set up WebSocket-based event listener for blockchain ${blockchain.id}`,
       );
     } catch (error) {
-      // Remove configuration if setup failed
+      // ✅ Clean up both config and setup state if setup failed
       this.listenerState.removeBlockchainConfig(blockchain.id);
+      this.listenerState.clearListener(blockchain.id); // This clears setup state too
 
       this.logger.error(
         `Failed to setup WebSocket event listener for blockchain ${blockchain.id}: ${

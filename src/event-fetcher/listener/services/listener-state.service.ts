@@ -9,6 +9,7 @@ export class ListenerStateService {
   private readonly activeListeners = new Set<string>();
   private readonly processingEvents = new Set<string>();
   private readonly blockchainConfigs = new Map<string, BlockchainConfig>();
+  private readonly settingUpListeners = new Set<string>();
 
   /**
    * Active Listeners Management
@@ -17,12 +18,41 @@ export class ListenerStateService {
     return this.activeListeners.has(blockchainId);
   }
 
+  /**
+   * Check if listener setup is in progress (prevents race conditions)
+   */
+  isSettingUpListener(blockchainId: string): boolean {
+    return this.settingUpListeners.has(blockchainId);
+  }
+
+  /**
+   * Mark listener setup as starting (prevents concurrent setup)
+   */
+  markSettingUpListener(blockchainId: string): boolean {
+    if (
+      this.settingUpListeners.has(blockchainId) ||
+      this.activeListeners.has(blockchainId)
+    ) {
+      return false; // Already setting up or active
+    }
+    this.settingUpListeners.add(blockchainId);
+    this.logger.debug(
+      `Marked listener setup in progress for blockchain ${blockchainId}`,
+    );
+    return true; // Successfully marked as setting up
+  }
+
+  /**
+   * Complete listener setup (move from "setting up" to "active")
+   */
   setListenerActive(blockchainId: string): void {
+    this.settingUpListeners.delete(blockchainId); // Remove from setup state
     this.activeListeners.add(blockchainId);
     this.logger.debug(`Set listener active for blockchain ${blockchainId}`);
   }
 
   clearListener(blockchainId: string): void {
+    this.settingUpListeners.delete(blockchainId); // Clear setup state
     this.activeListeners.delete(blockchainId);
     this.logger.debug(`Cleared listener for blockchain ${blockchainId}`);
   }
@@ -87,10 +117,12 @@ export class ListenerStateService {
     try {
       // Check for consistency between active listeners and stored configs
       const activeListeners = this.getAllActiveBlockchains();
+      const settingUpListeners = Array.from(this.settingUpListeners);
       const configuredBlockchains = Array.from(this.blockchainConfigs.keys());
 
       // Log state information for debugging
       this.logger.debug(`Active listeners: ${activeListeners.length}`);
+      this.logger.debug(`Setting up listeners: ${settingUpListeners.length}`);
       this.logger.debug(
         `Processing events: ${this.getProcessingEventsCount()}`,
       );
@@ -101,6 +133,26 @@ export class ListenerStateService {
         if (!this.blockchainConfigs.has(blockchainId)) {
           this.logger.warn(
             `Active listener ${blockchainId} missing configuration`,
+          );
+          return false;
+        }
+      }
+
+      // Validation - setting up listeners should have configs
+      for (const blockchainId of settingUpListeners) {
+        if (!this.blockchainConfigs.has(blockchainId)) {
+          this.logger.warn(
+            `Setting up listener ${blockchainId} missing configuration`,
+          );
+          return false;
+        }
+      }
+
+      // Validation - no blockchain should be both active and setting up
+      for (const blockchainId of activeListeners) {
+        if (this.settingUpListeners.has(blockchainId)) {
+          this.logger.warn(
+            `Blockchain ${blockchainId} is both active and setting up - inconsistent state`,
           );
           return false;
         }
@@ -124,13 +176,15 @@ export class ListenerStateService {
     const activeCount = this.activeListeners.size;
     const processingCount = this.processingEvents.size;
     const configCount = this.blockchainConfigs.size;
+    const settingUpCount = this.settingUpListeners.size;
 
     this.activeListeners.clear();
     this.processingEvents.clear();
     this.blockchainConfigs.clear();
+    this.settingUpListeners.clear();
 
     this.logger.log(
-      `Cleared all state - Active: ${activeCount}, Processing: ${processingCount}, Configs: ${configCount}`,
+      `Cleared all state - Active: ${activeCount}, Processing: ${processingCount}, Configs: ${configCount}, Setting up: ${settingUpCount}`,
     );
   }
 
@@ -141,11 +195,13 @@ export class ListenerStateService {
     activeListeners: string[];
     processingEvents: string[];
     configuredBlockchains: string[];
+    settingUpListeners: string[];
   } {
     return {
       activeListeners: this.getAllActiveBlockchains(),
       processingEvents: this.getAllProcessingEvents(),
       configuredBlockchains: Array.from(this.blockchainConfigs.keys()),
+      settingUpListeners: Array.from(this.settingUpListeners),
     };
   }
 }

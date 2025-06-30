@@ -42,15 +42,11 @@ export class EventSyncService {
         const provider = this.providerManager.getFastSyncProvider(blockchain);
         await this.syncBlockchainEvents(blockchain, provider, eventTypes);
       } catch (error) {
-        if (error instanceof Error) {
-          this.logger.error(
-            `Error syncing blockchain ${blockchain.id}: ${error.message}`,
-          );
-        } else {
-          this.logger.error(
-            `Error syncing blockchain ${blockchain.id}: Unknown error`,
-          );
-        }
+        this.logger.error(
+          `Error syncing blockchain ${blockchain.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
       }
     }
 
