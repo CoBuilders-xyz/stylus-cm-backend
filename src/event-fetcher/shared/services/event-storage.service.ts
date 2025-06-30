@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ethers } from 'ethers';
 import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../../blockchains/entities/blockchain-event.entity';
+import { EventConfigService } from './event-config.service';
 import {
   BlockchainEventData,
   EthersEvent,
@@ -20,13 +21,13 @@ import {
 @Injectable()
 export class EventStorageService {
   private readonly logger = new Logger(EventStorageService.name);
-  private readonly BATCH_SIZE = 50; // Smaller batch size for better error isolation
 
   constructor(
     @InjectRepository(BlockchainEvent)
     private readonly eventRepository: Repository<BlockchainEvent>,
     @InjectRepository(Blockchain)
     private readonly blockchainRepository: Repository<Blockchain>,
+    private readonly eventConfigService: EventConfigService,
   ) {}
 
   /**
@@ -130,8 +131,9 @@ export class EventStorageService {
 
     // Split events into smaller batches
     const eventBatches: BlockchainEventData[][] = [];
-    for (let i = 0; i < events.length; i += this.BATCH_SIZE) {
-      eventBatches.push(events.slice(i, i + this.BATCH_SIZE));
+    const batchSize = this.eventConfigService.getBatchSize();
+    for (let i = 0; i < events.length; i += batchSize) {
+      eventBatches.push(events.slice(i, i + batchSize));
     }
 
     let successCount = 0;

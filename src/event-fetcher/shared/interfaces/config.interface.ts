@@ -7,6 +7,10 @@ export interface EventFetcherConfig {
 
   // Batch size for inserting events
   batchSize: number;
+
+  // Retry configuration for failed operations
+  retries: number;
+  retryDelay: number;
 }
 
 export interface ProviderConfig {

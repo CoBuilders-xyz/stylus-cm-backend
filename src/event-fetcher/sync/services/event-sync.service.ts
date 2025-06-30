@@ -6,6 +6,7 @@ import {
   ProviderManager,
 } from '../../../common/utils/provider.util';
 import { EventStorageService } from '../../shared/services/event-storage.service';
+import { EventConfigService } from '../../shared/services/event-config.service';
 import { EthersEvent } from '../../shared/interfaces';
 import { safeContractCall } from '../../utils/contract-call.util';
 
@@ -15,6 +16,7 @@ export class EventSyncService {
 
   constructor(
     private readonly eventStorageService: EventStorageService,
+    private readonly eventConfigService: EventConfigService,
     private readonly providerManager: ProviderManager,
   ) {}
 
@@ -86,7 +88,10 @@ export class EventSyncService {
         provider as unknown as ethers.Contract,
         'getBlockNumber',
         [],
-        { retries: 3, retryDelay: 2000 },
+        {
+          retries: this.eventConfigService.getRetries(),
+          retryDelay: this.eventConfigService.getRetryDelay(),
+        },
       );
 
       if (blockNumber !== undefined) {
@@ -256,8 +261,8 @@ export class EventSyncService {
           'queryFilter',
           [eventFilter, fromBlock, toBlock],
           {
-            retries: 3,
-            retryDelay: 2000,
+            retries: this.eventConfigService.getRetries(),
+            retryDelay: this.eventConfigService.getRetryDelay(),
             fallbackValue: [],
           },
         );
