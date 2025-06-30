@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { WebSocketManagerService } from './websocket-manager.service';
 import { ListenerStateService } from './listener-state.service';
@@ -10,10 +10,15 @@ import {
   ReconnectionCallback,
 } from '../../../common/utils/provider.util';
 import { EthersEvent } from '../../shared';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
 @Injectable()
 export class EventListenerService {
-  private readonly logger = new Logger(EventListenerService.name);
+  private readonly logger = createModuleLogger(
+    EventListenerService,
+    MODULE_NAME,
+  );
 
   constructor(
     private readonly websocketManager: WebSocketManagerService,
@@ -55,11 +60,11 @@ export class EventListenerService {
       `Restarting event listeners for blockchain ${blockchain.id}`,
     );
 
-    // ✅ Clear any existing state first
+    // Clear any existing state first
     this.listenerState.clearListener(blockchain.id);
     this.listenerState.removeBlockchainConfig(blockchain.id);
 
-    // ✅ Then use the normal setup process with race protection
+    // Then use the normal setup process with race protection
     await this.setupEventListeners(blockchain, eventTypes);
   }
 
@@ -78,7 +83,7 @@ export class EventListenerService {
       return;
     }
 
-    // ✅ Atomic check and mark setup - prevents race conditions
+    // Atomic check and mark setup - prevents race conditions
     if (!this.listenerState.markSettingUpListener(blockchain.id)) {
       this.logger.log(
         `Event listeners already set up or being set up for blockchain ${blockchain.id}, skipping`,
@@ -114,14 +119,14 @@ export class EventListenerService {
         httpProvider,
       );
 
-      // ✅ Complete setup - moves from "setting up" to "active"
+      // Complete setup - moves from "setting up" to "active"
       this.listenerState.setListenerActive(blockchain.id);
 
       this.logger.log(
         `Successfully set up WebSocket-based event listeners for blockchain ${blockchain.id}`,
       );
     } catch (error) {
-      // ✅ Clean up both config and setup state if setup failed
+      // Clean up both config and setup state if setup failed
       this.listenerState.removeBlockchainConfig(blockchain.id);
       this.listenerState.clearListener(blockchain.id); // This clears setup state too
 
