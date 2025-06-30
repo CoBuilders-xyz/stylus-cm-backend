@@ -43,7 +43,7 @@ export class EventProcessorService {
       }
 
       // Process and store the event
-      await this.storeEvent(blockchain, eventLog, provider);
+      await this.storeEvent(blockchain, eventLog, provider, eventType);
 
       // Update blockchain sync status
       await this.updateSyncStatus(blockchain, eventLog.blockNumber);
@@ -83,7 +83,7 @@ export class EventProcessorService {
           continue;
         }
 
-        await this.storeEvent(blockchain, eventLog, provider);
+        await this.storeEvent(blockchain, eventLog, provider, eventType);
         await this.updateSyncStatus(blockchain, eventLog.blockNumber);
         await this.emitEventStored(blockchain, eventLog);
 
@@ -142,6 +142,7 @@ export class EventProcessorService {
     blockchain: Blockchain,
     eventLog: EthersEvent,
     provider: ethers.JsonRpcProvider,
+    eventType: string,
   ): Promise<void> {
     try {
       // Prepare and store the event
@@ -150,6 +151,7 @@ export class EventProcessorService {
         [eventLog],
         provider,
         true, // isRealTime
+        eventType,
       );
 
       await this.eventStorageService.storeEvents(eventData);
