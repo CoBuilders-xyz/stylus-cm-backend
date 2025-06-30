@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { EventStorageService } from './event-storage.service';
 import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
@@ -7,10 +7,15 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BlockchainEvent } from '../../../blockchains/entities/blockchain-event.entity';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
 @Injectable()
 export class EventProcessorService {
-  private readonly logger = new Logger(EventProcessorService.name);
+  private readonly logger = createModuleLogger(
+    EventProcessorService,
+    MODULE_NAME,
+  );
 
   constructor(
     private readonly eventStorageService: EventStorageService,

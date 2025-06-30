@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 import {
@@ -9,10 +9,12 @@ import { EventStorageService } from '../../shared/services/event-storage.service
 import { EventConfigService } from '../../shared/services/event-config.service';
 import { EthersEvent } from '../../shared/interfaces';
 import { safeContractCall } from '../../utils/contract-call.util';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
 @Injectable()
 export class EventSyncService {
-  private readonly logger = new Logger(EventSyncService.name);
+  private readonly logger = createModuleLogger(EventSyncService, MODULE_NAME);
 
   constructor(
     private readonly eventStorageService: EventStorageService,

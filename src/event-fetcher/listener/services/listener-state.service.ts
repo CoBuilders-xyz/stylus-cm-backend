@@ -1,9 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { BlockchainConfig } from '../interfaces';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
 @Injectable()
 export class ListenerStateService {
-  private readonly logger = new Logger(ListenerStateService.name);
+  private readonly logger = createModuleLogger(
+    ListenerStateService,
+    MODULE_NAME,
+  );
 
   // State tracking
   private readonly activeListeners = new Set<string>();

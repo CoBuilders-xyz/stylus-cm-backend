@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 import {
@@ -7,10 +7,15 @@ import {
 } from '../../../common/utils/provider.util';
 import { WebSocketContracts } from '../interfaces';
 import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
 @Injectable()
 export class WebSocketManagerService {
-  private readonly logger = new Logger(WebSocketManagerService.name);
+  private readonly logger = createModuleLogger(
+    WebSocketManagerService,
+    MODULE_NAME,
+  );
 
   constructor(private readonly providerManager: ProviderManager) {}
 

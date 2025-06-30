@@ -1,18 +1,18 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventListenerService } from './listener';
 import { EventSyncService, EventSchedulerService } from './sync';
 import { ProviderManager } from '../common/utils/provider.util';
 import { BlockchainsService } from 'src/blockchains/blockchains.service';
+import { createModuleLogger } from '../common/utils/logger.util';
+import { MODULE_NAME } from './constants/module.constants';
 
 @Injectable()
 export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(EventFetcherService.name);
+  private readonly logger = createModuleLogger(
+    EventFetcherService,
+    MODULE_NAME,
+  );
 
   constructor(
     private readonly eventListenerService: EventListenerService,

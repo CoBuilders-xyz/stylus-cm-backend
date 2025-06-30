@@ -1,8 +1,9 @@
-import { Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { EventFetcherErrorHelpers } from '../event-fetcher.errors';
+import { createContextLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
-const logger = new Logger('ContractCallUtil');
+const logger = createContextLogger('ContractCall', MODULE_NAME);
 
 /**
  * Options for safe contract calls

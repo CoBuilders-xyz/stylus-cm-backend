@@ -1,11 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ListenerStateService } from './listener-state.service';
 import { ReconnectionCallbacks, BlockchainConfig } from '../interfaces';
 import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
 @Injectable()
 export class ReconnectionHandlerService {
-  private readonly logger = new Logger(ReconnectionHandlerService.name);
+  private readonly logger = createModuleLogger(
+    ReconnectionHandlerService,
+    MODULE_NAME,
+  );
   private callbacks: ReconnectionCallbacks | null = null;
 
   constructor(private readonly listenerState: ListenerStateService) {}
