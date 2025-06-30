@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { EventStorageService } from './event-storage.service';
+import { WebSocketManagerService } from './websocket-manager.service';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import {
-  ContractType,
   ProviderManager,
   ReconnectionCallback,
 } from '../../common/utils/provider.util';
@@ -28,6 +28,7 @@ export class EventListenerService {
 
   constructor(
     private readonly eventStorageService: EventStorageService,
+    private readonly websocketManager: WebSocketManagerService,
     private readonly providerManager: ProviderManager,
     private readonly eventEmitter: EventEmitter2,
     @InjectRepository(BlockchainEvent)
@@ -110,7 +111,8 @@ export class EventListenerService {
     blockchain: Blockchain,
     eventTypes: string[],
   ): Promise<void> {
-    if (!blockchain.rpcWssUrl || !blockchain.cacheManagerAddress) {
+    // Use WebSocketManager to validate configuration
+    if (!this.websocketManager.validateWebSocketConfig(blockchain)) {
       this.logger.warn(
         `Skipping blockchain ${blockchain.id} due to missing WebSocket URL or contract address.`,
       );
@@ -132,49 +134,20 @@ export class EventListenerService {
       // We still need a regular HTTP provider for transaction lookups and other RPC calls
       const httpProvider = this.providerManager.getProvider(blockchain);
 
-      // Use WebSocket-based contracts for event listeners to reduce polling
-      let cacheManagerContract: ethers.Contract;
-      let cacheManagerAutomationContract: ethers.Contract;
-
-      try {
-        cacheManagerContract = this.providerManager.getContractWithWssProvider(
-          blockchain,
-          ContractType.CACHE_MANAGER,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Failed to create WebSocket contract for CacheManager on blockchain ${blockchain.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        throw error;
-      }
-
-      try {
-        cacheManagerAutomationContract =
-          this.providerManager.getContractWithWssProvider(
-            blockchain,
-            ContractType.CACHE_MANAGER_AUTOMATION,
-          );
-      } catch (error) {
-        this.logger.error(
-          `Failed to create WebSocket contract for CacheManagerAutomation on blockchain ${blockchain.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        throw error;
-      }
+      // Use WebSocketManager to create WebSocket contracts
+      const webSocketContracts =
+        this.websocketManager.createWebSocketContracts(blockchain);
 
       // Setup a single listener for all events using WebSocket connections
       await this.setupSingleEventListener(
         blockchain,
-        cacheManagerContract,
+        webSocketContracts.cacheManagerContract,
         eventTypes,
         httpProvider,
       );
       await this.setupSingleEventListener(
         blockchain,
-        cacheManagerAutomationContract,
+        webSocketContracts.cacheManagerAutomationContract,
         eventTypes,
         httpProvider,
       );
