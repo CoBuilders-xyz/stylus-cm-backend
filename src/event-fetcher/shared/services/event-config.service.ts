@@ -23,6 +23,8 @@ export class EventConfigService {
     resyncBlocksBack: 100,
     eventTypes: this.DEFAULT_EVENT_TYPES,
     batchSize: 50,
+    retries: 3,
+    retryDelay: 2000,
   };
 
   constructor(
@@ -90,5 +92,26 @@ export class EventConfigService {
    */
   getResyncBlocksBack(): number {
     return this.getEventFetcherConfig().resyncBlocksBack;
+  }
+
+  /**
+   * Gets the batch size for processing events
+   */
+  getBatchSize(): number {
+    return this.getEventFetcherConfig().batchSize;
+  }
+
+  /**
+   * Gets the number of retries for failed operations
+   */
+  getRetries(): number {
+    return this.getEventFetcherConfig().retries;
+  }
+
+  /**
+   * Gets the delay between retries in milliseconds
+   */
+  getRetryDelay(): number {
+    return this.getEventFetcherConfig().retryDelay;
   }
 }
