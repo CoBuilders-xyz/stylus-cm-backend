@@ -1,38 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { EventStorageService } from './event-storage.service';
 import { WebSocketManagerService } from './websocket-manager.service';
+import { ListenerStateService } from './listener-state.service';
+import { EventProcessorService } from './event-processor.service';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import {
   ProviderManager,
   ReconnectionCallback,
 } from '../../common/utils/provider.util';
 import { EthersEvent } from '../interfaces/event.interface';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
 
 @Injectable()
 export class EventListenerService {
   private readonly logger = new Logger(EventListenerService.name);
-  // Add a set to track which blockchains have listeners set up
-  private readonly activeListeners = new Set<string>();
-  // Add a set to track events being processed to prevent duplicates
-  private readonly processingEvents = new Set<string>();
-  // Store blockchain configurations for reconnection
-  private blockchainConfigs: Map<
-    string,
-    { blockchain: Blockchain; eventTypes: string[] }
-  > = new Map();
 
   constructor(
-    private readonly eventStorageService: EventStorageService,
     private readonly websocketManager: WebSocketManagerService,
+    private readonly listenerState: ListenerStateService,
+    private readonly eventProcessor: EventProcessorService,
     private readonly providerManager: ProviderManager,
-    private readonly eventEmitter: EventEmitter2,
-    @InjectRepository(BlockchainEvent)
-    private readonly blockchainEventRepository: Repository<BlockchainEvent>,
   ) {
     // Register this service for reconnection callbacks
     this.providerManager.registerReconnectionCallback(
@@ -44,7 +30,7 @@ export class EventListenerService {
    * Clears active listener tracking for a blockchain (used by ProviderManager)
    */
   clearActiveListener(blockchainId: string): void {
-    this.activeListeners.delete(blockchainId);
+    this.listenerState.clearListener(blockchainId);
     this.logger.debug(
       `Cleared active listener status for blockchain ${blockchainId}`,
     );
@@ -84,7 +70,7 @@ export class EventListenerService {
     }
 
     // Check if listeners are already set up for this blockchain
-    if (this.activeListeners.has(blockchain.id)) {
+    if (this.listenerState.isListenerActive(blockchain.id)) {
       this.logger.log(
         `Event listeners already set up for blockchain ${blockchain.id}, skipping.`,
       );
@@ -92,7 +78,10 @@ export class EventListenerService {
     }
 
     // Store configuration for reconnection
-    this.blockchainConfigs.set(blockchain.id, { blockchain, eventTypes });
+    this.listenerState.storeBlockchainConfig(blockchain.id, {
+      blockchain,
+      eventTypes,
+    });
 
     try {
       // We still need a regular HTTP provider for transaction lookups and other RPC calls
@@ -117,14 +106,14 @@ export class EventListenerService {
       );
 
       // Track that we've set up listeners for this blockchain
-      this.activeListeners.add(blockchain.id);
+      this.listenerState.setListenerActive(blockchain.id);
 
       this.logger.log(
         `Successfully set up WebSocket-based event listener for blockchain ${blockchain.id}`,
       );
     } catch (error) {
       // Remove configuration if setup failed
-      this.blockchainConfigs.delete(blockchain.id);
+      this.listenerState.removeBlockchainConfig(blockchain.id);
 
       this.logger.error(
         `Failed to setup WebSocket event listener for blockchain ${blockchain.id}: ${
@@ -203,7 +192,7 @@ export class EventListenerService {
         const eventKey = `${blockchain.id}_${eventLog.blockNumber}_${eventLog.index}_${eventType}`;
 
         // Check if we're already processing this event
-        if (this.processingEvents.has(eventKey)) {
+        if (this.listenerState.isEventProcessing(eventKey)) {
           this.logger.debug(
             `Event ${eventType} at block ${eventLog.blockNumber} is already being processed, skipping duplicate`,
           );
@@ -211,10 +200,11 @@ export class EventListenerService {
         }
 
         // Mark this event as being processed
-        this.processingEvents.add(eventKey);
+        this.listenerState.markEventProcessing(eventKey);
 
         // Handle the async operations separately with proper error handling
-        void this.processEvent(blockchain, eventLog, provider, eventType)
+        void this.eventProcessor
+          .processEvent(blockchain, eventLog, provider, eventType)
           .catch((err) => {
             this.logger.error(
               `Error in event processing: ${err instanceof Error ? err.message : String(err)}`,
@@ -222,7 +212,7 @@ export class EventListenerService {
           })
           .finally(() => {
             // Remove the event from the processing set when done
-            this.processingEvents.delete(eventKey);
+            this.listenerState.unmarkEventProcessing(eventKey);
           });
       } catch (error) {
         this.logger.error(
@@ -276,80 +266,6 @@ export class EventListenerService {
   }
 
   /**
-   * Processes a received event
-   */
-  private async processEvent(
-    blockchain: Blockchain,
-    eventLog: EthersEvent,
-    provider: ethers.JsonRpcProvider,
-    eventType: string,
-  ): Promise<void> {
-    try {
-      // Check if this event already exists in the database
-      const existingEvent = await this.blockchainEventRepository.findOne({
-        where: {
-          blockchain: { id: blockchain.id },
-          blockNumber: eventLog.blockNumber,
-          logIndex: eventLog.index,
-          transactionHash: eventLog.transactionHash,
-          eventName: eventType,
-        },
-      });
-
-      if (existingEvent) {
-        this.logger.debug(
-          `Event already exists for ${eventType} on blockchain ${blockchain.id} at block ${eventLog.blockNumber}, skipping processing.`,
-        );
-        return;
-      }
-
-      // Prepare and store the event
-      const eventData = await this.eventStorageService.prepareEvents(
-        blockchain,
-        [eventLog],
-        provider,
-        true,
-      );
-
-      await this.eventStorageService.storeEvents(eventData);
-
-      // Update the last synced block
-      await this.eventStorageService.updateLastSyncedBlock(
-        blockchain,
-        eventLog.blockNumber,
-      );
-
-      const event = await this.blockchainEventRepository.findOne({
-        where: {
-          blockchain: { id: blockchain.id },
-          blockNumber: eventLog.blockNumber,
-          logIndex: eventLog.index,
-        },
-      });
-      if (!event) {
-        this.logger.warn(`No event found for blockchain ${blockchain.id}`);
-        return;
-      }
-
-      this.eventEmitter.emit('blockchain.event.stored', {
-        blockchainId: blockchain.id,
-        eventId: event.id,
-      });
-
-      this.logger.log(
-        `Processed real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to process real-time ${eventType} event: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      throw error; // Re-throw to be caught by the caller
-    }
-  }
-
-  /**
    * Handles reconnection attempts for a specific blockchain
    */
   private handleReconnection: ReconnectionCallback = async (
@@ -357,7 +273,7 @@ export class EventListenerService {
   ) => {
     this.logger.log(`Handling reconnection for blockchain ${blockchainId}`);
 
-    const config = this.blockchainConfigs.get(blockchainId);
+    const config = this.listenerState.getBlockchainConfig(blockchainId);
     if (!config) {
       this.logger.warn(
         `No configuration found for blockchain ${blockchainId}, skipping reconnection`,
@@ -367,7 +283,7 @@ export class EventListenerService {
 
     try {
       // Clear the active listener status to allow reconnection
-      this.activeListeners.delete(blockchainId);
+      this.clearActiveListener(blockchainId);
 
       // Attempt to reconnect
       await this.setupEventListeners(config.blockchain, config.eventTypes);
