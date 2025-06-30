@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { Logger } from '@nestjs/common';
-import { EthersEvent } from '../interfaces/event.interface';
+import { EthersEvent } from '../shared';
 
 const logger = new Logger('EventParserUtil');
 

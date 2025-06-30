@@ -3,15 +3,23 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventFetcherService } from './event-fetcher.service';
 import { Blockchain } from '../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../blockchains/entities/blockchain-event.entity';
-import { EventStorageService } from './services/event-storage.service';
-import { EventListenerService } from './services/event-listener.service';
-import { EventSyncService } from './services/event-sync.service';
-import { EventSchedulerService } from './services/event-scheduler.service';
-import { EventConfigService } from './services/event-config.service';
-import { WebSocketManagerService } from './services/websocket-manager.service';
-import { ListenerStateService } from './services/listener-state.service';
-import { EventProcessorService } from './services/event-processor.service';
-import { ReconnectionHandlerService } from './services/reconnection-handler.service';
+
+// Domain-based imports
+import {
+  EventListenerService,
+  WebSocketManagerService,
+  ListenerStateService,
+  ReconnectionHandlerService,
+} from './listener';
+
+import { EventSyncService, EventSchedulerService } from './sync';
+
+import {
+  EventStorageService,
+  EventConfigService,
+  EventProcessorService,
+} from './shared';
+
 import { ProviderManager } from '../common/utils/provider.util';
 import { BlockchainsModule } from 'src/blockchains/blockchains.module';
 
@@ -22,15 +30,19 @@ import { BlockchainsModule } from 'src/blockchains/blockchains.module';
   ],
   providers: [
     EventFetcherService,
-    EventStorageService,
+    // Listener Domain Services
     EventListenerService,
-    EventSyncService,
-    EventSchedulerService,
-    EventConfigService,
     WebSocketManagerService,
     ListenerStateService,
-    EventProcessorService,
     ReconnectionHandlerService,
+    // Sync Domain Services
+    EventSyncService,
+    EventSchedulerService,
+    // Shared Domain Services
+    EventStorageService,
+    EventConfigService,
+    EventProcessorService,
+    // External Dependencies
     ProviderManager,
   ],
   exports: [EventFetcherService],

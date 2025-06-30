@@ -5,9 +5,8 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EventListenerService } from './services/event-listener.service';
-import { EventSyncService } from './services/event-sync.service';
-import { EventSchedulerService } from './services/event-scheduler.service';
+import { EventListenerService } from './listener';
+import { EventSyncService, EventSchedulerService } from './sync';
 import { ProviderManager } from '../common/utils/provider.util';
 import { BlockchainsService } from 'src/blockchains/blockchains.service';
 

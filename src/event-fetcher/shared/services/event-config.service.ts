@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { EventFetcherConfig } from '../interfaces/config.interface';
+import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
+import { EventFetcherConfig } from '../interfaces';
 
 @Injectable()
 export class EventConfigService {

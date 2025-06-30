@@ -2,14 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { WebSocketManagerService } from './websocket-manager.service';
 import { ListenerStateService } from './listener-state.service';
-import { EventProcessorService } from './event-processor.service';
+import { EventProcessorService } from '../../shared';
 import { ReconnectionHandlerService } from './reconnection-handler.service';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
+import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 import {
   ProviderManager,
   ReconnectionCallback,
-} from '../../common/utils/provider.util';
-import { EthersEvent } from '../interfaces/event.interface';
+} from '../../../common/utils/provider.util';
+import { EthersEvent } from '../../shared';
 
 @Injectable()
 export class EventListenerService {
@@ -31,9 +31,7 @@ export class EventListenerService {
     });
 
     // Register this service for reconnection callbacks
-    this.providerManager.registerReconnectionCallback(
-      this.handleReconnection.bind(this),
-    );
+    this.providerManager.registerReconnectionCallback(this.handleReconnection);
   }
 
   /**

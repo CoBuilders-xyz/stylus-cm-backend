@@ -1,15 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
+import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 import {
   ContractType,
   ProviderManager,
-} from '../../common/utils/provider.util';
-
-export interface WebSocketContracts {
-  cacheManagerContract: ethers.Contract;
-  cacheManagerAutomationContract: ethers.Contract;
-}
+} from '../../../common/utils/provider.util';
+import { WebSocketContracts } from '../interfaces';
 
 @Injectable()
 export class WebSocketManagerService {

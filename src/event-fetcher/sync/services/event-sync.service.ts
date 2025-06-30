@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { EventStorageService } from './event-storage.service';
+import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 import {
   ContractType,
   ProviderManager,
-} from '../../common/utils/provider.util';
-import { EthersEvent } from '../interfaces/event.interface';
-import { safeContractCall } from '../utils/contract-call.util';
+} from '../../../common/utils/provider.util';
+import { EventStorageService } from '../../shared/services/event-storage.service';
+import { EthersEvent } from '../../shared/interfaces';
+import { safeContractCall } from '../../utils/contract-call.util';
 
 @Injectable()
 export class EventSyncService {
@@ -164,6 +164,54 @@ export class EventSyncService {
   }
 
   /**
+   * Resyncs events for a specific blockchain within a given block range
+   * Used for catching up on events that might have been missed
+   */
+  async resyncBlockRange(
+    blockchain: Blockchain,
+    fromBlock: number,
+    toBlock: number,
+    eventTypes: string[],
+  ): Promise<void> {
+    this.logger.log(
+      `Resyncing events for ${blockchain.id} from block ${fromBlock} to ${toBlock}`,
+    );
+
+    // Use fast sync provider for historical resyncing
+    const provider = this.providerManager.getFastSyncProvider(blockchain);
+    // Use contract connected to the fast sync provider
+    const contract = this.providerManager.getContractWithFastSyncProvider(
+      blockchain,
+      ContractType.CACHE_MANAGER,
+    );
+
+    // Fetch events for the specified range
+    const allEvents = await this.fetchEvents(
+      contract,
+      eventTypes,
+      fromBlock,
+      toBlock,
+    );
+
+    if (allEvents.length === 0) {
+      this.logger.log(`No events found to resync in the given block range`);
+      return;
+    }
+
+    // Prepare and store events
+    const eventData = await this.eventStorageService.prepareEvents(
+      blockchain,
+      allEvents,
+      provider,
+    );
+    const result = await this.eventStorageService.storeEvents(eventData);
+
+    this.logger.log(
+      `Resynced ${result.successCount} events (with ${result.errorCount} errors) for blockchain ${blockchain.id}`,
+    );
+  }
+
+  /**
    * Fetches events of specific types within a block range
    */
   private async fetchEvents(
@@ -243,53 +291,5 @@ export class EventSyncService {
 
     this.logger.log(`Total events by type: ${eventCountsStr}`);
     return allEvents;
-  }
-
-  /**
-   * Resyncs events for a specific blockchain within a given block range
-   * Used for catching up on events that might have been missed
-   */
-  async resyncBlockRange(
-    blockchain: Blockchain,
-    fromBlock: number,
-    toBlock: number,
-    eventTypes: string[],
-  ): Promise<void> {
-    this.logger.log(
-      `Resyncing events for ${blockchain.id} from block ${fromBlock} to ${toBlock}`,
-    );
-
-    // Use fast sync provider for historical resyncing
-    const provider = this.providerManager.getFastSyncProvider(blockchain);
-    // Use contract connected to the fast sync provider
-    const contract = this.providerManager.getContractWithFastSyncProvider(
-      blockchain,
-      ContractType.CACHE_MANAGER,
-    );
-
-    // Fetch events for the specified range
-    const allEvents = await this.fetchEvents(
-      contract,
-      eventTypes,
-      fromBlock,
-      toBlock,
-    );
-
-    if (allEvents.length === 0) {
-      this.logger.log(`No events found to resync in the given block range`);
-      return;
-    }
-
-    // Prepare and store events
-    const eventData = await this.eventStorageService.prepareEvents(
-      blockchain,
-      allEvents,
-      provider,
-    );
-    const result = await this.eventStorageService.storeEvents(eventData);
-
-    this.logger.log(
-      `Resynced ${result.successCount} events (with ${result.errorCount} errors) for blockchain ${blockchain.id}`,
-    );
   }
 }
