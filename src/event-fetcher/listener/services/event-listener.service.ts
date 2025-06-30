@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { WebSocketManagerService } from './websocket-manager.service';
 import { ListenerStateService } from './listener-state.service';
 import { EventProcessorService } from '../../shared';
+import { EventQueueService, EventQueueItem } from './event-queue.service';
 import { ReconnectionHandlerService } from './reconnection-handler.service';
 import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 import {
@@ -24,6 +25,7 @@ export class EventListenerService {
     private readonly websocketManager: WebSocketManagerService,
     private readonly listenerState: ListenerStateService,
     private readonly eventProcessor: EventProcessorService,
+    private readonly eventQueueService: EventQueueService,
     private readonly reconnectionHandler: ReconnectionHandlerService,
     private readonly providerManager: ProviderManager,
   ) {
@@ -99,7 +101,7 @@ export class EventListenerService {
 
     try {
       // We still need a regular HTTP provider for transaction lookups and other RPC calls
-      const httpProvider = this.providerManager.getProvider(blockchain);
+      // const httpProvider = this.providerManager.getProvider(blockchain); // REMOVED: No longer needed
 
       // Use WebSocketManager to create WebSocket contracts
       const webSocketContracts =
@@ -110,13 +112,11 @@ export class EventListenerService {
         blockchain,
         webSocketContracts.cacheManagerContract,
         eventTypes,
-        httpProvider,
       );
       await this.setupSingleEventListener(
         blockchain,
         webSocketContracts.cacheManagerAutomationContract,
         eventTypes,
-        httpProvider,
       );
 
       // Complete setup - moves from "setting up" to "active"
@@ -158,7 +158,6 @@ export class EventListenerService {
     blockchain: Blockchain,
     contract: ethers.Contract,
     eventTypes: string[],
-    provider: ethers.JsonRpcProvider,
   ) {
     // Remove any existing listeners to avoid duplicates
     await contract.removeAllListeners();
@@ -217,20 +216,33 @@ export class EventListenerService {
         // Mark this event as being processed
         this.listenerState.markEventProcessing(eventKey);
 
-        // Handle the async operations separately with proper error handling
-        void this.eventProcessor
-          .processEvent(blockchain, eventLog, provider, eventType)
-          .catch((err) => {
-            const error = err as Error;
-            this.logger.error(
-              `Failed to process ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${error.message}`,
-              error.stack,
-            );
-          })
-          .finally(() => {
-            // Remove the event from the processing set when done
-            this.listenerState.unmarkEventProcessing(eventKey);
-          });
+        // Use EventQueueService instead of direct processing
+        const queueItem: EventQueueItem = {
+          blockchain,
+          eventLog,
+          eventType,
+          blockNumber: eventLog.blockNumber,
+          logIndex: eventLog.index,
+          timestamp: new Date(),
+          receivedAt: new Date(),
+        };
+
+        // Handle event queuing - synchronous since enqueueEvent is void
+        try {
+          this.eventQueueService.enqueueEvent(blockchain, queueItem);
+          this.logger.debug(
+            `Successfully enqueued ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
+          );
+        } catch (err) {
+          const error = err as Error;
+          this.logger.error(
+            `Failed to enqueue ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${error.message}`,
+            error.stack,
+          );
+        } finally {
+          // Remove the event from the processing set when done
+          this.listenerState.unmarkEventProcessing(eventKey);
+        }
       } catch (error) {
         const err = error as Error;
         this.logger.error(
