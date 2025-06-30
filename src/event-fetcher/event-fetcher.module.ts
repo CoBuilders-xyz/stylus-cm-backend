@@ -7,6 +7,7 @@ import { BlockchainEvent } from '../blockchains/entities/blockchain-event.entity
 // Domain-based imports
 import {
   EventListenerService,
+  EventQueueService,
   WebSocketManagerService,
   ListenerStateService,
   ReconnectionHandlerService,
@@ -27,11 +28,13 @@ import { BlockchainsModule } from 'src/blockchains/blockchains.module';
   imports: [
     TypeOrmModule.forFeature([Blockchain, BlockchainEvent]),
     BlockchainsModule,
+    // Note: Event queues are created dynamically in EventQueueService since queue names depend on blockchain IDs
   ],
   providers: [
     EventFetcherService,
     // Listener Domain Services
     EventListenerService,
+    EventQueueService,
     WebSocketManagerService,
     ListenerStateService,
     ReconnectionHandlerService,
