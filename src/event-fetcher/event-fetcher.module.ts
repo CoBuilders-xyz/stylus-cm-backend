@@ -9,6 +9,8 @@ import { EventSyncService } from './services/event-sync.service';
 import { EventSchedulerService } from './services/event-scheduler.service';
 import { EventConfigService } from './services/event-config.service';
 import { WebSocketManagerService } from './services/websocket-manager.service';
+import { ListenerStateService } from './services/listener-state.service';
+import { EventProcessorService } from './services/event-processor.service';
 import { ProviderManager } from '../common/utils/provider.util';
 import { BlockchainsModule } from 'src/blockchains/blockchains.module';
 
@@ -25,6 +27,8 @@ import { BlockchainsModule } from 'src/blockchains/blockchains.module';
     EventSchedulerService,
     EventConfigService,
     WebSocketManagerService,
+    ListenerStateService,
+    EventProcessorService,
     ProviderManager,
   ],
   exports: [EventFetcherService],
