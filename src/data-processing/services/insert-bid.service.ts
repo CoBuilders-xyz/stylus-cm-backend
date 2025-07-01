@@ -10,6 +10,10 @@ import {
   calculateActualBid,
   updateTotalBidInvestment,
 } from '../utils/bid-utils';
+import { DataProcessingErrorHelpers } from '../data-processing.errors';
+import { EventDataGuards } from '../interfaces/event-data.interface';
+import { DEFAULT_VALUES } from '../constants/event-processing.constants';
+
 @Injectable()
 export class InsertBidService {
   private readonly logger = new Logger(InsertBidService.name);
@@ -32,121 +36,248 @@ export class InsertBidService {
    * @param contractBytecodeStates Map of contract bytecode states to update
    * @param decayRate Current decay rate to apply
    */
-  async processInsertBidEvent(blockchain: Blockchain, event: BlockchainEvent) {
+  async processInsertBidEvent(
+    blockchain: Blockchain,
+    event: BlockchainEvent,
+  ): Promise<void> {
     this.logger.debug(
       `Processing InsertBid event for blockchain ${blockchain.name}`,
     );
 
-    const eventDataArray = event.eventData as unknown[];
+    try {
+      const eventDataArray = event.eventData as unknown[];
 
-    if (!Array.isArray(eventDataArray) || eventDataArray.length < 4) {
-      this.logger.warn(
-        `InsertBid event data is not in the expected format: ${JSON.stringify(event.eventData)}`,
+      // Validate event data using type guards
+      if (!EventDataGuards.isInsertBidEventData(eventDataArray)) {
+        this.logger.warn(
+          `InsertBid event data is not in the expected format: ${JSON.stringify(event.eventData)}`,
+        );
+        DataProcessingErrorHelpers.throwInvalidEventData(
+          event.id,
+          'InsertBid',
+          event.eventData,
+        );
+        return;
+      }
+
+      const [bytecodeHash, address, bidValue, size] = eventDataArray;
+      const bidBlockNumber = event.blockNumber;
+      const bidBlockTimestamp = event.blockTimestamp;
+
+      // Get the applicable decay rate
+      const applicableDecayRate = await this.getApplicableDecayRate(
+        blockchain,
+        event,
       );
-      return;
+
+      // Calculate actual bid with decay
+      const actualBid = calculateActualBid(
+        bidValue,
+        applicableDecayRate,
+        event.blockTimestamp,
+      );
+
+      this.logger.debug(
+        `Processing InsertBid for bytecode ${bytecodeHash} at address ${address} with bid ${bidValue} and size ${size}`,
+      );
+
+      // Process bytecode
+      await this.processBytecode(
+        blockchain,
+        bytecodeHash,
+        size,
+        actualBid,
+        bidValue,
+        bidBlockNumber,
+        bidBlockTimestamp,
+      );
+
+      // Process contract
+      await this.processContract(
+        blockchain,
+        address,
+        bytecodeHash,
+        actualBid,
+        bidValue,
+        bidBlockNumber,
+        bidBlockTimestamp,
+      );
+
+      this.logger.log(
+        `Successfully processed InsertBid event for bytecode ${bytecodeHash}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error processing InsertBid event: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwEventProcessingFailed(
+        event.id,
+        'InsertBid',
+      );
     }
+  }
 
-    const bytecodeHash = String(eventDataArray[0]);
-    const address = String(eventDataArray[1]);
-    const bidValue = String(eventDataArray[2]);
-    const size = String(eventDataArray[3]);
-    const bidBlockNumber = event.blockNumber;
-    const bidBlockTimestamp = event.blockTimestamp;
-
-    const blockchainState = await this.blockchainStateRepository.findOne({
-      where: { blockchain: { id: blockchain.id } },
-      order: { blockNumber: 'DESC' },
-    });
-    const lastBidDecayRate = blockchainState?.decayRate ?? '0';
-    // find decay rate events until event.blockNumber
-    const mostRecentDecayRateEvent =
-      await this.blockchainEventRepository.findOne({
-        where: {
-          blockchain: { id: blockchain.id },
-          blockNumber: LessThanOrEqual(event.blockNumber),
-          eventName: 'SetDecayRate',
-        },
+  /**
+   * Get the applicable decay rate for the event
+   */
+  private async getApplicableDecayRate(
+    blockchain: Blockchain,
+    event: BlockchainEvent,
+  ): Promise<string> {
+    try {
+      // Get the last blockchain state
+      const blockchainState = await this.blockchainStateRepository.findOne({
+        where: { blockchain: { id: blockchain.id } },
         order: { blockNumber: 'DESC' },
       });
-    // Find the applicable decay rate for this event
-    const applicableDecayRate = mostRecentDecayRateEvent
-      ? mostRecentDecayRateEvent.eventData[0]
-      : lastBidDecayRate;
+      const lastBidDecayRate =
+        blockchainState?.decayRate ?? DEFAULT_VALUES.DECAY_RATE;
 
-    const actualBid = calculateActualBid(
-      bidValue,
-      applicableDecayRate,
-      event.blockTimestamp,
-    );
-    this.logger.debug(
-      `Processing InsertBid for bytecode ${bytecodeHash} at address ${address} with bid ${bidValue} and size ${size}`,
-    );
+      // Find decay rate events until event.blockNumber
+      const mostRecentDecayRateEvent =
+        await this.blockchainEventRepository.findOne({
+          where: {
+            blockchain: { id: blockchain.id },
+            blockNumber: LessThanOrEqual(event.blockNumber),
+            eventName: 'SetDecayRate',
+          },
+          order: { blockNumber: 'DESC' },
+        });
 
-    // If no codehash in bytecode db, create new entry
-    const existingBytecode = await this.bytecodeRepository.findOne({
-      where: { blockchain: { id: blockchain.id }, bytecodeHash },
-    });
-
-    let bytecode = new Bytecode();
-    if (!existingBytecode) {
-      this.logger.debug(
-        `No bytecode found for ${bytecodeHash}, creating new entry`,
+      // Return the applicable decay rate
+      return mostRecentDecayRateEvent
+        ? String(mostRecentDecayRateEvent.eventData[0])
+        : lastBidDecayRate;
+    } catch (error) {
+      this.logger.error(
+        `Error getting applicable decay rate: ${error}`,
+        error instanceof Error ? error.stack : undefined,
       );
-      bytecode.blockchain = blockchain;
-      bytecode.bytecodeHash = bytecodeHash;
-      bytecode.size = size;
-      bytecode.lastBid = actualBid;
-      bytecode.bidPlusDecay = bidValue;
-      bytecode.totalBidInvestment = actualBid;
-      bytecode.isCached = true;
-      bytecode.bidBlockNumber = bidBlockNumber;
-      bytecode.bidBlockTimestamp = bidBlockTimestamp;
-    } else {
-      this.logger.debug(`Bytecode found for ${bytecodeHash}, updating entry`);
-      bytecode = existingBytecode;
-      bytecode.lastBid = actualBid;
-      bytecode.bidPlusDecay = bidValue;
-      bytecode.totalBidInvestment = updateTotalBidInvestment(
-        existingBytecode.totalBidInvestment,
-        actualBid,
-      );
-      bytecode.isCached = true;
-      bytecode.bidBlockNumber = bidBlockNumber;
-      bytecode.bidBlockTimestamp = bidBlockTimestamp;
+      return DEFAULT_VALUES.DECAY_RATE;
     }
-    await this.bytecodeRepository.save(bytecode);
+  }
 
-    // If no address in contract db, create new entry
-    const existingContract = await this.contractRepository.findOne({
-      where: { blockchain: { id: blockchain.id }, address },
-    });
+  /**
+   * Process bytecode entity
+   */
+  private async processBytecode(
+    blockchain: Blockchain,
+    bytecodeHash: string,
+    size: string,
+    actualBid: string,
+    bidValue: string,
+    bidBlockNumber: number,
+    bidBlockTimestamp: Date,
+  ): Promise<void> {
+    try {
+      // Find existing bytecode
+      const existingBytecode = await this.bytecodeRepository.findOne({
+        where: { blockchain: { id: blockchain.id }, bytecodeHash },
+      });
 
-    let contract = new Contract();
-    if (!existingContract) {
-      this.logger.debug(`No contract found for ${address}, creating new entry`);
-      contract.blockchain = blockchain;
-      contract.address = address;
-      contract.bytecode = bytecode;
-      contract.lastBid = actualBid;
-      contract.bidPlusDecay = bidValue;
-      contract.totalBidInvestment = actualBid;
-      contract.bidBlockNumber = bidBlockNumber;
-      contract.bidBlockTimestamp = bidBlockTimestamp;
-    } else {
-      this.logger.debug(`Contract found for ${address}, updating entry`);
-      contract = existingContract;
-      contract.lastBid = actualBid;
-      contract.bidPlusDecay = bidValue;
-      contract.totalBidInvestment = updateTotalBidInvestment(
-        existingContract.totalBidInvestment,
-        actualBid,
+      let bytecode = new Bytecode();
+      if (!existingBytecode) {
+        this.logger.debug(
+          `No bytecode found for ${bytecodeHash}, creating new entry`,
+        );
+        bytecode.blockchain = blockchain;
+        bytecode.bytecodeHash = bytecodeHash;
+        bytecode.size = size;
+        bytecode.lastBid = actualBid;
+        bytecode.bidPlusDecay = bidValue;
+        bytecode.totalBidInvestment = actualBid;
+        bytecode.isCached = true;
+        bytecode.bidBlockNumber = bidBlockNumber;
+        bytecode.bidBlockTimestamp = bidBlockTimestamp;
+      } else {
+        this.logger.debug(`Bytecode found for ${bytecodeHash}, updating entry`);
+        bytecode = existingBytecode;
+        bytecode.lastBid = actualBid;
+        bytecode.bidPlusDecay = bidValue;
+        bytecode.totalBidInvestment = updateTotalBidInvestment(
+          existingBytecode.totalBidInvestment,
+          actualBid,
+        );
+        bytecode.isCached = true;
+        bytecode.bidBlockNumber = bidBlockNumber;
+        bytecode.bidBlockTimestamp = bidBlockTimestamp;
+      }
+
+      await this.bytecodeRepository.save(bytecode);
+    } catch (error) {
+      this.logger.error(
+        `Error processing bytecode: ${error}`,
+        error instanceof Error ? error.stack : undefined,
       );
-      contract.bidBlockNumber = bidBlockNumber;
-      contract.bidBlockTimestamp = bidBlockTimestamp;
+      DataProcessingErrorHelpers.throwDatabaseOperationFailed('bytecode save');
     }
+  }
 
-    await this.contractRepository.save(contract);
+  /**
+   * Process contract entity
+   */
+  private async processContract(
+    blockchain: Blockchain,
+    address: string,
+    bytecodeHash: string,
+    actualBid: string,
+    bidValue: string,
+    bidBlockNumber: number,
+    bidBlockTimestamp: Date,
+  ): Promise<void> {
+    try {
+      // Find existing contract
+      const existingContract = await this.contractRepository.findOne({
+        where: { blockchain: { id: blockchain.id }, address },
+      });
 
-    // If address in contract db, update bid, bidPlusDecay, size, totalBidInvestment, cacheStatus
+      // Get the bytecode reference
+      const bytecode = await this.bytecodeRepository.findOne({
+        where: { blockchain: { id: blockchain.id }, bytecodeHash },
+      });
+
+      if (!bytecode) {
+        this.logger.error(`Bytecode not found for contract ${address}`);
+        DataProcessingErrorHelpers.throwDatabaseOperationFailed(
+          'bytecode lookup for contract',
+        );
+        return;
+      }
+
+      let contract = new Contract();
+      if (!existingContract) {
+        this.logger.debug(
+          `No contract found for ${address}, creating new entry`,
+        );
+        contract.blockchain = blockchain;
+        contract.address = address;
+        contract.bytecode = bytecode;
+        contract.lastBid = actualBid;
+        contract.bidPlusDecay = bidValue;
+        contract.totalBidInvestment = actualBid;
+        contract.bidBlockNumber = bidBlockNumber;
+        contract.bidBlockTimestamp = bidBlockTimestamp;
+      } else {
+        this.logger.debug(`Contract found for ${address}, updating entry`);
+        contract = existingContract;
+        contract.lastBid = actualBid;
+        contract.bidPlusDecay = bidValue;
+        contract.totalBidInvestment = updateTotalBidInvestment(
+          existingContract.totalBidInvestment,
+          actualBid,
+        );
+        contract.bidBlockNumber = bidBlockNumber;
+        contract.bidBlockTimestamp = bidBlockTimestamp;
+      }
+
+      await this.contractRepository.save(contract);
+    } catch (error) {
+      this.logger.error(
+        `Error processing contract: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwDatabaseOperationFailed('contract save');
+    }
   }
 }
