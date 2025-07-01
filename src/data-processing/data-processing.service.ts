@@ -14,22 +14,6 @@ export class DataProcessingService implements OnModuleInit {
   constructor(private readonly eventProcessorService: EventProcessorService) {}
 
   /**
-   * Initializes the data processing service on module initialization.
-   * Waits a brief period to ensure database connections are established
-   * before starting the initial event processing.
-   */
-  onModuleInit() {
-    this.logger.log('Initializing blockchain event processor...');
-    // TODO: Make a check instead of timeout
-
-    this.processAllEvents().catch((err: Error) =>
-      this.logger.error(
-        `Failed during initial event processing: ${err.message}`,
-      ),
-    );
-  }
-
-  /**
    * Event handler for new blockchain events
    * This is triggered whenever a new event is stored in the database
    */
@@ -49,6 +33,22 @@ export class DataProcessingService implements OnModuleInit {
       `Received notification of new blockchain event: ${payload.eventId}`,
     );
     await this.processNewEvent(payload.blockchainId, payload.eventId);
+  }
+
+  /**
+   * Initializes the data processing service on module initialization.
+   * Waits a brief period to ensure database connections are established
+   * before starting the initial event processing.
+   */
+  onModuleInit() {
+    this.logger.log('Initializing blockchain event processor...');
+    // TODO: Make a check instead of timeout
+
+    this.processAllEvents().catch((err: Error) =>
+      this.logger.error(
+        `Failed during initial event processing: ${err.message}`,
+      ),
+    );
   }
 
   /**
