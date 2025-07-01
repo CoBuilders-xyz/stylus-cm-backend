@@ -32,6 +32,7 @@ export class EventProcessorService {
     eventLog: EthersEvent,
     provider: ethers.JsonRpcProvider,
     eventType: string,
+    eventData?: Record<string, any>,
   ): Promise<void> {
     try {
       // Check for duplicates first
@@ -43,7 +44,13 @@ export class EventProcessorService {
       }
 
       // Process and store the event
-      await this.storeEvent(blockchain, eventLog, provider, eventType);
+      await this.storeEvent(
+        blockchain,
+        eventLog,
+        provider,
+        eventType,
+        eventData,
+      );
 
       // Update blockchain sync status
       await this.updateSyncStatus(blockchain, eventLog.blockNumber);
@@ -143,18 +150,20 @@ export class EventProcessorService {
     eventLog: EthersEvent,
     provider: ethers.JsonRpcProvider,
     eventType: string,
+    eventData?: Record<string, any>,
   ): Promise<void> {
     try {
       // Prepare and store the event
-      const eventData = await this.eventStorageService.prepareEvents(
+      const eventDataArray = await this.eventStorageService.prepareEvents(
         blockchain,
         [eventLog],
         provider,
         true, // isRealTime
         eventType,
+        eventData,
       );
 
-      await this.eventStorageService.storeEvents(eventData);
+      await this.eventStorageService.storeEvents(eventDataArray);
     } catch (error) {
       const err = error as Error;
       this.logger.error(

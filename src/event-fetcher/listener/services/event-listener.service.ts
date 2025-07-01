@@ -13,6 +13,7 @@ import {
 import { EthersEvent } from '../../shared';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
+import { serializeEventArgs, hasArgs } from '../../utils/event-parser.util';
 
 @Injectable()
 export class EventListenerService {
@@ -221,6 +222,7 @@ export class EventListenerService {
           blockchain,
           eventLog,
           eventType,
+          eventData: this.extractEventData(event),
           blockNumber: eventLog.blockNumber,
           logIndex: eventLog.index,
           timestamp: new Date(),
@@ -294,6 +296,20 @@ export class EventListenerService {
     }
 
     return null;
+  }
+
+  /**
+   * Extracts the event data from an event object before Redis serialization
+   */
+  private extractEventData(eventObj: unknown): Record<string, any> {
+    try {
+      // Cast to EthersEvent for the hasArgs function
+      const ethersEvent = eventObj as EthersEvent;
+      return hasArgs(ethersEvent) ? serializeEventArgs(ethersEvent.args) : {};
+    } catch (error) {
+      this.logger.warn(`Failed to extract event data: ${error}`);
+      return {};
+    }
   }
 
   /**

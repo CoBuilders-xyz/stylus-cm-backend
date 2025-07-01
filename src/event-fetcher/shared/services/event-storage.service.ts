@@ -76,6 +76,7 @@ export class EventStorageService {
     provider: ethers.JsonRpcProvider,
     isRealTime: boolean = false,
     eventType?: string,
+    eventData?: Record<string, any>,
   ): Promise<BlockchainEventData[]> {
     if (events.length === 0) return [];
 
@@ -130,6 +131,16 @@ export class EventStorageService {
           }
         }
 
+        // Use provided eventData if available, otherwise try to extract from args
+        let finalEventData: Record<string, any> = {};
+        if (eventData) {
+          // Use the explicitly provided eventData (from queue)
+          finalEventData = eventData;
+        } else {
+          // Fallback to args extraction (for historical sync)
+          finalEventData = hasArgs(event) ? serializeEventArgs(event.args) : {};
+        }
+
         return {
           blockchain: blockchain,
           contractName: contractName,
@@ -141,7 +152,7 @@ export class EventStorageService {
           logIndex: logIndex,
           isRealTime: isRealTime,
           originAddress: originAddress,
-          eventData: hasArgs(event) ? serializeEventArgs(event.args) : {},
+          eventData: finalEventData,
         };
       }),
     );
