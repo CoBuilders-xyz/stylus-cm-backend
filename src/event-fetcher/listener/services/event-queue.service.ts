@@ -14,6 +14,7 @@ export interface EventQueueItem {
   eventLog: EthersEvent;
   // provider: ethers.JsonRpcProvider; // REMOVED: Can't serialize provider to Redis
   eventType: string;
+  eventData: Record<string, any>; // Store event arguments before Redis serialization
   blockNumber: number;
   logIndex: number;
   timestamp: Date;
@@ -201,6 +202,7 @@ export class EventQueueService implements OnModuleDestroy {
       item.eventLog,
       provider,
       item.eventType,
+      item.eventData,
     );
   }
 
