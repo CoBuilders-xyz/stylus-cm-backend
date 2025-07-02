@@ -7,8 +7,8 @@ export const EVENT_DATA_SCHEMAS = {
     fields: ['bytecodeHash', 'address', 'bidValue', 'size'],
   },
   DeleteBid: {
-    requiredFields: 1,
-    fields: ['bytecodeHash'],
+    requiredFields: 3,
+    fields: ['bytecodeHash', 'bidValue', 'size'],
   },
   ContractAdded: {
     requiredFields: 2,

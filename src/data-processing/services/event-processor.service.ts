@@ -263,7 +263,6 @@ export class EventProcessorService {
         this.logger.warn(
           `No event processor defined for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
         );
-        DataProcessingErrorHelpers.throwInvalidEventType();
       }
     } catch (error) {
       this.logger.error(

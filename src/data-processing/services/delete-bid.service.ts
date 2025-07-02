@@ -48,9 +48,11 @@ export class DeleteBidService {
         return;
       }
 
-      const [bytecodeHash] = eventDataArray;
+      const [bytecodeHash, bidValue, size] = eventDataArray;
 
-      this.logger.debug(`Processing DeleteBid for bytecode ${bytecodeHash}`);
+      this.logger.debug(
+        `Processing DeleteBid for bytecode ${bytecodeHash} with bid ${bidValue} and size ${size}`,
+      );
 
       // Find existing bytecode
       const existingBytecode = await this.bytecodeRepository.findOne({
@@ -71,7 +73,11 @@ export class DeleteBidService {
       }
 
       // Update bytecode state for deletion
-      await this.updateBytecodeForDeletion(existingBytecode, bytecodeHash);
+      await this.updateBytecodeForDeletion(
+        existingBytecode,
+        bytecodeHash,
+        bidValue,
+      );
 
       this.logger.log(
         `Successfully processed DeleteBid event for bytecode ${bytecodeHash}`,
@@ -94,15 +100,18 @@ export class DeleteBidService {
   private async updateBytecodeForDeletion(
     bytecode: Bytecode,
     bytecodeHash: string,
+    bidValue: string,
   ): Promise<void> {
     try {
       // Update bytecode state for deletion
       bytecode.isCached = false;
-      // Note: We don't set lastEvictionBid here as it's not provided in the event data
-      // The bid value from the event data is not used in the current implementation
+      // Set the last eviction bid from the event data
+      bytecode.lastEvictionBid = bidValue;
 
       await this.bytecodeRepository.save(bytecode);
-      this.logger.debug(`Updated bytecode ${bytecodeHash} for deletion`);
+      this.logger.debug(
+        `Updated bytecode ${bytecodeHash} for deletion with eviction bid ${bidValue}`,
+      );
     } catch (error) {
       this.logger.error(
         `Error updating bytecode for deletion: ${error}`,
