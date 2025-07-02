@@ -1,13 +1,18 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Blockchain } from '../entities/blockchain.entity';
 import { BlockchainsErrorHelpers } from '../blockchains.errors';
+import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants';
 
 @Injectable()
 export class BlockchainInitializerService implements OnModuleInit {
-  private readonly logger = new Logger(BlockchainInitializerService.name);
+  private readonly logger = createModuleLogger(
+    BlockchainInitializerService,
+    MODULE_NAME,
+  );
 
   constructor(
     @InjectRepository(Blockchain)
@@ -20,7 +25,7 @@ export class BlockchainInitializerService implements OnModuleInit {
    */
   async onModuleInit(): Promise<void> {
     try {
-      this.logger.log('Initializing blockchain configurations');
+      this.logger.log('Starting blockchain module initialization...');
 
       const blockchainsConfig = this.configService.get(
         'blockchains',
@@ -28,20 +33,46 @@ export class BlockchainInitializerService implements OnModuleInit {
 
       if (!blockchainsConfig || !Array.isArray(blockchainsConfig)) {
         this.logger.warn(
-          'No blockchain configurations found or invalid format',
+          'No blockchain configurations found or invalid format - skipping initialization',
         );
         return;
       }
 
+      this.logger.debug(
+        `Found ${blockchainsConfig.length} blockchain configurations to process`,
+      );
+
+      let insertedCount = 0;
+      let updatedCount = 0;
+      let errorCount = 0;
+
       for (const blockchain of blockchainsConfig) {
-        await this.upsertBlockchain(blockchain);
+        try {
+          const result = await this.upsertBlockchain(blockchain);
+          if (result === 'inserted') {
+            insertedCount++;
+          } else {
+            updatedCount++;
+          }
+        } catch (error) {
+          errorCount++;
+          const err = error as Error;
+          this.logger.error(
+            `Failed to upsert blockchain ${blockchain.name}: ${err.message}`,
+            err.stack,
+          );
+        }
       }
 
       this.logger.log(
-        `Successfully initialized ${blockchainsConfig.length} blockchain configurations`,
+        `Blockchain initialization completed - Processed: ${blockchainsConfig.length}, Inserted: ${insertedCount}, Updated: ${updatedCount}, Errors: ${errorCount}`,
       );
     } catch (error) {
-      this.logger.error('Error during blockchain initialization', error);
+      const err = error as Error;
+      this.logger.error(
+        `Critical error during blockchain initialization: ${err.message}`,
+        err.stack,
+      );
       BlockchainsErrorHelpers.throwConfigurationError(
         'Failed to initialize blockchain configurations',
       );
@@ -50,8 +81,15 @@ export class BlockchainInitializerService implements OnModuleInit {
 
   /**
    * Insert or update blockchain configuration
+   * @returns 'inserted' | 'updated' to indicate the operation performed
    */
-  private async upsertBlockchain(blockchain: Blockchain): Promise<void> {
+  private async upsertBlockchain(
+    blockchain: Blockchain,
+  ): Promise<'inserted' | 'updated'> {
+    this.logger.debug(
+      `Processing blockchain: ${blockchain.name} (chainId: ${blockchain.chainId})`,
+    );
+
     try {
       const existingBlockchain = await this.blockchainRepository.findOne({
         where: { chainId: blockchain.chainId },
@@ -60,12 +98,17 @@ export class BlockchainInitializerService implements OnModuleInit {
       if (!existingBlockchain) {
         await this.blockchainRepository.insert(blockchain);
         this.logger.log(
-          `Inserted new blockchain configuration: ${blockchain.name} (chainId: ${blockchain.chainId})`,
+          `Inserted new blockchain: ${blockchain.name} (chainId: ${blockchain.chainId}, enabled: ${blockchain.enabled})`,
         );
+        this.logger.debug(
+          `New blockchain details - RPC: ${blockchain.rpcUrl}, WSS: ${blockchain.rpcWssUrl || 'N/A'}, Contract: ${blockchain.cacheManagerAutomationAddress || 'N/A'}`,
+        );
+        return 'inserted';
       } else {
         await this.blockchainRepository.update(
           { chainId: blockchain.chainId },
           {
+            name: blockchain.name,
             rpcUrl: blockchain.rpcUrl,
             rpcWssUrl: blockchain.rpcWssUrl,
             fastSyncRpcUrl: blockchain.fastSyncRpcUrl,
@@ -75,11 +118,19 @@ export class BlockchainInitializerService implements OnModuleInit {
           },
         );
         this.logger.log(
-          `Updated blockchain configuration: ${blockchain.name} (chainId: ${blockchain.chainId})`,
+          `Updated existing blockchain: ${blockchain.name} (chainId: ${blockchain.chainId}, enabled: ${blockchain.enabled})`,
         );
+        this.logger.debug(
+          `Updated blockchain details - RPC: ${blockchain.rpcUrl}, WSS: ${blockchain.rpcWssUrl || 'N/A'}, Contract: ${blockchain.cacheManagerAutomationAddress || 'N/A'}`,
+        );
+        return 'updated';
       }
     } catch (error) {
-      this.logger.error(`Error upserting blockchain ${blockchain.name}`, error);
+      const err = error as Error;
+      this.logger.error(
+        `Failed to upsert blockchain ${blockchain.name} (chainId: ${blockchain.chainId}): ${err.message}`,
+        err.stack,
+      );
       throw error;
     }
   }

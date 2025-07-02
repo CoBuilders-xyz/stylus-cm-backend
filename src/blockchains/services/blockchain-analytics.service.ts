@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BlockchainEvent } from '../entities/blockchain-event.entity';
@@ -11,45 +11,28 @@ import {
   getBackTraceTimestamp,
   TREND_PERIODS,
   UNIT_CONVERSIONS,
+  MODULE_NAME,
 } from '../constants';
 import { BidTrendsDto, BidAverageDto } from '../dto';
 import {
   BidTrendsResponse,
   AverageBidResponse,
   NetBytecodesTrendsResponse,
+  BidPlacementQueryResult,
+  NetBytecodeQueryResult,
+  AverageBidQueryResult,
+  PeriodData,
 } from '../interfaces';
 import { calculateActualBid } from '../../data-processing/utils/bid-utils';
+import { createModuleLogger } from '../../common/utils/logger.util';
 import { ethers } from 'ethers';
-
-// Type definitions for query results
-interface BidPlacementQueryResult {
-  period: string;
-  count: string;
-}
-
-interface NetBytecodeQueryResult {
-  period: string;
-  eventName: string;
-  count: string;
-}
-
-interface AverageBidQueryResult {
-  id: string;
-  blockNumber: number;
-  blockTimestamp: string;
-  eventData: any[];
-  period: string;
-  logIndex?: number;
-}
-
-interface PeriodData {
-  insertCount: number;
-  deleteCount: number;
-}
 
 @Injectable()
 export class BlockchainAnalyticsService {
-  private readonly logger = new Logger(BlockchainAnalyticsService.name);
+  private readonly logger = createModuleLogger(
+    BlockchainAnalyticsService,
+    MODULE_NAME,
+  );
 
   constructor(
     @InjectRepository(BlockchainEvent)
@@ -66,7 +49,7 @@ export class BlockchainAnalyticsService {
    */
   async getBidPlacementTrends(dto: BidTrendsDto): Promise<BidTrendsResponse> {
     try {
-      this.logger.log(
+      this.logger.debug(
         `Getting bid placement trends for blockchain: ${dto.blockchainId}, timespan: ${dto.timespan}`,
       );
 
@@ -80,6 +63,10 @@ export class BlockchainAnalyticsService {
         TREND_PERIODS.DEFAULT,
       );
       const dateFormat = getDateFormat(dto.timespan);
+
+      this.logger.debug(
+        `Querying InsertBid events from ${backTraceTimestamp.toISOString()} with format ${dateFormat} for blockchain ${dto.blockchainId}`,
+      );
 
       const queryBuilder = this.blockchainEventRepository
         .createQueryBuilder('event')
@@ -101,27 +88,39 @@ export class BlockchainAnalyticsService {
         .orderBy('period', 'ASC')
         .getRawMany<BidPlacementQueryResult>();
 
+      this.logger.debug(
+        `Retrieved ${result.length} periods of bid placement data for blockchain ${dto.blockchainId}`,
+      );
+
+      const totalCount = result.reduce(
+        (acc, item) => acc + parseInt(item.count, 10),
+        0,
+      );
+
       const response: BidTrendsResponse = {
         periods: result.map((item) => ({
           period: item.period,
           count: parseInt(item.count, 10),
         })),
         global: {
-          count: result.reduce(
-            (acc, item) => acc + parseInt(item.count, 10),
-            0,
-          ),
+          count: totalCount,
         },
       };
 
       this.logger.log(
-        `Bid placement trends calculated for blockchain: ${dto.blockchainId}`,
+        `Bid placement trends calculated for blockchain ${dto.blockchainId} (${dto.timespan}): ${totalCount} total bids across ${result.length} periods`,
       );
+      this.logger.debug(
+        `Period breakdown for blockchain ${dto.blockchainId}:`,
+        response.periods,
+      );
+
       return response;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Error getting bid placement trends for blockchain: ${dto.blockchainId}`,
-        error,
+        `Failed to get bid placement trends for blockchain ${dto.blockchainId} (${dto.timespan}): ${err.message}`,
+        err.stack,
       );
       throw error;
     }
@@ -134,7 +133,7 @@ export class BlockchainAnalyticsService {
     dto: BidTrendsDto,
   ): Promise<NetBytecodesTrendsResponse[]> {
     try {
-      this.logger.log(
+      this.logger.debug(
         `Getting net bytecodes trends for blockchain: ${dto.blockchainId}, timespan: ${dto.timespan}`,
       );
 
@@ -148,6 +147,10 @@ export class BlockchainAnalyticsService {
         TREND_PERIODS.BYTECODE_TRENDS,
       );
       const dateFormat = getDateFormat(dto.timespan);
+
+      this.logger.debug(
+        `Querying InsertBid and DeleteBid events from ${backTraceTimestamp.toISOString()} for blockchain ${dto.blockchainId}`,
+      );
 
       const queryBuilder = this.blockchainEventRepository
         .createQueryBuilder('event')
@@ -175,9 +178,17 @@ export class BlockchainAnalyticsService {
         .orderBy('period', 'ASC')
         .getRawMany<NetBytecodeQueryResult>();
 
+      this.logger.debug(
+        `Retrieved ${events.length} event type/period combinations for net bytecode trends for blockchain ${dto.blockchainId}`,
+      );
+
       // Process the results to calculate net changes per period
       const periodMap = new Map<string, PeriodData>();
       const uniquePeriods = [...new Set(events.map((e) => e.period))].sort();
+
+      this.logger.debug(
+        `Processing ${uniquePeriods.length} unique periods for blockchain ${dto.blockchainId}: [${uniquePeriods.join(', ')}]`,
+      );
 
       uniquePeriods.forEach((period) => {
         periodMap.set(period, { insertCount: 0, deleteCount: 0 });
@@ -216,13 +227,21 @@ export class BlockchainAnalyticsService {
       });
 
       this.logger.log(
-        `Net bytecodes trends calculated for blockchain: ${dto.blockchainId}`,
+        `Net bytecodes trends calculated for blockchain ${dto.blockchainId} (${dto.timespan}): ${results.length} periods, final total: ${runningTotal}`,
       );
+      this.logger.debug(
+        `Net changes summary for blockchain ${dto.blockchainId}:`,
+        results.map(
+          (r) => `${r.period}: ${r.netChange > 0 ? '+' : ''}${r.netChange}`,
+        ),
+      );
+
       return results;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Error getting net bytecodes trends for blockchain: ${dto.blockchainId}`,
-        error,
+        `Failed to get net bytecodes trends for blockchain ${dto.blockchainId} (${dto.timespan}): ${err.message}`,
+        err.stack,
       );
       throw error;
     }
@@ -233,8 +252,8 @@ export class BlockchainAnalyticsService {
    */
   async getAverageBid(dto: BidAverageDto): Promise<AverageBidResponse> {
     try {
-      this.logger.log(
-        `Getting average bid for blockchain: ${dto.blockchainId}, timespan: ${dto.timespan}`,
+      this.logger.debug(
+        `Getting average bid for blockchain: ${dto.blockchainId}, timespan: ${dto.timespan}${dto.minSize || dto.maxSize ? `, size filter: ${dto.minSize || 0}-${dto.maxSize || '∞'}KB` : ''}`,
       );
 
       // Validate blockchain exists
@@ -257,12 +276,21 @@ export class BlockchainAnalyticsService {
           'CAST(event."eventData"->>3 AS DECIMAL) >= :minSize AND CAST(event."eventData"->>3 AS DECIMAL) <= :maxSize';
         sizeParams.minSize = dto.minSize * UNIT_CONVERSIONS.KB_TO_BYTES;
         sizeParams.maxSize = dto.maxSize * UNIT_CONVERSIONS.KB_TO_BYTES;
+        this.logger.debug(
+          `Size filter applied for blockchain ${dto.blockchainId}: ${dto.minSize}KB - ${dto.maxSize}KB (${sizeParams.minSize} - ${sizeParams.maxSize} bytes)`,
+        );
       } else if (dto.maxSize) {
         sizeCondition = 'CAST(event."eventData"->>3 AS DECIMAL) <= :maxSize';
         sizeParams.maxSize = dto.maxSize * UNIT_CONVERSIONS.KB_TO_BYTES;
+        this.logger.debug(
+          `Max size filter applied for blockchain ${dto.blockchainId}: ≤${dto.maxSize}KB (≤${sizeParams.maxSize} bytes)`,
+        );
       } else if (dto.minSize) {
         sizeCondition = 'CAST(event."eventData"->>3 AS DECIMAL) >= :minSize';
         sizeParams.minSize = dto.minSize * UNIT_CONVERSIONS.KB_TO_BYTES;
+        this.logger.debug(
+          `Min size filter applied for blockchain ${dto.blockchainId}: ≥${dto.minSize}KB (≥${sizeParams.minSize} bytes)`,
+        );
       }
 
       // Get latest blockchain state for fallback decay rate
@@ -273,6 +301,9 @@ export class BlockchainAnalyticsService {
         });
 
       const defaultDecayRate = latestBlockchainState?.decayRate ?? '0';
+      this.logger.debug(
+        `Using default decay rate for blockchain ${dto.blockchainId}: ${defaultDecayRate}`,
+      );
 
       // Fetch decay rate events
       const decayRateEvents = await this.blockchainEventRepository.find({
@@ -285,6 +316,10 @@ export class BlockchainAnalyticsService {
           logIndex: 'ASC',
         },
       });
+
+      this.logger.debug(
+        `Found ${decayRateEvents.length} decay rate change events for blockchain ${dto.blockchainId}`,
+      );
 
       // Build query for InsertBid events
       let eventsQueryBuilder = this.blockchainEventRepository
@@ -316,6 +351,10 @@ export class BlockchainAnalyticsService {
 
       const insertBidEvents =
         await eventsQueryBuilder.getRawMany<AverageBidQueryResult>();
+
+      this.logger.debug(
+        `Retrieved ${insertBidEvents.length} InsertBid events for average calculation for blockchain ${dto.blockchainId}`,
+      );
 
       // Process events to calculate averages
       const periodBids = new Map<string, { sum: bigint; count: number }>();
@@ -361,6 +400,10 @@ export class BlockchainAnalyticsService {
         globalCount += 1;
       }
 
+      this.logger.debug(
+        `Processed ${globalCount} bids across ${periodBids.size} periods for blockchain ${dto.blockchainId}`,
+      );
+
       // Calculate averages for each period
       const periodResults = Array.from(periodBids.entries())
         .map(([period, data]) => {
@@ -393,13 +436,21 @@ export class BlockchainAnalyticsService {
       };
 
       this.logger.log(
-        `Average bid calculated for blockchain: ${dto.blockchainId}`,
+        `Average bid calculated for blockchain ${dto.blockchainId} (${dto.timespan}): ${response.global.parsedAverageBid} ETH (${globalCount} bids across ${periodResults.length} periods)`,
       );
+      this.logger.debug(
+        `Period averages for blockchain ${dto.blockchainId}:`,
+        periodResults.map(
+          (p) => `${p.period}: ${p.parsedAverageBid} ETH (${p.count} bids)`,
+        ),
+      );
+
       return response;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Error getting average bid for blockchain: ${dto.blockchainId}`,
-        error,
+        `Failed to get average bid for blockchain ${dto.blockchainId} (${dto.timespan}): ${err.message}`,
+        err.stack,
       );
       throw error;
     }

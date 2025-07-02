@@ -10,3 +10,5 @@ export {
   getDateFormat,
   getBackTraceTimestamp,
 } from './blockchain.constants';
+
+export { MODULE_NAME } from './module.constants';
