@@ -20,6 +20,17 @@ import { InjectQueue } from '@nestjs/bullmq';
 @Injectable()
 export class AlertMonitoringService implements OnModuleInit {
   private readonly logger = new Logger(AlertMonitoringService.name);
+  private processEvent: Record<
+    string,
+    (event: BlockchainEvent) => void | Promise<void>
+  > = {
+    DeleteBid: (event: BlockchainEvent) => this.processDeleteBidEvent(event),
+    Default: (event: BlockchainEvent) => {
+      this.logger.debug(
+        `No event alert processor found for event ${event.eventName}, skipping`,
+      );
+    },
+  };
 
   constructor(
     @InjectRepository(Alert)
@@ -32,11 +43,6 @@ export class AlertMonitoringService implements OnModuleInit {
     private contractBidCalculatorService: ContractBidCalculatorService,
     @InjectQueue('alerts') private alertsQueue: Queue,
   ) {}
-
-  async onModuleInit(): Promise<void> {
-    this.logger.log('Alert monitoring system initialized.');
-    await Promise.resolve();
-  }
 
   /**
    * Event handler for blockchain events
@@ -83,17 +89,10 @@ export class AlertMonitoringService implements OnModuleInit {
     }
   }
 
-  private processEvent: Record<
-    string,
-    (event: BlockchainEvent) => void | Promise<void>
-  > = {
-    DeleteBid: (event: BlockchainEvent) => this.processDeleteBidEvent(event),
-    Default: (event: BlockchainEvent) => {
-      this.logger.debug(
-        `No event alert processor found for event ${event.eventName}, skipping`,
-      );
-    },
-  };
+  async onModuleInit(): Promise<void> {
+    this.logger.log('Alert monitoring system initialized.');
+    await Promise.resolve();
+  }
 
   private async processDeleteBidEvent(event: BlockchainEvent) {
     this.logger.log(`Processing DeleteBid event with id: ${event.id}`);
