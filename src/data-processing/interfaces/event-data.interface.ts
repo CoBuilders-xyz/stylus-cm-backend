@@ -73,6 +73,32 @@ export type EventData =
   | SetCacheSizeEventData;
 
 /**
+ * Validates if a string is a valid Ethereum address
+ */
+function isValidEthereumAddress(address: string): boolean {
+  return /^0x[a-fA-F0-9]{40}$/.test(address);
+}
+
+/**
+ * Validates if a string is a valid positive number
+ */
+function isValidPositiveNumber(value: string): boolean {
+  try {
+    const num = BigInt(value);
+    return num >= BigInt(0);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validates if a string is a valid bytecode hash
+ */
+function isValidBytecodeHash(hash: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(hash);
+}
+
+/**
  * Type guard functions for event data validation
  */
 export const EventDataGuards = {
@@ -82,7 +108,11 @@ export const EventDataGuards = {
     return (
       Array.isArray(data) &&
       data.length === 4 &&
-      data.every((item) => typeof item === 'string')
+      data.every((item) => typeof item === 'string') &&
+      isValidBytecodeHash(data[0]) && // bytecodeHash
+      isValidEthereumAddress(data[1]) && // address
+      isValidPositiveNumber(data[2]) && // bidValue
+      isValidPositiveNumber(data[3]) // size
     );
   },
 
@@ -90,7 +120,10 @@ export const EventDataGuards = {
     return (
       Array.isArray(data) &&
       data.length === 3 &&
-      data.every((item) => typeof item === 'string')
+      data.every((item) => typeof item === 'string') &&
+      isValidBytecodeHash(data[0]) && // bytecodeHash
+      isValidPositiveNumber(data[1]) && // bidValue
+      isValidPositiveNumber(data[2]) // size
     );
   },
 
@@ -100,7 +133,10 @@ export const EventDataGuards = {
     return (
       Array.isArray(data) &&
       data.length === 3 &&
-      data.every((item) => typeof item === 'string')
+      data.every((item) => typeof item === 'string') &&
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) && // address
+      isValidPositiveNumber(data[2]) // maxBid
     );
   },
 
@@ -108,19 +144,27 @@ export const EventDataGuards = {
     return (
       Array.isArray(data) &&
       data.length === 2 &&
-      data.every((item) => typeof item === 'string')
+      data.every((item) => typeof item === 'string') &&
+      isValidEthereumAddress(data[0]) && // address
+      isValidBytecodeHash(data[1]) // bytecodeHash
     );
   },
 
   isSetDecayRateEventData: (data: unknown[]): data is [string] => {
     return (
-      Array.isArray(data) && data.length === 1 && typeof data[0] === 'string'
+      Array.isArray(data) &&
+      data.length === 1 &&
+      typeof data[0] === 'string' &&
+      isValidPositiveNumber(data[0]) // decayRate
     );
   },
 
   isSetCacheSizeEventData: (data: unknown[]): data is [string] => {
     return (
-      Array.isArray(data) && data.length === 1 && typeof data[0] === 'string'
+      Array.isArray(data) &&
+      data.length === 1 &&
+      typeof data[0] === 'string' &&
+      isValidPositiveNumber(data[0]) // cacheSize
     );
   },
 };
