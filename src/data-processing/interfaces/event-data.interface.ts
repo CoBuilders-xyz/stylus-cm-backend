@@ -22,6 +22,8 @@ export interface InsertBidEventData extends BaseEventData {
 export interface DeleteBidEventData extends BaseEventData {
   eventName: 'DeleteBid';
   bytecodeHash: string;
+  bidValue: string;
+  size: string;
 }
 
 /**
@@ -84,9 +86,11 @@ export const EventDataGuards = {
     );
   },
 
-  isDeleteBidEventData: (data: unknown[]): data is [string] => {
+  isDeleteBidEventData: (data: unknown[]): data is [string, string, string] => {
     return (
-      Array.isArray(data) && data.length === 1 && typeof data[0] === 'string'
+      Array.isArray(data) &&
+      data.length === 3 &&
+      data.every((item) => typeof item === 'string')
     );
   },
 
