@@ -13,6 +13,11 @@ import {
   UNIT_CONVERSIONS,
 } from '../constants';
 import { BidTrendsDto, BidAverageDto } from '../dto';
+import {
+  BidTrendsResponse,
+  AverageBidResponse,
+  NetBytecodesTrendsResponse,
+} from '../interfaces';
 import { calculateActualBid } from '../../data-processing/utils/bid-utils';
 import { ethers } from 'ethers';
 
@@ -59,7 +64,7 @@ export class BlockchainAnalyticsService {
   /**
    * Get bid placement trends for a specific timespan
    */
-  async getBidPlacementTrends(dto: BidTrendsDto) {
+  async getBidPlacementTrends(dto: BidTrendsDto): Promise<BidTrendsResponse> {
     try {
       this.logger.log(
         `Getting bid placement trends for blockchain: ${dto.blockchainId}, timespan: ${dto.timespan}`,
@@ -96,7 +101,7 @@ export class BlockchainAnalyticsService {
         .orderBy('period', 'ASC')
         .getRawMany<BidPlacementQueryResult>();
 
-      const response = {
+      const response: BidTrendsResponse = {
         periods: result.map((item) => ({
           period: item.period,
           count: parseInt(item.count, 10),
@@ -125,7 +130,9 @@ export class BlockchainAnalyticsService {
   /**
    * Get net bytecodes trends (difference between insert and delete bids)
    */
-  async getNetBytecodesTrends(dto: BidTrendsDto) {
+  async getNetBytecodesTrends(
+    dto: BidTrendsDto,
+  ): Promise<NetBytecodesTrendsResponse[]> {
     try {
       this.logger.log(
         `Getting net bytecodes trends for blockchain: ${dto.blockchainId}, timespan: ${dto.timespan}`,
@@ -194,7 +201,9 @@ export class BlockchainAnalyticsService {
       });
 
       let runningTotal = 0;
-      const results = Array.from(periodMap.entries()).map(([period, data]) => {
+      const results: NetBytecodesTrendsResponse[] = Array.from(
+        periodMap.entries(),
+      ).map(([period, data]) => {
         const netChange = data.insertCount - data.deleteCount;
         runningTotal += netChange;
         return {
@@ -222,7 +231,7 @@ export class BlockchainAnalyticsService {
   /**
    * Get average bid with optional size filtering
    */
-  async getAverageBid(dto: BidAverageDto) {
+  async getAverageBid(dto: BidAverageDto): Promise<AverageBidResponse> {
     try {
       this.logger.log(
         `Getting average bid for blockchain: ${dto.blockchainId}, timespan: ${dto.timespan}`,
@@ -374,7 +383,7 @@ export class BlockchainAnalyticsService {
         globalAverage = globalSum / BigInt(globalCount);
       }
 
-      const response = {
+      const response: AverageBidResponse = {
         periods: periodResults,
         global: {
           averageBid: globalAverage.toString(),
