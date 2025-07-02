@@ -1,9 +1,9 @@
 import { ethers } from 'ethers';
-import { Logger } from '@nestjs/common';
 import { TIME_CONSTANTS } from '../constants/event-processing.constants';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
+import { createContextLogger } from '../../common/utils/logger.util';
 
-const logger = new Logger('BidUtils');
+const logger = createContextLogger('BidUtils', 'DataProcessing');
 
 /**
  * Calculates the actual bid value by subtracting the decay amount from the raw bid.
