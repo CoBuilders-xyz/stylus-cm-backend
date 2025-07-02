@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, MoreThan, Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
@@ -10,6 +10,7 @@ import { ContractBytecodeService } from './contract-bytecode.service';
 import { AutomationService } from './automation.service';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EVENT_TYPES } from '../constants/event-processing.constants';
+import { createModuleLogger } from '../../common/utils/logger.util';
 
 // Define a type for event handler functions
 type EventHandler = (
@@ -19,7 +20,10 @@ type EventHandler = (
 
 @Injectable()
 export class EventProcessorService {
-  private readonly logger = new Logger(EventProcessorService.name);
+  private readonly logger = createModuleLogger(
+    EventProcessorService,
+    'DataProcessing',
+  );
 
   // Define a map of event processors with proper typing
   private readonly eventHandlers: Map<string, EventHandler>;

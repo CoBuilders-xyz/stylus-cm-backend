@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
@@ -6,10 +6,14 @@ import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { Bytecode } from '../../contracts/entities/bytecode.entity';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
+import { createModuleLogger } from '../../common/utils/logger.util';
 
 @Injectable()
 export class DeleteBidService {
-  private readonly logger = new Logger(DeleteBidService.name);
+  private readonly logger = createModuleLogger(
+    DeleteBidService,
+    'DataProcessing',
+  );
 
   constructor(
     @InjectRepository(BlockchainEvent)

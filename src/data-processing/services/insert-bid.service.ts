@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
@@ -13,10 +13,14 @@ import {
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
 import { DEFAULT_VALUES } from '../constants/event-processing.constants';
+import { createModuleLogger } from '../../common/utils/logger.util';
 
 @Injectable()
 export class InsertBidService {
-  private readonly logger = new Logger(InsertBidService.name);
+  private readonly logger = createModuleLogger(
+    InsertBidService,
+    'DataProcessing',
+  );
 
   constructor(
     @InjectRepository(Bytecode)

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
@@ -8,10 +8,14 @@ import { Contract } from '../../contracts/entities/contract.entity';
 import { Bytecode } from '../../contracts/entities/bytecode.entity';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
+import { createModuleLogger } from '../../common/utils/logger.util';
 
 @Injectable()
 export class AutomationService {
-  private readonly logger = new Logger(AutomationService.name);
+  private readonly logger = createModuleLogger(
+    AutomationService,
+    'DataProcessing',
+  );
 
   constructor(
     @InjectRepository(Bytecode)

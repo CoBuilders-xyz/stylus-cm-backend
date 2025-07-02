@@ -1,5 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
+import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { DecayRateEvent } from '../interfaces/decay-rate-event.interface';
 import { BlockchainStateRecord } from '../interfaces/blockchain-state-record.interface';
 import { sortDecayRateEvents } from '../utils/event-utils';
@@ -7,12 +10,21 @@ import { QueryRunner } from 'typeorm';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
 import { EVENT_TYPES } from '../constants/event-processing.constants';
+import { createModuleLogger } from '../../common/utils/logger.util';
 
 @Injectable()
 export class DecayRateService {
-  private readonly logger = new Logger(DecayRateService.name);
+  private readonly logger = createModuleLogger(
+    DecayRateService,
+    'DataProcessing',
+  );
 
-  constructor() {}
+  constructor(
+    @InjectRepository(BlockchainEvent)
+    private readonly blockchainEventRepository: Repository<BlockchainEvent>,
+    @InjectRepository(Blockchain)
+    private readonly blockchainRepository: Repository<Blockchain>,
+  ) {}
 
   /**
    * Extracts decay rate events from an array of blockchain events.
