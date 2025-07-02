@@ -58,7 +58,12 @@ export function calculateBidPlusDecay(bidValue: string): number {
       `Error formatting bid value: ${error}`,
       error instanceof Error ? error.stack : undefined,
     );
-    return 0;
+    DataProcessingErrorHelpers.throwBidCalculationFailed(
+      bidValue,
+      'formatting',
+    );
+    // This line is unreachable but satisfies TypeScript
+    throw new Error('Unreachable code');
   }
 }
 
@@ -82,6 +87,11 @@ export function updateTotalBidInvestment(
       `Error updating total bid investment: ${error}`,
       error instanceof Error ? error.stack : undefined,
     );
-    return currentTotal; // Return current total on error to avoid data corruption
+    DataProcessingErrorHelpers.throwBidCalculationFailed(
+      bid,
+      'investment update',
+    );
+    // This line is unreachable but satisfies TypeScript
+    throw new Error('Unreachable code');
   }
 }

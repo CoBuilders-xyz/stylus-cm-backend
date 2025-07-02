@@ -158,7 +158,11 @@ export class InsertBidService {
         `Error getting applicable decay rate: ${error}`,
         error instanceof Error ? error.stack : undefined,
       );
-      return DEFAULT_VALUES.DECAY_RATE;
+      DataProcessingErrorHelpers.throwDatabaseOperationFailed(
+        'decay rate retrieval',
+      );
+      // This line is unreachable but satisfies TypeScript
+      throw new Error('Unreachable code');
     }
   }
 
