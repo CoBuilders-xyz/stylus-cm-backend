@@ -3,9 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
-import { BlockchainState } from '../../blockchains/entities/blockchain-state.entity';
 import { Contract } from '../../contracts/entities/contract.entity';
-import { Bytecode } from '../../contracts/entities/bytecode.entity';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
 import { createModuleLogger } from '../../common/utils/logger.util';
@@ -18,14 +16,8 @@ export class AutomationService {
   );
 
   constructor(
-    @InjectRepository(Bytecode)
-    private readonly bytecodeRepository: Repository<Bytecode>,
     @InjectRepository(Contract)
     private readonly contractRepository: Repository<Contract>,
-    @InjectRepository(BlockchainState)
-    private readonly blockchainStateRepository: Repository<BlockchainState>,
-    @InjectRepository(BlockchainEvent)
-    private readonly blockchainEventRepository: Repository<BlockchainEvent>,
   ) {}
 
   /**
