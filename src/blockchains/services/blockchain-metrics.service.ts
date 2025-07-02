@@ -6,6 +6,11 @@ import { Bytecode } from '../../contracts/entities/bytecode.entity';
 import { BlockchainsErrorHelpers } from '../blockchains.errors';
 import { BlockchainCrudService } from './blockchain-crud.service';
 import { UNIT_CONVERSIONS } from '../constants';
+import {
+  CacheStatsResponse,
+  BytecodeStatsResponse,
+  BytecodeStatsWithTrendsResponse,
+} from '../interfaces';
 
 @Injectable()
 export class BlockchainMetricsService {
@@ -22,7 +27,7 @@ export class BlockchainMetricsService {
   /**
    * Get cache statistics for a blockchain
    */
-  async getCacheStats(blockchainId: string) {
+  async getCacheStats(blockchainId: string): Promise<CacheStatsResponse> {
     try {
       this.logger.log(`Getting cache stats for blockchain: ${blockchainId}`);
 
@@ -43,7 +48,7 @@ export class BlockchainMetricsService {
       const queueSizeMB = Number(queueSize) / UNIT_CONVERSIONS.BYTES_TO_MB;
       const cacheSizeMB = Number(cacheSize) / UNIT_CONVERSIONS.BYTES_TO_MB;
 
-      const result = {
+      const result: CacheStatsResponse = {
         queueSize,
         cacheSize,
         queueSizeMB,
@@ -65,7 +70,9 @@ export class BlockchainMetricsService {
   /**
    * Get total bytecodes count and difference from last month
    */
-  async getTotalBytecodes(blockchainId: string) {
+  async getTotalBytecodes(
+    blockchainId: string,
+  ): Promise<BytecodeStatsResponse> {
     try {
       this.logger.log(
         `Getting total bytecodes for blockchain: ${blockchainId}`,
@@ -78,7 +85,7 @@ export class BlockchainMetricsService {
         where: { blockchain: { id: blockchainId }, isCached: true },
       });
 
-      const result = {
+      const result: BytecodeStatsResponse = {
         bytecodeCount,
         bytecodeCountDiffWithLastMonth: 0, // Will be calculated by main service
       };
@@ -102,7 +109,7 @@ export class BlockchainMetricsService {
   async getTotalBytecodesWithTrends(
     blockchainId: string,
     netBytecodesTrends: Array<{ currentTotal: number }>,
-  ) {
+  ): Promise<BytecodeStatsWithTrendsResponse> {
     try {
       const { bytecodeCount } = await this.getTotalBytecodes(blockchainId);
 

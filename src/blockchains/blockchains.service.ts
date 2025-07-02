@@ -6,6 +6,14 @@ import {
 } from './services';
 import { TimespanType, ContractSizeRange } from './constants';
 import { BidAverageDto } from './dto';
+import {
+  BlockchainDataResponse,
+  BytecodeStatsResponse,
+  CacheStatsResponse,
+  BidTrendsResponse,
+  AverageBidResponse,
+} from './interfaces';
+import { Blockchain } from './entities/blockchain.entity';
 
 @Injectable()
 export class BlockchainsService {
@@ -20,14 +28,16 @@ export class BlockchainsService {
   /**
    * Find all enabled blockchains
    */
-  async findAll() {
+  async findAll(): Promise<Blockchain[]> {
     return this.crudService.findAll();
   }
 
   /**
    * Get comprehensive blockchain data for dashboard
    */
-  async getBlockchainData(blockchainId: string) {
+  async getBlockchainData(
+    blockchainId: string,
+  ): Promise<BlockchainDataResponse> {
     try {
       this.logger.log(
         `Getting comprehensive blockchain data for: ${blockchainId}`,
@@ -97,7 +107,7 @@ export class BlockchainsService {
         }),
       ]);
 
-      const result = {
+      const result: BlockchainDataResponse = {
         bytecodeCount: bytecodeStatsWithTrends.bytecodeCount,
         bytecodeCountDiffWithLastPeriod:
           bytecodeStatsWithTrends.bytecodeCountDiffWithLastPeriod,
@@ -132,7 +142,9 @@ export class BlockchainsService {
   /**
    * Get total bytecodes for a blockchain
    */
-  async getTotalBytecodes(blockchainId: string) {
+  async getTotalBytecodes(
+    blockchainId: string,
+  ): Promise<BytecodeStatsResponse> {
     try {
       this.logger.log(
         `Getting total bytecodes for blockchain: ${blockchainId}`,
@@ -168,14 +180,17 @@ export class BlockchainsService {
   /**
    * Get cache statistics for a blockchain
    */
-  async getCacheStats(blockchainId: string) {
+  async getCacheStats(blockchainId: string): Promise<CacheStatsResponse> {
     return this.metricsService.getCacheStats(blockchainId);
   }
 
   /**
    * Get bid placement trends for a blockchain
    */
-  async getBidPlacementTrends(timespan: string, blockchainId: string) {
+  async getBidPlacementTrends(
+    timespan: string,
+    blockchainId: string,
+  ): Promise<BidTrendsResponse> {
     // Convert string timespan to enum for validation
     const timespanEnum = timespan as TimespanType;
     return this.analyticsService.getBidPlacementTrends({
@@ -192,7 +207,7 @@ export class BlockchainsService {
     blockchainId: string,
     maxSizeKB: number = 0,
     minSizeKB: number = 0,
-  ) {
+  ): Promise<AverageBidResponse> {
     // Convert string timespan to enum for validation
     const timespanEnum = timespan as TimespanType;
     const dto: BidAverageDto = {
