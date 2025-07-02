@@ -16,6 +16,32 @@ import { BidTrendsDto, BidAverageDto } from '../dto';
 import { calculateActualBid } from '../../data-processing/utils/bid-utils';
 import { ethers } from 'ethers';
 
+// Type definitions for query results
+interface BidPlacementQueryResult {
+  period: string;
+  count: string;
+}
+
+interface NetBytecodeQueryResult {
+  period: string;
+  eventName: string;
+  count: string;
+}
+
+interface AverageBidQueryResult {
+  id: string;
+  blockNumber: number;
+  blockTimestamp: string;
+  eventData: any[];
+  period: string;
+  logIndex?: number;
+}
+
+interface PeriodData {
+  insertCount: number;
+  deleteCount: number;
+}
+
 @Injectable()
 export class BlockchainAnalyticsService {
   private readonly logger = new Logger(BlockchainAnalyticsService.name);
@@ -68,7 +94,7 @@ export class BlockchainAnalyticsService {
       const result = await queryBuilder
         .groupBy('period')
         .orderBy('period', 'ASC')
-        .getRawMany();
+        .getRawMany<BidPlacementQueryResult>();
 
       const response = {
         periods: result.map((item) => ({
@@ -140,10 +166,10 @@ export class BlockchainAnalyticsService {
           `to_char(event.blockTimestamp, '${dateFormat}'), event.eventName`,
         )
         .orderBy('period', 'ASC')
-        .getRawMany();
+        .getRawMany<NetBytecodeQueryResult>();
 
       // Process the results to calculate net changes per period
-      const periodMap = new Map();
+      const periodMap = new Map<string, PeriodData>();
       const uniquePeriods = [...new Set(events.map((e) => e.period))].sort();
 
       uniquePeriods.forEach((period) => {
@@ -152,10 +178,18 @@ export class BlockchainAnalyticsService {
 
       events.forEach((event) => {
         const periodData = periodMap.get(event.period);
-        if (event.eventName === BlockchainEventName.INSERT_BID) {
-          periodData.insertCount = parseInt(event.count, 10);
-        } else if (event.eventName === BlockchainEventName.DELETE_BID) {
-          periodData.deleteCount = parseInt(event.count, 10);
+        if (periodData) {
+          if (
+            (event.eventName as BlockchainEventName) ===
+            BlockchainEventName.INSERT_BID
+          ) {
+            periodData.insertCount = parseInt(event.count, 10);
+          } else if (
+            (event.eventName as BlockchainEventName) ===
+            BlockchainEventName.DELETE_BID
+          ) {
+            periodData.deleteCount = parseInt(event.count, 10);
+          }
         }
       });
 
@@ -250,6 +284,7 @@ export class BlockchainAnalyticsService {
         .addSelect('event.blockNumber', 'blockNumber')
         .addSelect('event.blockTimestamp', 'blockTimestamp')
         .addSelect('event."eventData"', 'eventData')
+        .addSelect('event.logIndex', 'logIndex')
         .addSelect(`to_char(event.blockTimestamp, '${dateFormat}')`, 'period')
         .where('event.eventName = :eventName', {
           eventName: BlockchainEventName.INSERT_BID,
@@ -270,7 +305,8 @@ export class BlockchainAnalyticsService {
         );
       }
 
-      const insertBidEvents = await eventsQueryBuilder.getRawMany();
+      const insertBidEvents =
+        await eventsQueryBuilder.getRawMany<AverageBidQueryResult>();
 
       // Process events to calculate averages
       const periodBids = new Map<string, { sum: bigint; count: number }>();
@@ -280,7 +316,7 @@ export class BlockchainAnalyticsService {
       for (const event of insertBidEvents) {
         const eventData = event.eventData;
         const period = event.period;
-        const bidValue = eventData[2];
+        const bidValue = eventData[2] as string;
         const blockTimestamp = new Date(event.blockTimestamp);
         const blockNumber = event.blockNumber;
 
@@ -290,11 +326,11 @@ export class BlockchainAnalyticsService {
           if (
             decayEvent.blockNumber > blockNumber ||
             (decayEvent.blockNumber === blockNumber &&
-              decayEvent.logIndex >= event.logIndex)
+              decayEvent.logIndex >= (event.logIndex ?? 0))
           ) {
             break;
           }
-          applicableDecayRate = decayEvent.eventData[0];
+          applicableDecayRate = decayEvent.eventData[0] as string;
         }
 
         const actualBid = calculateActualBid(
