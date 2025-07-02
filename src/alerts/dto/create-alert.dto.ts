@@ -8,9 +8,10 @@ import {
   ValidateIf,
   IsNumber,
   IsPositive,
+  Min,
+  Max,
 } from 'class-validator';
-
-import { AlertType } from '../entities/alert.entity';
+import { AlertType, ALERT_THRESHOLDS } from '../constants';
 
 export class CreateAlertDto {
   @IsEnum(AlertType)
@@ -23,7 +24,13 @@ export class CreateAlertDto {
     {},
     { message: 'Value must be a number when alert type is bidSafety' },
   )
-  @IsPositive()
+  @IsPositive({ message: 'Value must be positive for bidSafety alerts' })
+  @Min(ALERT_THRESHOLDS.MIN_BID_SAFETY_VALUE, {
+    message: `Minimum bid safety value is ${ALERT_THRESHOLDS.MIN_BID_SAFETY_VALUE}%`,
+  })
+  @Max(ALERT_THRESHOLDS.MAX_BID_SAFETY_VALUE, {
+    message: `Maximum bid safety value is ${ALERT_THRESHOLDS.MAX_BID_SAFETY_VALUE}%`,
+  })
   value: string; // validated as number saved as string for more generic values
 
   @IsBoolean()
@@ -35,19 +42,19 @@ export class CreateAlertDto {
   @IsUUID()
   userContractId: string;
 
-  @IsBoolean()
   @IsOptional()
-  emailChannelEnabled: boolean;
+  @IsBoolean()
+  emailChannelEnabled?: boolean;
 
-  @IsBoolean()
   @IsOptional()
-  slackChannelEnabled: boolean;
+  @IsBoolean()
+  slackChannelEnabled?: boolean;
 
-  @IsBoolean()
   @IsOptional()
-  telegramChannelEnabled: boolean;
+  @IsBoolean()
+  telegramChannelEnabled?: boolean;
 
-  @IsBoolean()
   @IsOptional()
-  webhookChannelEnabled: boolean;
+  @IsBoolean()
+  webhookChannelEnabled?: boolean;
 }
