@@ -1,12 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Blockchain } from '../entities/blockchain.entity';
 import { BlockchainsErrorHelpers } from '../blockchains.errors';
+import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants';
 
 @Injectable()
 export class BlockchainCrudService {
-  private readonly logger = new Logger(BlockchainCrudService.name);
+  private readonly logger = createModuleLogger(
+    BlockchainCrudService,
+    MODULE_NAME,
+  );
 
   constructor(
     @InjectRepository(Blockchain)
@@ -18,10 +23,25 @@ export class BlockchainCrudService {
    */
   async findAll(): Promise<Blockchain[]> {
     try {
-      this.logger.log('Fetching all enabled blockchains');
-      return await this.blockchainRepository.find({ where: { enabled: true } });
+      this.logger.debug('Querying database for all enabled blockchains');
+      const blockchains = await this.blockchainRepository.find({
+        where: { enabled: true },
+      });
+
+      this.logger.log(
+        `Successfully retrieved ${blockchains.length} enabled blockchains`,
+      );
+      this.logger.debug(
+        `Blockchain IDs: [${blockchains.map((b) => b.id).join(', ')}]`,
+      );
+
+      return blockchains;
     } catch (error) {
-      this.logger.error('Error fetching blockchains', error);
+      const err = error as Error;
+      this.logger.error(
+        `Failed to fetch enabled blockchains: ${err.message}`,
+        err.stack,
+      );
       throw error;
     }
   }
@@ -31,18 +51,30 @@ export class BlockchainCrudService {
    */
   async findById(id: string): Promise<Blockchain> {
     try {
-      this.logger.log(`Fetching blockchain with ID: ${id}`);
+      this.logger.debug(`Querying database for blockchain with ID: ${id}`);
       const blockchain = await this.blockchainRepository.findOne({
         where: { id },
       });
 
       if (!blockchain) {
+        this.logger.warn(`Blockchain not found with ID: ${id}`);
         BlockchainsErrorHelpers.throwBlockchainNotFound(id);
       }
 
+      this.logger.log(
+        `Successfully retrieved blockchain: ${blockchain!.name} (${id})`,
+      );
+      this.logger.debug(
+        `Blockchain details - Chain ID: ${blockchain!.chainId}, Enabled: ${blockchain!.enabled}`,
+      );
+
       return blockchain!; // Safe to use ! because we throw if null
     } catch (error) {
-      this.logger.error(`Error fetching blockchain with ID: ${id}`, error);
+      const err = error as Error;
+      this.logger.error(
+        `Failed to fetch blockchain with ID ${id}: ${err.message}`,
+        err.stack,
+      );
       throw error;
     }
   }
@@ -51,6 +83,9 @@ export class BlockchainCrudService {
    * Validate that a blockchain exists by ID
    */
   async validateBlockchainExists(id: string): Promise<Blockchain> {
-    return this.findById(id);
+    this.logger.debug(`Validating existence of blockchain with ID: ${id}`);
+    const blockchain = await this.findById(id);
+    this.logger.debug(`Blockchain validation successful for ID: ${id}`);
+    return blockchain;
   }
 }

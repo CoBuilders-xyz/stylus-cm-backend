@@ -8,3 +8,12 @@ export {
   AverageBidsResponse,
   BlockchainDataResponse,
 } from './blockchain-responses.interface';
+
+// Internal interfaces (not for external use)
+export {
+  BidPlacementQueryResult,
+  NetBytecodeQueryResult,
+  AverageBidQueryResult,
+  PeriodData,
+  BlockchainUpsertResult,
+} from './internal.interface';

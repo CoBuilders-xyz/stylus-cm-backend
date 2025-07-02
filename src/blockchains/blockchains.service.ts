@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   BlockchainCrudService,
   BlockchainMetricsService,
   BlockchainAnalyticsService,
 } from './services';
-import { TimespanType, ContractSizeRange } from './constants';
+import { TimespanType, ContractSizeRange, MODULE_NAME } from './constants';
 import { BidAverageDto } from './dto';
 import {
   BlockchainDataResponse,
@@ -14,10 +14,11 @@ import {
   AverageBidResponse,
 } from './interfaces';
 import { Blockchain } from './entities/blockchain.entity';
+import { createModuleLogger } from '../common/utils/logger.util';
 
 @Injectable()
 export class BlockchainsService {
-  private readonly logger = new Logger(BlockchainsService.name);
+  private readonly logger = createModuleLogger(BlockchainsService, MODULE_NAME);
 
   constructor(
     private readonly crudService: BlockchainCrudService,
@@ -29,7 +30,10 @@ export class BlockchainsService {
    * Find all enabled blockchains
    */
   async findAll(): Promise<Blockchain[]> {
-    return this.crudService.findAll();
+    this.logger.debug('Fetching all enabled blockchains');
+    const blockchains = await this.crudService.findAll();
+    this.logger.log(`Retrieved ${blockchains.length} enabled blockchains`);
+    return blockchains;
   }
 
   /**
@@ -38,17 +42,26 @@ export class BlockchainsService {
   async getBlockchainData(
     blockchainId: string,
   ): Promise<BlockchainDataResponse> {
+    const startTime = Date.now();
+
     try {
       this.logger.log(
-        `Getting comprehensive blockchain data for: ${blockchainId}`,
+        `Starting comprehensive data fetch for blockchain: ${blockchainId}`,
       );
 
       // Get bytecode trends first (needed for metrics calculation)
+      this.logger.debug(
+        `Fetching net bytecode trends for blockchain: ${blockchainId}`,
+      );
       const netBytecodesTrends =
         await this.analyticsService.getNetBytecodesTrends({
           blockchainId,
           timespan: TimespanType.MONTHLY,
         });
+
+      this.logger.debug(
+        `Starting parallel data fetch for ${9} operations for blockchain: ${blockchainId}`,
+      );
 
       // Get all data in parallel
       const [
@@ -107,6 +120,10 @@ export class BlockchainsService {
         }),
       ]);
 
+      this.logger.debug(
+        `Assembling comprehensive response for blockchain: ${blockchainId}`,
+      );
+
       const result: BlockchainDataResponse = {
         bytecodeCount: bytecodeStatsWithTrends.bytecodeCount,
         bytecodeCountDiffWithLastPeriod:
@@ -126,14 +143,21 @@ export class BlockchainsService {
         },
       };
 
+      const duration = Date.now() - startTime;
       this.logger.log(
-        `Comprehensive blockchain data retrieved for: ${blockchainId}`,
+        `Comprehensive blockchain data retrieved for: ${blockchainId} (${duration}ms)`,
       );
+      this.logger.debug(
+        `Response summary - Bytecodes: ${result.bytecodeCount}, Cache: ${((Number(result.queueSize) / Number(result.cacheSize)) * 100).toFixed(1)}% full, Total bids: ${result.averageBids.all.global.count}`,
+      );
+
       return result;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      const err = error as Error;
       this.logger.error(
-        `Error getting blockchain data for: ${blockchainId}`,
-        error,
+        `Failed to get comprehensive blockchain data for: ${blockchainId} after ${duration}ms: ${err.message}`,
+        err.stack,
       );
       throw error;
     }
@@ -146,7 +170,7 @@ export class BlockchainsService {
     blockchainId: string,
   ): Promise<BytecodeStatsResponse> {
     try {
-      this.logger.log(
+      this.logger.debug(
         `Getting total bytecodes for blockchain: ${blockchainId}`,
       );
 
@@ -161,17 +185,21 @@ export class BlockchainsService {
         netBytecodesTrends,
       );
 
-      this.logger.log(
-        `Total bytecodes retrieved for blockchain: ${blockchainId}`,
-      );
-      return {
+      const response = {
         bytecodeCount: result.bytecodeCount,
         bytecodeCountDiffWithLastMonth: result.bytecodeCountDiffWithLastPeriod,
       };
+
+      this.logger.log(
+        `Total bytecodes retrieved for blockchain ${blockchainId}: ${response.bytecodeCount} (${response.bytecodeCountDiffWithLastMonth > 0 ? '+' : ''}${response.bytecodeCountDiffWithLastMonth} vs last month)`,
+      );
+
+      return response;
     } catch (error) {
+      const err = error as Error;
       this.logger.error(
-        `Error getting total bytecodes for blockchain: ${blockchainId}`,
-        error,
+        `Failed to get total bytecodes for blockchain ${blockchainId}: ${err.message}`,
+        err.stack,
       );
       throw error;
     }
@@ -181,6 +209,9 @@ export class BlockchainsService {
    * Get cache statistics for a blockchain
    */
   async getCacheStats(blockchainId: string): Promise<CacheStatsResponse> {
+    this.logger.debug(
+      `Delegating cache stats request for blockchain: ${blockchainId}`,
+    );
     return this.metricsService.getCacheStats(blockchainId);
   }
 
@@ -191,12 +222,22 @@ export class BlockchainsService {
     timespan: string,
     blockchainId: string,
   ): Promise<BidTrendsResponse> {
+    this.logger.debug(
+      `Getting bid placement trends for blockchain ${blockchainId} with timespan: ${timespan}`,
+    );
+
     // Convert string timespan to enum for validation
     const timespanEnum = timespan as TimespanType;
-    return this.analyticsService.getBidPlacementTrends({
+    const result = await this.analyticsService.getBidPlacementTrends({
       blockchainId,
       timespan: timespanEnum,
     });
+
+    this.logger.log(
+      `Bid placement trends retrieved for blockchain ${blockchainId} (${timespan}): ${result.global.count} total bids across ${result.periods.length} periods`,
+    );
+
+    return result;
   }
 
   /**
@@ -208,6 +249,14 @@ export class BlockchainsService {
     maxSizeKB: number = 0,
     minSizeKB: number = 0,
   ): Promise<AverageBidResponse> {
+    const sizeFilter =
+      maxSizeKB > 0 || minSizeKB > 0
+        ? ` with size filter: ${minSizeKB || 0}-${maxSizeKB || '∞'}KB`
+        : '';
+    this.logger.debug(
+      `Getting average bid for blockchain ${blockchainId} (${timespan})${sizeFilter}`,
+    );
+
     // Convert string timespan to enum for validation
     const timespanEnum = timespan as TimespanType;
     const dto: BidAverageDto = {
@@ -217,6 +266,12 @@ export class BlockchainsService {
       minSize: minSizeKB > 0 ? minSizeKB : undefined,
     };
 
-    return this.analyticsService.getAverageBid(dto);
+    const result = await this.analyticsService.getAverageBid(dto);
+
+    this.logger.log(
+      `Average bid retrieved for blockchain ${blockchainId} (${timespan})${sizeFilter}: ${result.global.parsedAverageBid} ETH (${result.global.count} bids)`,
+    );
+
+    return result;
   }
 }
