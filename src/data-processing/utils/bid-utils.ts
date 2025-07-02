@@ -3,7 +3,19 @@ import { TIME_CONSTANTS } from '../constants/event-processing.constants';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { createContextLogger } from '../../common/utils/logger.util';
 
-const logger = createContextLogger('BidUtils', 'DataProcessing');
+const logger = createContextLogger('DataProcessing', 'BidUtils');
+
+/**
+ * Validates that a string represents a valid positive BigInt number
+ */
+function validatePositiveBigIntString(value: string): boolean {
+  try {
+    const bigIntValue = BigInt(value);
+    return bigIntValue >= BigInt(0);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Calculates the actual bid value by subtracting the decay amount from the raw bid.
@@ -18,6 +30,17 @@ export function calculateActualBid(
   decayRate: string,
   blockTimestamp: Date,
 ): string {
+  // Validate inputs before processing
+  if (!validatePositiveBigIntString(bidValue)) {
+    logger.error(`Invalid bid value: ${bidValue}`);
+    DataProcessingErrorHelpers.throwBidCalculationFailed(bidValue, decayRate);
+  }
+
+  if (!validatePositiveBigIntString(decayRate)) {
+    logger.error(`Invalid decay rate: ${decayRate}`);
+    DataProcessingErrorHelpers.throwBidCalculationFailed(bidValue, decayRate);
+  }
+
   try {
     const bidInWei = BigInt(bidValue);
     const decayRateInWei = BigInt(decayRate);
@@ -51,6 +74,15 @@ export function calculateActualBid(
  * @returns The bid plus decay amount in ETH as number
  */
 export function calculateBidPlusDecay(bidValue: string): number {
+  // Validate input before processing
+  if (!validatePositiveBigIntString(bidValue)) {
+    logger.error(`Invalid bid value for formatting: ${bidValue}`);
+    DataProcessingErrorHelpers.throwBidCalculationFailed(
+      bidValue,
+      'formatting',
+    );
+  }
+
   try {
     return parseFloat(ethers.formatEther(bidValue));
   } catch (error) {
@@ -78,6 +110,23 @@ export function updateTotalBidInvestment(
   currentTotal: string,
   bid: string,
 ): string {
+  // Validate inputs before processing
+  if (!validatePositiveBigIntString(currentTotal)) {
+    logger.error(`Invalid current total: ${currentTotal}`);
+    DataProcessingErrorHelpers.throwBidCalculationFailed(
+      bid,
+      'investment update',
+    );
+  }
+
+  if (!validatePositiveBigIntString(bid)) {
+    logger.error(`Invalid bid for investment update: ${bid}`);
+    DataProcessingErrorHelpers.throwBidCalculationFailed(
+      bid,
+      'investment update',
+    );
+  }
+
   try {
     const currentInWei = BigInt(currentTotal);
     const bidInWei = BigInt(bid);

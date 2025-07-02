@@ -164,8 +164,6 @@ export class ContractBytecodeService {
         this.logger.debug(
           `No existing bytecode found for ${codeHash}, skipping creation`,
         );
-        // Note: Creation logic was commented out in original code
-        // await this.createNewContractBytecode(blockchain, codeHash, state);
       }
     } catch (error) {
       this.logger.error(
