@@ -63,3 +63,29 @@ export const UNIT_CONVERSIONS = {
   KB_TO_BYTES: 1024,
   MB_TO_BYTES: 1024 * 1024,
 } as const;
+
+/**
+ * Utility function to get timespan duration in milliseconds
+ */
+export function getTimespanInMs(timespan: TimespanType): number {
+  return TIMESPAN_MS[timespan];
+}
+
+/**
+ * Utility function to get date format pattern for SQL queries
+ */
+export function getDateFormat(timespan: TimespanType): string {
+  return DATE_FORMAT_PATTERNS[timespan];
+}
+
+/**
+ * Utility function to calculate backtrace timestamp for trend analysis
+ */
+export function getBackTraceTimestamp(
+  timespan: TimespanType,
+  numberOfBackTimespans: number,
+): Date {
+  return new Date(
+    Date.now() - getTimespanInMs(timespan) * numberOfBackTimespans,
+  );
+}
