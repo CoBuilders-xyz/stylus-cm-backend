@@ -4,18 +4,18 @@ import { BullModule } from '@nestjs/bullmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { User } from 'src/users/entities/user.entity';
-import { AlertsConsumer } from './alerts.processor';
-import { SlackNotificationProcessor } from './notif.slack.processor';
-import { TelegramNotificationProcessor } from './notif.telegram.processor';
-import { EmailNotificationProcessor } from './notif.email.processor';
-import { WebhookNotificationProcessor } from './notif.webhook.processor';
+import { AlertsConsumer } from './processors/alerts.processor';
+import { SlackNotificationProcessor } from './processors/slack-notification.processor';
+import { TelegramNotificationProcessor } from './processors/telegram-notification.processor';
+import { EmailNotificationProcessor } from './processors/email-notification.processor';
+import { WebhookNotificationProcessor } from './processors/webhook-notification.processor';
 import { HttpModule } from '@nestjs/axios';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
 import { NotificationsController } from './notifications.controller';
-import { EmailNotificationService } from './notif.email.service';
-import { SlackNotificationService } from './notif.slack.service';
-import { TelegramNotificationService } from './notif.telegram.service';
-import { WebhookNotificationService } from './notif.webhook.service';
+import { EmailNotificationService } from './services/email-notification.service';
+import { SlackNotificationService } from './services/slack-notification.service';
+import { TelegramNotificationService } from './services/telegram-notification.service';
+import { WebhookNotificationService } from './services/webhook-notification.service';
 
 @Module({
   imports: [

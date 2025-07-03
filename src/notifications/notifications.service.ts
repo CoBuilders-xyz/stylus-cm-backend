@@ -4,10 +4,10 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { AlertType } from 'src/alerts/entities/alert.entity';
 import { AlertsSettings, User } from 'src/users/entities/user.entity';
-import { WebhookNotificationService } from './notif.webhook.service';
-import { SlackNotificationService } from './notif.slack.service';
-import { TelegramNotificationService } from './notif.telegram.service';
-import { EmailNotificationService } from './notif.email.service';
+import { WebhookNotificationService } from './services/webhook-notification.service';
+import { SlackNotificationService } from './services/slack-notification.service';
+import { TelegramNotificationService } from './services/telegram-notification.service';
+import { EmailNotificationService } from './services/email-notification.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
