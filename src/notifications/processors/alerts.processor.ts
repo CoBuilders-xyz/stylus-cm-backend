@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { NotificationsService } from './notifications.service';
+import { NotificationsService } from '../notifications.service';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';

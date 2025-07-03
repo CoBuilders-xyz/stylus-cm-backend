@@ -33,6 +33,7 @@ export class EmailNotificationService {
     value,
     contractName,
     contractAddress,
+    triggeredCount,
   }: {
     destination: string;
     recipientName: string;
@@ -40,6 +41,7 @@ export class EmailNotificationService {
     value: string;
     contractName: string;
     contractAddress: string;
+    triggeredCount?: number;
   }): Promise<boolean> {
     try {
       // Check if SendGrid API key is configured
@@ -53,6 +55,7 @@ export class EmailNotificationService {
         value,
         contractName,
         contractAddress,
+        triggeredCount,
       );
 
       // Prepare the payload for SendGrid API
@@ -151,6 +154,7 @@ export class EmailNotificationService {
     value: string,
     contractName: string,
     contractAddress: string,
+    triggeredCount?: number,
   ): { subject: string; htmlContent: string; textContent: string } {
     const alertTypeName = this.getAlertTypeDisplayName(alertType);
     const timestamp = new Date().toISOString();
@@ -187,6 +191,9 @@ export class EmailNotificationService {
     textContent += `Contract Details:\n`;
     textContent += `Name: ${contractName}\n`;
     textContent += `Address: ${contractAddress}\n\n`;
+    if (triggeredCount !== undefined) {
+      textContent += `Times triggered: ${triggeredCount}\n`;
+    }
     textContent += `Triggered at: ${timestamp}`;
 
     // Create HTML content
@@ -198,47 +205,59 @@ export class EmailNotificationService {
       .alert-title { font-size: 22px; font-weight: bold; margin-bottom: 20px; color: #d9534f; }
       .alert-message { font-size: 16px; line-height: 1.5; margin-bottom: 20px; }
       .contract-details { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-      .detail-row { margin-bottom: 10px; }
-      .label { font-weight: bold; }
-      .footer { font-size: 12px; color: #777; text-align: center; margin-top: 20px; font-style: italic; }
-      .address { font-family: monospace; background-color: #eee; padding: 5px; border-radius: 3px; }
-    </style></head><body><div class="container">
-      <div class="header"><h2>Stylus Monitor Alert</h2></div>
-      <div class="content">
-        <div class="alert-title">⚠️ ${alertTypeName}</div>
-        <div class="alert-message">`;
+      .contract-details h3 { margin: 0 0 10px 0; font-size: 18px; }
+      .contract-details p { margin: 5px 0; }
+      .footer { background-color: #f8f9fa; padding: 15px; text-align: center; border-top: 1px solid #e1e1e1; font-size: 14px; color: #666; }
+    </style></head><body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin: 0; color: #d9534f;">Stylus Monitor Alert</h1>
+        </div>
+        <div class="content">
+          <div class="alert-title">${alertTypeName}</div>
+          <div class="alert-message">`;
 
     switch (alertType) {
       case AlertType.EVICTION:
-        htmlContent += `<p>Your contract <strong>${contractName}</strong> is at risk of eviction. Please take action immediately.</p>`;
+        htmlContent += `Your contract <strong>${contractName}</strong> is at risk of eviction. Please take action immediately.`;
         break;
       case AlertType.NO_GAS:
-        htmlContent += `<p>Your contract <strong>${contractName}</strong> has run out of gas. Please refill as soon as possible.</p>`;
+        htmlContent += `Your contract <strong>${contractName}</strong> has run out of gas. Please refill as soon as possible.`;
         break;
       case AlertType.LOW_GAS:
-        htmlContent += `<p>Your contract <strong>${contractName}</strong> is running low on gas (${value || 'below threshold'}). Consider refilling soon.</p>`;
+        htmlContent += `Your contract <strong>${contractName}</strong> is running low on gas (${value || 'below threshold'}). Consider refilling soon.`;
         break;
       case AlertType.BID_SAFETY:
-        htmlContent += `<p>Bid safety issue detected for contract <strong>${contractName}</strong>.</p>`;
+        htmlContent += `Bid safety issue detected for contract <strong>${contractName}</strong>.`;
         if (value) {
-          htmlContent += `<p>Details: ${value}</p>`;
+          htmlContent += `<br><strong>Details:</strong> ${value}`;
         }
         break;
       default:
-        htmlContent += `<p>System alert for contract <strong>${contractName}</strong>.</p>`;
+        htmlContent += `System alert for contract <strong>${contractName}</strong>.`;
         if (value) {
-          htmlContent += `<p>Details: ${value}</p>`;
+          htmlContent += `<br><strong>Details:</strong> ${value}`;
         }
     }
 
     htmlContent += `</div>
-        <div class="contract-details">
-          <div class="detail-row"><span class="label">Contract Name:</span> ${contractName}</div>
-          <div class="detail-row"><span class="label">Contract Address:</span> <span class="address">${contractAddress}</span></div>
+          <div class="contract-details">
+            <h3>Contract Details</h3>
+            <p><strong>Name:</strong> ${contractName}</p>
+            <p><strong>Address:</strong> ${contractAddress}</p>`;
+
+    if (triggeredCount !== undefined) {
+      htmlContent += `<p><strong>Times triggered:</strong> ${triggeredCount}</p>`;
+    }
+
+    htmlContent += `<p><strong>Triggered at:</strong> ${timestamp}</p>
+          </div>
         </div>
-        <div class="footer">Triggered at: ${timestamp}</div>
+        <div class="footer">
+          <p>This alert was generated by Stylus Monitor</p>
+        </div>
       </div>
-    </div></body></html>`;
+    </body></html>`;
 
     return { subject, htmlContent, textContent };
   }
