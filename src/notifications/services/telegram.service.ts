@@ -1,25 +1,30 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { AlertType } from 'src/alerts/entities/alert.entity';
-import { firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import * as http from 'http';
 import * as https from 'https';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
 export class TelegramNotificationService {
-  private readonly logger = new Logger(TelegramNotificationService.name);
+  private readonly logger = createModuleLogger(
+    TelegramNotificationService,
+    'Notifications',
+  );
   private readonly telegramBaseUrl: string;
-  private readonly botToken: string | undefined;
+  private readonly telegramBotToken: string | undefined;
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
     // Get the bot token from environment variables
-    this.botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-    this.telegramBaseUrl = `https://api.telegram.org/bot${this.botToken || ''}`;
+    this.telegramBotToken =
+      this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+    this.telegramBaseUrl = `https://api.telegram.org/bot${this.telegramBotToken || ''}`;
 
     // Configure HttpService to use IPv4 only
     this.httpService.axiosRef.defaults.httpAgent = new http.Agent({
@@ -31,19 +36,13 @@ export class TelegramNotificationService {
     this.httpService.axiosRef.defaults.timeout = 30000; // 30 second timeout
 
     // Log if token is available or not at service initialization
-    if (!this.botToken) {
-      this.logger.warn('Telegram bot token is not configured');
+    if (!this.telegramBotToken) {
+      this.logger.debug('Telegram bot token is not configured');
     } else {
-      this.logger.log('Telegram bot token is configured');
-      // Log a masked version of the token for debugging
-      const maskedToken =
-        this.botToken.substring(0, 5) +
-        '...' +
-        this.botToken.substring(this.botToken.length - 4);
-      this.logger.log(`Using bot token: ${maskedToken}`);
+      this.logger.debug('Telegram bot token is configured');
     }
 
-    this.logger.log('Telegram service configured to use IPv4 only');
+    this.logger.debug('Telegram service configured to use IPv4 only');
   }
 
   async sendNotification({
@@ -62,18 +61,23 @@ export class TelegramNotificationService {
     recipientName?: string;
     triggeredCount?: number;
   }): Promise<boolean> {
+    this.logger.log(
+      `Sending Telegram notification to chat for alert type: ${alertType}`,
+    );
+    this.logger.debug(
+      `Telegram details: contract=${contractName}, chatId=${destination}`,
+    );
+
     try {
-      // Check if bot token is configured
-      if (!this.botToken) {
-        throw new Error('Telegram bot token is not configured');
+      // Check if Telegram Bot Token is configured
+      if (!this.telegramBotToken) {
+        this.logger.log(
+          'Telegram bot token not configured - skipping Telegram notification',
+        );
+        throw new Error('Telegram Bot Token is not configured');
       }
 
-      this.logger.log(
-        `Preparing to send Telegram notification to chat ID: ${destination}`,
-      );
-      this.logger.log(`Alert type: ${alertType}, Contract: ${contractName}`);
-
-      // Format the alert message based on the alert type
+      // Create the message text
       const message = this.formatAlertMessage(
         alertType,
         value,
@@ -81,59 +85,40 @@ export class TelegramNotificationService {
         contractAddress,
       );
 
-      // Prepare the payload for Telegram sendMessage API
+      // Prepare the payload for Telegram API
       const payload = {
         chat_id: destination,
         text: message,
         parse_mode: 'Markdown',
       };
 
-      // Log the API endpoint being called
-      const apiEndpoint = `${this.telegramBaseUrl}/sendMessage`;
-      this.logger.log(`Calling Telegram API endpoint: ${apiEndpoint}`);
-      this.logger.log(`With payload: ${JSON.stringify(payload)}`);
-      this.logger.log(`Using IPv4 only configuration`);
-
-      // Send the notification to Telegram using HttpService
-      const response = await firstValueFrom(
-        this.httpService.post(apiEndpoint, payload, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          validateStatus: (status) => status < 500,
-        }),
+      this.logger.debug(
+        `Telegram message: ${this.getAlertTypeDisplayName(alertType)} for ${contractName}`,
       );
 
-      if (response.status >= 200 && response.status < 300) {
-        this.logger.log(
-          `Telegram API response: ${JSON.stringify(response.data)}`,
-        );
-        this.logger.log(
-          `Telegram notification sent successfully to chat ID ${destination}`,
-        );
-        return true;
-      } else {
-        throw new Error(
-          `Telegram API returned status ${response.status}: ${JSON.stringify(response.data)}`,
-        );
-      }
+      // Send the notification using Telegram Bot API
+      const url = `${this.telegramBaseUrl}/sendMessage`;
+
+      await firstValueFrom(
+        this.httpService.post(url, payload).pipe(
+          catchError((error: AxiosError) => {
+            this.logger.error(
+              `Failed to send Telegram message: ${error.message}`,
+            );
+            throw new Error(
+              `Failed to send Telegram notification: ${error.message}`,
+            );
+          }),
+        ),
+      );
+
+      this.logger.log(`Successfully sent Telegram notification to chat`);
+      return true;
     } catch (error) {
-      if (error instanceof AxiosError) {
-        this.logger.error(
-          `Error sending Telegram notification: ${error.message}`,
-          error.stack,
-        );
-        // Log more helpful information for network errors
-        if (error.code) {
-          this.logger.error(`Network error code: ${error.code}`);
-        }
-      } else if (error instanceof Error) {
-        this.logger.error(
-          `Error sending Telegram notification: ${error.message}`,
-        );
-      } else {
-        this.logger.error(`Error sending Telegram notification: Unknown error`);
-      }
+      this.logger.error(
+        `Failed to send Telegram notification to ${destination}`,
+        error,
+      );
       throw error;
     }
   }
