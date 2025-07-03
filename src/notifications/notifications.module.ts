@@ -5,17 +5,24 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { User } from 'src/users/entities/user.entity';
 import { AlertsConsumer } from './processors/alerts.processor';
-import { SlackNotificationProcessor } from './processors/slack-notification.processor';
-import { TelegramNotificationProcessor } from './processors/telegram-notification.processor';
-import { EmailNotificationProcessor } from './processors/email-notification.processor';
-import { WebhookNotificationProcessor } from './processors/webhook-notification.processor';
+import {
+  SlackNotificationProcessor,
+  TelegramNotificationProcessor,
+  EmailNotificationProcessor,
+  WebhookNotificationProcessor,
+} from './processors';
 import { HttpModule } from '@nestjs/axios';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
 import { NotificationsController } from './notifications.controller';
-import { EmailNotificationService } from './services/email-notification.service';
-import { SlackNotificationService } from './services/slack-notification.service';
-import { TelegramNotificationService } from './services/telegram-notification.service';
-import { WebhookNotificationService } from './services/webhook-notification.service';
+import {
+  EmailNotificationService,
+  SlackNotificationService,
+  TelegramNotificationService,
+  WebhookNotificationService,
+  NotificationQueueService,
+  MockNotificationService,
+  TimingService,
+} from './services';
 
 @Module({
   imports: [
@@ -78,6 +85,9 @@ import { WebhookNotificationService } from './services/webhook-notification.serv
     SlackNotificationService,
     TelegramNotificationService,
     WebhookNotificationService,
+    NotificationQueueService,
+    MockNotificationService,
+    TimingService,
   ],
   exports: [
     NotificationsService,
@@ -85,6 +95,9 @@ import { WebhookNotificationService } from './services/webhook-notification.serv
     SlackNotificationService,
     TelegramNotificationService,
     WebhookNotificationService,
+    NotificationQueueService,
+    MockNotificationService,
+    TimingService,
   ],
 })
 export class NotificationsModule {}

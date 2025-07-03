@@ -6,9 +6,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
-import { WebhookNotificationService } from '../services/webhook-notification.service';
+import { TelegramNotificationService } from '../services/telegram.service';
 
-interface WebhookNotificationData {
+interface TelegramNotificationData {
   alertId: string;
   alertType: AlertType;
   destination: string;
@@ -16,12 +16,12 @@ interface WebhookNotificationData {
 }
 
 @Injectable()
-@Processor('notif-webhook')
-export class WebhookNotificationProcessor extends WorkerHost {
-  private readonly logger = new Logger(WebhookNotificationProcessor.name);
+@Processor('notif-telegram')
+export class TelegramNotificationProcessor extends WorkerHost {
+  private readonly logger = new Logger(TelegramNotificationProcessor.name);
 
   constructor(
-    private readonly webhookService: WebhookNotificationService,
+    private readonly telegramService: TelegramNotificationService,
     @InjectRepository(Alert)
     private alertsRepository: Repository<Alert>,
     @InjectRepository(UserContract)
@@ -31,16 +31,16 @@ export class WebhookNotificationProcessor extends WorkerHost {
   }
 
   async process(
-    job: Job<WebhookNotificationData, void, string>,
+    job: Job<TelegramNotificationData, void, string>,
   ): Promise<void> {
     const { alertId, alertType, destination, userId } = job.data;
 
     // Log notification details
-    this.logger.log(`Processing Webhook notification for alert: ${alertId}`);
+    this.logger.log(`Processing Telegram notification for alert: ${alertId}`);
     this.logger.log(`Attempt number: ${job.attemptsMade + 1}`);
     this.logger.log(`Alert type: ${alertType}`);
     this.logger.log(`User ID: ${userId}`);
-    this.logger.log(`Webhook URL: ${destination}`);
+    this.logger.log(`Chat ID: ${destination}`);
 
     try {
       // Fetch the alert details to get more context
@@ -61,19 +61,17 @@ export class WebhookNotificationProcessor extends WorkerHost {
         contractName = alert.userContract.name || 'Unknown contract';
       }
 
-      // Use the webhook service to send the notification
-      await this.webhookService.sendNotification({
+      // Use the telegram service to send the notification
+      await this.telegramService.sendNotification({
         destination,
-        alertId,
         alertType,
         value: alert.value,
         contractName,
         contractAddress,
-        triggeredCount: alert.triggeredCount,
       });
 
       this.logger.log(
-        `Webhook notification sent successfully to ${destination}`,
+        `Telegram notification sent successfully to ${destination}`,
       );
 
       // Update job progress to indicate completion
@@ -81,11 +79,11 @@ export class WebhookNotificationProcessor extends WorkerHost {
     } catch (error) {
       if (error instanceof Error) {
         this.logger.error(
-          `Error processing Webhook notification: ${error.message}`,
+          `Error processing Telegram notification: ${error.message}`,
         );
       } else {
         this.logger.error(
-          `Error processing Webhook notification: Unknown error`,
+          `Error processing Telegram notification: Unknown error`,
         );
       }
       throw error; // Re-throw to let BullMQ handle retries
