@@ -23,9 +23,6 @@ export class AlertsService {
     userId: string,
     userContractId: string,
   ): Promise<Alert[]> {
-    this.logger.debug(
-      `Orchestrating getAlertsForUserContract for user ${userId} and contract ${userContractId}`,
-    );
     return this.crudService.getAlertsForUserContract(userId, userContractId);
   }
 

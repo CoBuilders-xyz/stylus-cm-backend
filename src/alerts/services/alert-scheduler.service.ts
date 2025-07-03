@@ -46,7 +46,12 @@ export class AlertSchedulerService {
         `Completed real-time alert processing for ${blockchains.length} blockchains`,
       );
     } catch (error) {
-      this.logger.error('Error in scheduled real-time monitoring', error);
+      this.logger.error(
+        `Error in scheduled real-time monitoring: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
+      );
       throw error;
     }
   }
@@ -97,14 +102,13 @@ export class AlertSchedulerService {
               alertId: alert.id,
             });
             triggeredCount++;
-            this.logger.debug(
-              `Queued bid safety alert ${alert.id} for triggering`,
-            );
           }
         } catch (error) {
           this.logger.error(
-            `Error processing individual bid safety alert ${alert.id}`,
-            error,
+            `Error processing individual bid safety alert ${alert.id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            error instanceof Error ? error.stack : undefined,
           );
           continue; // Continue processing other alerts
         }
@@ -116,10 +120,11 @@ export class AlertSchedulerService {
         );
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Error checking real-time alerts for blockchain ${blockchain.id}: ${errorMessage}`,
+        `Error checking real-time alerts for blockchain ${blockchain.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
       );
     }
   }

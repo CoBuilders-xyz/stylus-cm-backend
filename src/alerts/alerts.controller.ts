@@ -32,7 +32,7 @@ export class AlertsController {
     @Query('blockchainId') blockchainId: string,
   ): Promise<Alert[]> {
     try {
-      this.logger.log(
+      this.logger.debug(
         `Getting alerts for user ${req.user.id} on blockchain ${blockchainId}`,
       );
 
@@ -45,8 +45,10 @@ export class AlertsController {
       return alerts;
     } catch (error) {
       this.logger.error(
-        `Error getting alerts for user ${req.user.id} on blockchain ${blockchainId}`,
-        error,
+        `Error getting alerts for user ${req.user.id} on blockchain ${blockchainId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
@@ -61,7 +63,7 @@ export class AlertsController {
     @Body(new ValidationPipe({ transform: true })) body: CreateAlertDto,
   ): Promise<Alert> {
     try {
-      this.logger.log(
+      this.logger.debug(
         `Creating/updating alert of type ${body.type} for user ${req.user.id}`,
       );
 
@@ -77,8 +79,10 @@ export class AlertsController {
       return alert;
     } catch (error) {
       this.logger.error(
-        `Error creating/updating alert for user ${req.user.id}`,
-        error,
+        `Error creating/updating alert for user ${req.user.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
