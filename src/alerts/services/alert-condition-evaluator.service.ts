@@ -27,10 +27,6 @@ export class AlertConditionEvaluatorService {
     blockchain: Blockchain,
   ): Promise<boolean> {
     try {
-      this.logger.debug(
-        `Evaluating bid safety condition for alert ${alert.id}`,
-      );
-
       const cacheManagerInstance = this.providerManager.getContract(
         blockchain,
         ContractType.CACHE_MANAGER,
@@ -59,15 +55,16 @@ export class AlertConditionEvaluatorService {
       const shouldTrigger = effectiveBid < threshold;
 
       this.logger.debug(
-        `Bid safety evaluation for alert ${alert.id}: ` +
-          `minBid=${minBid}, effectiveBid=${effectiveBid}, threshold=${threshold}, shouldTrigger=${shouldTrigger}`,
+        `Bid safety evaluation for alert ${alert.id}: minBid=${minBid}, effectiveBid=${effectiveBid}, threshold=${threshold}, shouldTrigger=${shouldTrigger}`,
       );
 
       return shouldTrigger;
     } catch (error) {
       this.logger.error(
-        `Error evaluating bid safety condition for alert ${alert.id}`,
-        error,
+        `Error evaluating bid safety condition for alert ${alert.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }

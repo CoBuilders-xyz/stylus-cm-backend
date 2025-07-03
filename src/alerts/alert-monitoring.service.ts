@@ -32,7 +32,7 @@ export class AlertMonitoringService implements OnModuleInit {
     blockchainId: string;
     eventId: string;
   }): Promise<void> {
-    this.logger.log(
+    this.logger.debug(
       `Coordinating blockchain event alert processing for event ${payload.eventId}`,
     );
 
@@ -45,7 +45,7 @@ export class AlertMonitoringService implements OnModuleInit {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async handleRealTimeDataAlerts(): Promise<void> {
-    this.logger.log('Coordinating real-time data alert processing');
+    this.logger.debug('Coordinating real-time data alert processing');
 
     return this.scheduler.scheduleRealTimeMonitoring();
   }

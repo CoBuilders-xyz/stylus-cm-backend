@@ -42,8 +42,10 @@ export class AlertCrudService {
       return alerts;
     } catch (error) {
       this.logger.error(
-        `Error getting alerts for user ${user.id} on blockchain ${blockchainId}`,
-        error,
+        `Error getting alerts for user ${user.id} on blockchain ${blockchainId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
@@ -54,10 +56,6 @@ export class AlertCrudService {
     userContractId: string,
   ): Promise<Alert[]> {
     try {
-      this.logger.debug(
-        `Getting alerts for user ${userId} and user contract ${userContractId}`,
-      );
-
       const queryBuilder = this.alertsRepository
         .createQueryBuilder('alert')
         .where('alert.user = :userId', { userId })
@@ -72,8 +70,10 @@ export class AlertCrudService {
       return alerts;
     } catch (error) {
       this.logger.error(
-        `Error getting alerts for user ${userId} and contract ${userContractId}`,
-        error,
+        `Error getting alerts for user ${userId} and contract ${userContractId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
@@ -149,8 +149,6 @@ export class AlertCrudService {
       }
 
       // Create new alert
-      this.logger.debug(`Creating new alert for user ${user.id}`);
-
       const alert = this.alertsRepository.create(createAlertDto);
       alert.user = user;
       alert.userContract = userContract!;
@@ -163,8 +161,10 @@ export class AlertCrudService {
       return savedAlert;
     } catch (error) {
       this.logger.error(
-        `Error creating or updating alert for user ${user.id}`,
-        error,
+        `Error creating or updating alert for user ${user.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }

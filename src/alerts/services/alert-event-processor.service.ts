@@ -44,8 +44,8 @@ export class AlertEventProcessorService {
     eventId: string;
   }): Promise<void> {
     try {
-      this.logger.log(
-        `[Event-Based Alert] Processing blockchain event: ${payload.eventId} from blockchain: ${payload.blockchainId}`,
+      this.logger.debug(
+        `Processing blockchain event: ${payload.eventId} from blockchain: ${payload.blockchainId}`,
       );
 
       const event = await this.blockchainEventRepository.findOne({
@@ -67,13 +67,15 @@ export class AlertEventProcessorService {
 
       await processor(event);
 
-      this.logger.debug(
-        `Successfully processed event ${payload.eventId} with processor for ${event.eventName}`,
+      this.logger.log(
+        `Successfully processed ${event.eventName} event ${payload.eventId} on blockchain ${payload.blockchainId}`,
       );
     } catch (error) {
       this.logger.error(
-        `Error processing blockchain event ${payload.eventId}`,
-        error,
+        `Error processing blockchain event ${payload.eventId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
       );
       AlertsErrorHelpers.throwEventProcessingError(
         payload.eventId,
@@ -87,7 +89,7 @@ export class AlertEventProcessorService {
    */
   private async processDeleteBidEvent(event: BlockchainEvent): Promise<void> {
     try {
-      this.logger.log(`Processing DeleteBid event with id: ${event.id}`);
+      this.logger.debug(`Processing DeleteBid event with id: ${event.id}`);
 
       const deleteBidEvent = await this.blockchainEventRepository.findOne({
         where: { id: event.id },
@@ -122,7 +124,6 @@ export class AlertEventProcessorService {
         await this.alertsQueue.add('alert-triggered', {
           alertId: alert.id,
         });
-        this.logger.debug(`Queued eviction alert ${alert.id} for processing`);
       }
 
       if (alerts.length > 0) {
@@ -131,7 +132,12 @@ export class AlertEventProcessorService {
         );
       }
     } catch (error) {
-      this.logger.error(`Error processing DeleteBid event ${event.id}`, error);
+      this.logger.error(
+        `Error processing DeleteBid event ${event.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
+      );
       throw error;
     }
   }
