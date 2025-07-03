@@ -1,13 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { AlertType } from 'src/alerts/entities/alert.entity';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
 export class EmailNotificationService {
-  private readonly logger = new Logger(EmailNotificationService.name);
+  private readonly logger = createModuleLogger(
+    EmailNotificationService,
+    'Notifications',
+  );
   private readonly sendGridApiKey: string | undefined;
   private readonly sendGridApiUrl = 'https://api.sendgrid.com/v3/mail/send';
   private readonly senderEmail: string;
@@ -43,9 +47,19 @@ export class EmailNotificationService {
     contractAddress: string;
     triggeredCount?: number;
   }): Promise<boolean> {
+    this.logger.log(
+      `Sending email notification to ${destination} for alert type: ${alertType}`,
+    );
+    this.logger.debug(
+      `Email details: contract=${contractName}, recipient=${recipientName}`,
+    );
+
     try {
       // Check if SendGrid API key is configured
       if (!this.sendGridApiKey) {
+        this.logger.log(
+          'SendGrid API key not configured - skipping email notification',
+        );
         throw new Error('SendGrid API key is not configured');
       }
 
@@ -57,6 +71,8 @@ export class EmailNotificationService {
         contractAddress,
         triggeredCount,
       );
+
+      this.logger.debug(`Email subject: ${subject}`);
 
       // Prepare the payload for SendGrid API
       const payload = {
@@ -106,12 +122,12 @@ export class EmailNotificationService {
               const errorData = error.response?.data;
 
               this.logger.error(
-                `Failed to send email notification: Status Code: ${statusCode || 'unknown'}`,
+                `Failed to send email via SendGrid: Status ${statusCode || 'unknown'}`,
               );
 
               if (errorData) {
-                this.logger.error(
-                  `Error details: ${JSON.stringify(errorData)}`,
+                this.logger.debug(
+                  `SendGrid error details: ${JSON.stringify(errorData)}`,
                 );
               }
 
@@ -122,14 +138,13 @@ export class EmailNotificationService {
           ),
       );
 
-      this.logger.log(`Email notification sent successfully to ${destination}`);
+      this.logger.log(`Successfully sent email notification to ${destination}`);
       return true;
     } catch (error) {
-      if (error instanceof Error) {
-        this.logger.error(`Error sending email notification: ${error.message}`);
-      } else {
-        this.logger.error(`Error sending email notification: Unknown error`);
-      }
+      this.logger.error(
+        `Failed to send email notification to ${destination}`,
+        error,
+      );
       throw error;
     }
   }

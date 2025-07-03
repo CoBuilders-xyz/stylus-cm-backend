@@ -1,12 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { AlertType } from 'src/alerts/entities/alert.entity';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
 export class WebhookNotificationService {
-  private readonly logger = new Logger(WebhookNotificationService.name);
+  private readonly logger = createModuleLogger(
+    WebhookNotificationService,
+    'Notifications',
+  );
 
   constructor(private readonly httpService: HttpService) {}
 
@@ -25,34 +29,41 @@ export class WebhookNotificationService {
     value: string;
     contractName: string;
     contractAddress: string;
-    triggeredCount: number;
+    triggeredCount?: number;
   }): Promise<boolean> {
+    this.logger.log(
+      `Sending webhook notification for alert type: ${alertType}`,
+    );
+    this.logger.debug(
+      `Webhook details: contract=${contractName}, destination=${destination}`,
+    );
+
     try {
       // Prepare the payload for the webhook
       const payload = {
-        alertId: alertId,
-        alertType: alertType,
+        alertId,
+        alertType,
         alertTypeDisplay: this.getAlertTypeDisplayName(alertType),
+        value,
+        contractName,
+        contractAddress,
+        triggeredCount: triggeredCount || 1,
+        timestamp: new Date().toISOString(),
         message: this.formatAlertMessage(
           alertType,
           value,
           contractName,
           contractAddress,
         ),
-        contractName,
-        contractAddress,
-        timestamp: new Date().toISOString(),
-        value: value,
-        triggeredCount: triggeredCount,
       };
 
-      // Send the notification to the webhook endpoint
+      this.logger.debug(`Webhook payload for alert: ${alertId}`);
+
+      // Send the notification to the webhook URL
       await firstValueFrom(
         this.httpService.post(destination, payload).pipe(
           catchError((error: AxiosError) => {
-            this.logger.error(
-              `Failed to send webhook notification: ${error.message}`,
-            );
+            this.logger.error(`Failed to send webhook: ${error.message}`);
             throw new Error(
               `Failed to send webhook notification: ${error.message}`,
             );
@@ -61,17 +72,14 @@ export class WebhookNotificationService {
       );
 
       this.logger.log(
-        `Webhook notification sent successfully to ${destination}`,
+        `Successfully sent webhook notification for alert: ${alertId}`,
       );
       return true;
     } catch (error) {
-      if (error instanceof Error) {
-        this.logger.error(
-          `Error sending webhook notification: ${error.message}`,
-        );
-      } else {
-        this.logger.error(`Error sending webhook notification: Unknown error`);
-      }
+      this.logger.error(
+        `Failed to send webhook notification to ${destination}`,
+        error,
+      );
       throw error;
     }
   }
