@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { AlertsSettings, User } from 'src/users/entities/user.entity';
 import { NotificationQueueService } from './services/queue.service';
@@ -6,17 +6,15 @@ import { MockNotificationService } from './services/mock.service';
 import { TimingService } from './services/timing.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
-type NotificationChannels = {
-  email?: string;
-  slack?: string;
-  telegram?: string;
-  webhook?: string;
-};
+import { NotificationChannels } from './interfaces';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
 export class NotificationsService {
-  private readonly logger = new Logger(NotificationsService.name);
+  private readonly logger = createModuleLogger(
+    NotificationsService,
+    'Notifications',
+  );
 
   constructor(
     private queueService: NotificationQueueService,
@@ -34,7 +32,10 @@ export class NotificationsService {
     alert: Alert,
     userSettings: AlertsSettings,
   ): Promise<void> {
-    this.logger.log(`Preparing notifications for alert: ${alert.id}`);
+    this.logger.log(`Processing notifications for alert: ${alert.id}`);
+    this.logger.debug(
+      `Alert details: type=${alert.type}, userId=${alert.user.id}`,
+    );
 
     // Check if backoff delay has been exceeded
     if (!this.timingService.isBackoffDelayExceeded(alert)) {
@@ -49,6 +50,9 @@ export class NotificationsService {
 
     // Build channels object with enabled destinations
     const channels = this.buildEnabledChannels(alert, userSettings);
+    this.logger.debug(
+      `Enabled channels: ${JSON.stringify(Object.keys(channels))}`,
+    );
 
     // Queue all enabled notifications
     const queuedCount = await this.queueService.queueNotifications(
@@ -57,11 +61,15 @@ export class NotificationsService {
     );
 
     if (queuedCount === 0) {
-      this.logger.warn(
-        `No notifications were queued for alert: ${alert.id} - check alert and user settings`,
+      this.logger.log(
+        `No notifications queued for alert: ${alert.id} - no enabled channels`,
       );
       return;
     }
+
+    this.logger.log(
+      `Successfully queued ${queuedCount} notifications for alert: ${alert.id}`,
+    );
 
     // Update lastNotified timestamp
     const updatedAlert = this.timingService.updateLastNotified(alert);
@@ -72,6 +80,9 @@ export class NotificationsService {
     user: User,
     notificationChannel: 'webhook' | 'slack' | 'telegram' | 'email',
   ) {
+    this.logger.log(
+      `Sending mock ${notificationChannel} notification for user: ${user.id}`,
+    );
     return await this.mockService.sendMockNotification(
       user,
       notificationChannel,
