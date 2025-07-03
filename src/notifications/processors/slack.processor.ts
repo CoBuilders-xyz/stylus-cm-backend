@@ -6,7 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
-import { SlackNotificationService } from '../services/slack-notification.service';
+import { SlackNotificationService } from '../services/slack.service';
 
 interface SlackNotificationData {
   alertId: string;
