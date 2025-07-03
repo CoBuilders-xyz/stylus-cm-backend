@@ -1,18 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { AlertType } from 'src/alerts/entities/alert.entity';
-
-export type NotificationData = {
-  alertId: string;
-  alertType: AlertType;
-  destination: string;
-  userId: string;
-};
+import { NotificationData, NotificationChannels } from '../interfaces';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
 export class NotificationQueueService {
-  private readonly logger = new Logger(NotificationQueueService.name);
+  private readonly logger = createModuleLogger(
+    NotificationQueueService,
+    'Notifications',
+  );
 
   constructor(
     @InjectQueue('notif-slack')
@@ -58,15 +55,14 @@ export class NotificationQueueService {
    * Returns the number of notifications queued
    */
   async queueNotifications(
-    baseData: { alertId: string; alertType: AlertType; userId: string },
-    channels: {
-      email?: string;
-      slack?: string;
-      telegram?: string;
-      webhook?: string;
-    },
+    baseData: { alertId: string; alertType: any; userId: string },
+    channels: NotificationChannels,
   ): Promise<number> {
     const queuePromises: Promise<void>[] = [];
+
+    this.logger.debug(
+      `Queueing notifications for alert: ${baseData.alertId}, enabled channels: ${Object.keys(channels).join(', ')}`,
+    );
 
     // Queue each enabled channel
     if (channels.email) {

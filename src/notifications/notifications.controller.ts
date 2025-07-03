@@ -1,28 +1,36 @@
-import { Controller, Post, Body, Logger, Request } from '@nestjs/common';
+import { Controller, Post, Body, Request } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { AuthenticatedRequest } from 'src/common/types/custom-types';
+import { SendMockNotificationDto } from './dto';
+import { createControllerLogger } from 'src/common/utils/logger.util';
 
 /**
  * Controller for testing webhook functionality
  */
 @Controller('notifications')
 export class NotificationsController {
-  private readonly logger = new Logger(NotificationsController.name);
+  private readonly logger = createControllerLogger(
+    NotificationsController,
+    'Notifications',
+  );
 
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Post('test/send')
-  sendMockNotification(
-    @Body()
-    payload: {
-      userAddress: string;
-      notificationChannel: 'webhook' | 'slack' | 'telegram' | 'email';
-    },
+  async sendMockNotification(
+    @Body() payload: SendMockNotificationDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.notificationsService.sendMockNotification(
+    this.logger.log(
+      `Sending mock ${payload.notificationChannel} notification for user: ${req.user.id}`,
+    );
+
+    const result = await this.notificationsService.sendMockNotification(
       req.user,
       payload.notificationChannel,
     );
+
+    this.logger.debug(`Mock notification result: ${JSON.stringify(result)}`);
+    return result;
   }
 }

@@ -1,14 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AlertType } from 'src/alerts/entities/alert.entity';
 import { User } from 'src/users/entities/user.entity';
 import { WebhookNotificationService } from './webhook.service';
 import { SlackNotificationService } from './slack.service';
 import { TelegramNotificationService } from './telegram.service';
 import { EmailNotificationService } from './email.service';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
 export class MockNotificationService {
-  private readonly logger = new Logger(MockNotificationService.name);
+  private readonly logger = createModuleLogger(
+    MockNotificationService,
+    'Notifications',
+  );
 
   constructor(
     private webhookService: WebhookNotificationService,
@@ -21,6 +25,10 @@ export class MockNotificationService {
     user: User,
     notificationChannel: 'webhook' | 'slack' | 'telegram' | 'email',
   ) {
+    this.logger.log(
+      `Preparing mock ${notificationChannel} notification for user: ${user.id}`,
+    );
+
     const mockData = {
       alertId: '123',
       alertValue: '100',
@@ -36,11 +44,13 @@ export class MockNotificationService {
       user.alertsSettings[`${notificationChannel}Settings`]?.destination;
 
     if (!destination) {
-      this.logger.warn(`No destination found for ${notificationChannel}`);
+      this.logger.log(
+        `No destination configured for ${notificationChannel} channel`,
+      );
       return;
     }
 
-    this.logger.log(
+    this.logger.debug(
       `Sending mock ${notificationChannel} notification to ${destination}`,
     );
 
@@ -62,6 +72,10 @@ export class MockNotificationService {
       contractAddress: mockData.alertContractAddress,
       triggeredCount: 0,
     });
+
+    this.logger.log(
+      `Successfully sent mock ${notificationChannel} notification to ${destination}`,
+    );
 
     return {
       success: true,

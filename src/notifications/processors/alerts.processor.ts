@@ -5,11 +5,14 @@ import { Alert } from 'src/alerts/entities/alert.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { Logger } from '@nestjs/common';
+import { createContextLogger } from 'src/common/utils/logger.util';
 
 @Processor('alerts')
 export class AlertsConsumer extends WorkerHost {
-  private readonly logger = new Logger(AlertsConsumer.name);
+  private readonly logger = createContextLogger(
+    'AlertsConsumer',
+    'Notifications',
+  );
 
   constructor(
     private readonly notificationsService: NotificationsService,
@@ -22,36 +25,53 @@ export class AlertsConsumer extends WorkerHost {
   }
 
   async process(job: Job<{ alertId: string }, void, string>): Promise<void> {
-    // Get the alert with related user
-    const alert = await this.alertsRepository.findOne({
-      where: { id: job.data.alertId },
-      relations: ['user'],
-    });
+    const { alertId } = job.data;
 
-    if (!alert) {
-      throw new Error('Alert not found');
+    this.logger.log(`Processing alert job for alert: ${alertId}`);
+    this.logger.debug(`Job details: alertId=${alertId}`);
+
+    try {
+      const alert = await this.alertsRepository.findOne({
+        where: { id: alertId },
+        relations: ['user'],
+      });
+
+      if (!alert) {
+        this.logger.log(`Alert not found: ${alertId} - skipping processing`);
+        return;
+      }
+
+      const user = await this.userRepository.findOne({
+        where: { id: alert.user.id },
+      });
+
+      if (!user) {
+        this.logger.log(
+          `User not found for alert: ${alertId} - skipping processing`,
+        );
+        return;
+      }
+
+      this.logger.debug(
+        `Processing alert of type: ${alert.type} for user: ${user.id}`,
+      );
+
+      await this.notificationsService.sendNotifications(
+        alert,
+        user.alertsSettings,
+      );
+
+      // Update the alert's last triggered timestamp and count
+      alert.lastTriggered = new Date();
+      alert.triggeredCount += 1;
+      await this.alertsRepository.save(alert);
+
+      this.logger.log(
+        `Successfully processed alert: ${alertId}, triggered count: ${alert.triggeredCount}`,
+      );
+    } catch (error) {
+      this.logger.error(`Error processing alert: ${alertId}`, error);
+      throw error;
     }
-
-    // Load the user with all alert settings
-    const user = await this.userRepository.findOne({
-      where: { id: alert.user.id },
-    });
-
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // Use the notifications service to queue notifications
-    await this.notificationsService.sendNotifications(
-      alert,
-      user.alertsSettings,
-    );
-
-    // Update the alert's last triggered timestamp and count
-    alert.lastTriggered = new Date();
-    alert.triggeredCount += 1;
-    await this.alertsRepository.save(alert);
-
-    await job.updateProgress(100);
   }
 }
