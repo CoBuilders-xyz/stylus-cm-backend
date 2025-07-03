@@ -7,6 +7,13 @@ import { TimingService } from './services/timing.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+type NotificationChannels = {
+  email?: string;
+  slack?: string;
+  telegram?: string;
+  webhook?: string;
+};
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -41,12 +48,44 @@ export class NotificationsService {
     };
 
     // Build channels object with enabled destinations
-    const channels: {
-      email?: string;
-      slack?: string;
-      telegram?: string;
-      webhook?: string;
-    } = {};
+    const channels = this.buildEnabledChannels(alert, userSettings);
+
+    // Queue all enabled notifications
+    const queuedCount = await this.queueService.queueNotifications(
+      notificationData,
+      channels,
+    );
+
+    if (queuedCount === 0) {
+      this.logger.warn(
+        `No notifications were queued for alert: ${alert.id} - check alert and user settings`,
+      );
+      return;
+    }
+
+    // Update lastNotified timestamp
+    const updatedAlert = this.timingService.updateLastNotified(alert);
+    await this.alertsRepository.save(updatedAlert);
+  }
+
+  async sendMockNotification(
+    user: User,
+    notificationChannel: 'webhook' | 'slack' | 'telegram' | 'email',
+  ) {
+    return await this.mockService.sendMockNotification(
+      user,
+      notificationChannel,
+    );
+  }
+
+  /**
+   * Build enabled channels object based on alert and user settings
+   */
+  private buildEnabledChannels(
+    alert: Alert,
+    userSettings: AlertsSettings,
+  ): NotificationChannels {
+    const channels: NotificationChannels = {};
 
     if (alert.emailChannelEnabled && userSettings?.emailSettings?.enabled) {
       channels.email = userSettings.emailSettings.destination;
@@ -67,31 +106,6 @@ export class NotificationsService {
       channels.webhook = userSettings.webhookSettings.destination;
     }
 
-    // Queue all enabled notifications
-    const queuedCount = await this.queueService.queueNotifications(
-      notificationData,
-      channels,
-    );
-
-    if (queuedCount === 0) {
-      this.logger.warn(
-        `No notifications were queued for alert: ${alert.id} - check alert and user settings`,
-      );
-      return;
-    }
-
-    // Update lastNotified
-    const updatedAlert = this.timingService.updateLastNotified(alert);
-    await this.alertsRepository.save(updatedAlert);
-  }
-
-  async sendMockNotification(
-    user: User,
-    notificationChannel: 'webhook' | 'slack' | 'telegram' | 'email',
-  ) {
-    return await this.mockService.sendMockNotification(
-      user,
-      notificationChannel,
-    );
+    return channels;
   }
 }
