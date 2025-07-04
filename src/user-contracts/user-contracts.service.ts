@@ -12,6 +12,7 @@ import {
 } from './services';
 import { MODULE_NAME } from './constants';
 import { createModuleLogger } from '../common/utils/logger.util';
+import { UserContract } from './entities/user-contract.entity';
 
 @Injectable()
 export class UserContractsService {
@@ -32,7 +33,7 @@ export class UserContractsService {
     address: string,
     blockchainId: string,
     name?: string,
-  ): Promise<any> {
+  ): Promise<UserContract> {
     this.logger.log(
       `Creating user contract for user ${user.id} with address ${address} on blockchain ${blockchainId}`,
     );
@@ -82,7 +83,7 @@ export class UserContractsService {
         `Successfully created user contract ${userContract.id} for user ${user.id}`,
       );
 
-      return this.enrichmentService.enrichUserContract(userContract, user);
+      return userContract;
     } catch (error) {
       this.logger.error('Failed to create user contract', error);
       throw error;
