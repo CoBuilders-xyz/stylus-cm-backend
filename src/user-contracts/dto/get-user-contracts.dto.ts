@@ -13,41 +13,45 @@ import {
 import { Type, Transform } from 'class-transformer';
 import { SortDirection } from '../../common/dto/sort.dto';
 import { ContractSortField } from '../../contracts/dto/contract-sorting.dto';
+import { USER_CONTRACT_DEFAULTS } from '../constants';
 
 /**
- * DTO for getting user contracts with all query parameters consolidated
+ * DTO for getting user contracts with comprehensive query parameters
  */
 export class GetUserContractsDto {
-  // Blockchain ID (required)
   @IsUUID(4, { message: 'blockchainId must be a valid UUID' })
   @IsNotEmpty()
   blockchainId: string;
 
-  // Pagination parameters
   @IsOptional()
-  @IsInt()
-  @Min(1)
+  @IsInt({ message: 'Page must be a valid integer' })
+  @Min(1, { message: 'Page must be at least 1' })
   @Type(() => Number)
-  page?: number = 1;
+  page?: number = USER_CONTRACT_DEFAULTS.PAGINATION.DEFAULT_PAGE;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(100)
+  @IsInt({ message: 'Limit must be a valid integer' })
+  @Min(1, { message: 'Limit must be at least 1' })
+  @Max(USER_CONTRACT_DEFAULTS.PAGINATION.MAX_LIMIT, {
+    message: `Limit cannot exceed ${USER_CONTRACT_DEFAULTS.PAGINATION.MAX_LIMIT}`,
+  })
   @Type(() => Number)
-  limit?: number = 10;
+  limit?: number = USER_CONTRACT_DEFAULTS.PAGINATION.DEFAULT_LIMIT;
 
-  // Search parameters
   @IsOptional()
-  @IsString()
-  @Length(1, 100)
+  @IsString({ message: 'Search must be a string' })
+  @Length(1, 100, {
+    message: 'Search term must be between 1 and 100 characters',
+  })
   @Type(() => String)
   search?: string;
 
-  // Sorting parameters
   @IsOptional()
-  @IsArray()
-  @IsEnum(ContractSortField, { each: true })
+  @IsArray({ message: 'SortBy must be an array' })
+  @IsEnum(ContractSortField, {
+    each: true,
+    message: `Each sort field must be one of: ${Object.values(ContractSortField).join(', ')}`,
+  })
   @Transform(({ value }: { value: string | ContractSortField[] }) => {
     // Handle both array and comma-separated string
     if (typeof value === 'string') {
@@ -58,8 +62,11 @@ export class GetUserContractsDto {
   sortBy?: ContractSortField[] = [ContractSortField.LAST_BID];
 
   @IsOptional()
-  @IsArray()
-  @IsEnum(SortDirection, { each: true })
+  @IsArray({ message: 'SortDirection must be an array' })
+  @IsEnum(SortDirection, {
+    each: true,
+    message: `Each sort direction must be one of: ${Object.values(SortDirection).join(', ')}`,
+  })
   @Transform(({ value }: { value: string | SortDirection[] }) => {
     // Handle both array and comma-separated string
     if (typeof value === 'string') {
