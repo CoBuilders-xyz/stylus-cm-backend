@@ -28,6 +28,10 @@ export class UserContractValidationService {
     address: string,
     blockchainId: string,
   ): Promise<{ blockchain: Blockchain; verifiedAddress: string }> {
+    this.logger.log(
+      `Validating user contract creation for user ${user.id} with address ${address} on blockchain ${blockchainId}`,
+    );
+
     // Check if user contract already exists - migrated from original service
     const userContract = await this.userContractRepository.findOne({
       where: {
@@ -38,6 +42,9 @@ export class UserContractValidationService {
     });
 
     if (userContract) {
+      this.logger.debug(
+        `User contract already exists for address ${address} on blockchain ${blockchainId}`,
+      );
       UserContractsErrorHelpers.throwContractAlreadyExists(address);
     }
 
@@ -47,12 +54,19 @@ export class UserContractValidationService {
     });
 
     if (!blockchain) {
+      this.logger.debug(`Blockchain ${blockchainId} not found`);
       UserContractsErrorHelpers.throwBlockchainNotFound(blockchainId);
       throw new Error('Unreachable');
     }
 
+    this.logger.debug(`Blockchain ${blockchain.name} found`);
+
     // Verify address format - migrated from original service
     const verifiedAddress = ethers.getAddress(address);
+
+    this.logger.log(
+      `Successfully validated user contract creation for user ${user.id} with address ${verifiedAddress} on blockchain ${blockchain.name}`,
+    );
 
     return { blockchain, verifiedAddress };
   }
@@ -61,15 +75,26 @@ export class UserContractValidationService {
     address: string,
     blockchain: Blockchain,
   ): Promise<{ verifiedAddress: string; onChainBytecode: string }> {
+    this.logger.log(
+      `Validating contract ${address} on blockchain ${blockchain.name}`,
+    );
+
     try {
       // Exact same logic as original service
       const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
       const onChainBytecode = await provider.getCode(address);
 
+      this.logger.debug(
+        `Retrieved bytecode for contract ${address} on blockchain ${blockchain.name}`,
+      );
+
       if (
         onChainBytecode === BLOCKCHAIN_CONSTANTS.EMPTY_BYTECODE ||
         onChainBytecode === BLOCKCHAIN_CONSTANTS.EMPTY_BYTECODE_ALT
       ) {
+        this.logger.debug(
+          `Contract ${address} has empty bytecode on blockchain ${blockchain.name}`,
+        );
         UserContractsErrorHelpers.throwContractNotOnBlockchain(
           address,
           blockchain.name,
@@ -77,6 +102,10 @@ export class UserContractValidationService {
       }
 
       const verifiedAddress = ethers.getAddress(address);
+
+      this.logger.log(
+        `Successfully validated contract ${verifiedAddress} on blockchain ${blockchain.name}`,
+      );
 
       return { verifiedAddress, onChainBytecode };
     } catch (error) {
