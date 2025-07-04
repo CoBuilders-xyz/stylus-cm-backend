@@ -7,6 +7,11 @@ import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { ProviderManager } from 'src/common/utils/provider.util';
 import { EngineUtil } from 'src/cma/utils/engine.util';
 import { CmaService } from './cma.service';
+import {
+  ContractSelectionService,
+  BatchProcessorService,
+  AutomationOrchestratorService,
+} from './services';
 import cmaConfig from './cma.config';
 
 @Module({
@@ -15,7 +20,14 @@ import cmaConfig from './cma.config';
     HttpModule,
     ConfigModule.forFeature(cmaConfig),
   ],
-  providers: [CmaService, ProviderManager, EngineUtil],
+  providers: [
+    CmaService,
+    ContractSelectionService,
+    BatchProcessorService,
+    AutomationOrchestratorService,
+    ProviderManager,
+    EngineUtil,
+  ],
   exports: [CmaService],
 })
 export class CmaModule {}
