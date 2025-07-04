@@ -17,7 +17,6 @@ import {
 import { Blockchain } from './entities/blockchain.entity';
 import { BlockchainState } from './entities/blockchain-state.entity';
 import { BlockchainEvent } from './entities/blockchain-event.entity';
-import { BlockchainMetric } from './entities/blockchain-metric.entity';
 import { Bytecode } from '../contracts/entities/bytecode.entity';
 
 @Module({
@@ -26,7 +25,6 @@ import { Bytecode } from '../contracts/entities/bytecode.entity';
       Blockchain,
       BlockchainState,
       BlockchainEvent,
-      BlockchainMetric,
       Bytecode,
     ]),
   ],

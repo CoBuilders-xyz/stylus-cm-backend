@@ -1,3 +1,15 @@
+/**
+ * State Fetcher Module Constants
+ */
+export const STATE_FETCHER_MODULE = {
+  NAME: 'StateFetcher',
+} as const;
+
+/**
+ * For convenience, export just the module name
+ */
+export const MODULE_NAME = STATE_FETCHER_MODULE.NAME;
+
 export const STATE_FETCHER_CONSTANTS = {
   DEFAULT_POLLING_INTERVAL: '*/5 * * * *', // Every 5 minutes
   DEFAULT_CONTRACT_TIMEOUT: 30000, // 30 seconds

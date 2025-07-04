@@ -1,19 +1,28 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { abi } from '../../common/abis/cacheManager/cacheManager.json';
 import { StateFetcherErrorHelpers } from '../state-fetcher.errors';
 import { BlockchainStateData, ContractEntry } from '../interfaces';
+import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants';
 
 @Injectable()
 export class ContractInteractionService {
-  private readonly logger = new Logger(ContractInteractionService.name);
+  private readonly logger = createModuleLogger(
+    ContractInteractionService,
+    MODULE_NAME,
+  );
 
   async getContractState(
     blockchain: Blockchain,
     provider: ethers.JsonRpcProvider,
   ): Promise<BlockchainStateData> {
     try {
+      this.logger.debug(
+        `Fetching contract state for blockchain ${blockchain.id}`,
+      );
+
       const cacheManagerContract = new ethers.Contract(
         blockchain.cacheManagerAddress,
         abi as ethers.InterfaceAbi,
@@ -33,6 +42,9 @@ export class ContractInteractionService {
         results;
 
       if (!block) {
+        this.logger.error(
+          `Failed to fetch latest block for blockchain ${blockchain.id}`,
+        );
         StateFetcherErrorHelpers.throwBlockFetchFailed();
       }
 
@@ -47,16 +59,9 @@ export class ContractInteractionService {
         totalContractsCached: entries.length,
       };
 
-      this.logger.verbose('Fetched smart contract state values', {
-        blockchainId: blockchain.id,
-        entries: entries.length,
-        decayRate: decayRate.toString(),
-        cacheSize: cacheSize.toString(),
-        queueSize: queueSize.toString(),
-        isPaused,
-        blockNumber: block!.number,
-        blockTimestamp: stateData.blockTimestamp,
-      });
+      this.logger.log(
+        `Contract state fetched for blockchain ${blockchain.id}: ${entries.length} contracts, queue ${queueSize}/${cacheSize}, block ${block!.number}`,
+      );
 
       return stateData;
     } catch (error) {
