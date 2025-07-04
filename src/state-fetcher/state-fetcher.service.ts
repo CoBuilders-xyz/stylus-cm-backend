@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Repository } from 'typeorm';
@@ -9,10 +9,15 @@ import { Blockchain } from '../blockchains/entities/blockchain.entity';
 import { StateFetcherConfig } from './state-fetcher.config';
 import { StateFetcherErrorHelpers } from './state-fetcher.errors';
 import { ContractInteractionService, StateStorageService } from './services';
+import { createModuleLogger } from '../common/utils/logger.util';
+import { MODULE_NAME } from './constants';
 
 @Injectable()
 export class StateFetcherService implements OnModuleInit {
-  private readonly logger = new Logger(StateFetcherService.name);
+  private readonly logger = createModuleLogger(
+    StateFetcherService,
+    MODULE_NAME,
+  );
   private readonly config: StateFetcherConfig;
 
   constructor(
@@ -27,35 +32,75 @@ export class StateFetcherService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
-    this.logger.debug('Starting scheduled blockchain state polling...');
+    this.logger.log('Starting scheduled blockchain state polling...');
+
     const blockchains = await this.blockchainRepository.find({
       where: { enabled: true },
     });
+
+    if (blockchains.length === 0) {
+      this.logger.warn('No enabled blockchains found for scheduled polling');
+      return;
+    }
+
+    this.logger.log(
+      `Found ${blockchains.length} enabled blockchain(s) for polling`,
+    );
 
     const pollingPromises = blockchains.map((blockchain) =>
       this.pollBlockchainSafely(blockchain, 'scheduled'),
     );
 
-    await Promise.allSettled(pollingPromises);
-    this.logger.debug('Scheduled polling completed.');
+    const results = await Promise.allSettled(pollingPromises);
+
+    const successful = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+
+    this.logger.log(
+      `Scheduled polling completed: ${successful} successful, ${failed} failed`,
+    );
   }
 
   async onModuleInit() {
+    this.logger.log('Initializing StateFetcherService...');
+
     if (!this.config.enableInitialPolling) {
       this.logger.log('Initial polling disabled via configuration');
       return;
     }
 
     this.logger.log('Starting initial blockchain state data collection...');
+
     const blockchains = await this.blockchainRepository.find({
       where: { enabled: true },
     });
 
-    for (const blockchain of blockchains) {
-      await this.pollBlockchainSafely(blockchain, 'initial');
+    if (blockchains.length === 0) {
+      this.logger.warn('No enabled blockchains found for initial polling');
+      return;
     }
 
-    this.logger.log('Initial state check completed.');
+    this.logger.log(
+      `Found ${blockchains.length} enabled blockchain(s) for initial collection`,
+    );
+
+    let successful = 0;
+    let failed = 0;
+
+    for (const blockchain of blockchains) {
+      try {
+        await this.pollBlockchainSafely(blockchain, 'initial');
+        successful++;
+      } catch {
+        failed++;
+        // Error already logged in pollBlockchainSafely
+      }
+    }
+
+    this.logger.log(
+      `Initial state collection completed: ${successful} successful, ${failed} failed`,
+    );
+    this.logger.log('StateFetcherService initialized successfully');
   }
 
   private async pollBlockchainSafely(
@@ -65,6 +110,10 @@ export class StateFetcherService implements OnModuleInit {
     const startTime = Date.now();
 
     try {
+      this.logger.debug(
+        `Starting ${context} state polling for blockchain ${blockchain.id}`,
+      );
+
       this.validateBlockchainConfig(blockchain);
 
       const provider = await this.createProvider(blockchain);
@@ -76,7 +125,7 @@ export class StateFetcherService implements OnModuleInit {
 
       const duration = Date.now() - startTime;
       this.logger.log(
-        `${context} state fetched for blockchain ${blockchain.id} in ${duration}ms`,
+        `${context} state fetched for blockchain ${blockchain.id} (${duration}ms)`,
       );
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -87,6 +136,8 @@ export class StateFetcherService implements OnModuleInit {
       if (this.config.enableMetrics) {
         // TODO: Record metrics when monitoring service is implemented
       }
+
+      throw error; // Re-throw to be caught by caller for counting
     }
   }
 
@@ -103,10 +154,17 @@ export class StateFetcherService implements OnModuleInit {
     blockchain: Blockchain,
   ): Promise<ethers.JsonRpcProvider> {
     try {
+      this.logger.debug(
+        `Creating provider for blockchain ${blockchain.id}: ${blockchain.rpcUrl}`,
+      );
+
       const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
 
       // Test the connection
-      await provider.getNetwork();
+      const network = await provider.getNetwork();
+      this.logger.debug(
+        `Provider connected to network ${network.name} (chainId: ${network.chainId})`,
+      );
 
       return provider;
     } catch (error) {

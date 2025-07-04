@@ -9,7 +9,6 @@ import { UserContract } from '../../user-contracts/entities';
 import {
   Blockchain,
   BlockchainEvent,
-  BlockchainMetric,
   BlockchainState,
 } from '../../blockchains/entities';
 import {
@@ -24,7 +23,6 @@ const entities = [
   Bytecode,
   Blockchain,
   BlockchainEvent,
-  BlockchainMetric,
   BlockchainState,
   User,
   UserContract,
