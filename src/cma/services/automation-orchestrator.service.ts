@@ -1,17 +1,22 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 import { CmaConfig } from '../cma.config';
 import { ContractSelectionService } from './contract-selection.service';
 import { BatchProcessorService } from './batch-processor.service';
 import { AutomationResult, AutomationStats } from '../interfaces';
+import { MODULE_NAME } from '../constants';
 
 @Injectable()
 export class AutomationOrchestratorService {
-  private readonly logger = new Logger(AutomationOrchestratorService.name);
+  private readonly logger = createModuleLogger(
+    AutomationOrchestratorService,
+    MODULE_NAME,
+  );
 
   constructor(
     @InjectRepository(Blockchain)
@@ -25,10 +30,10 @@ export class AutomationOrchestratorService {
     const config = this.configService.get<CmaConfig>('cma');
     const startTime = new Date();
 
-    this.logger.log('CMA automation started.');
+    this.logger.log('Starting automation execution...');
 
     if (!config?.automationEnabled) {
-      this.logger.log('CMA automation is disabled via configuration');
+      this.logger.log('Automation is disabled via configuration');
       return {
         success: true,
         stats: {
@@ -49,6 +54,29 @@ export class AutomationOrchestratorService {
     const blockchains = await this.blockchainRepository.find({
       where: { enabled: true },
     });
+
+    if (blockchains.length === 0) {
+      this.logger.log('No enabled blockchains found');
+      return {
+        success: true,
+        stats: {
+          totalBlockchains: 0,
+          processedBlockchains: 0,
+          totalContracts: 0,
+          processedContracts: 0,
+          successfulBatches: 0,
+          failedBatches: 0,
+          startTime,
+          endTime: new Date(),
+          duration: 0,
+        },
+        errors: [],
+      };
+    }
+
+    this.logger.log(
+      `Processing automation for ${blockchains.length} blockchains`,
+    );
 
     let totalContracts = 0;
     let processedContracts = 0;
@@ -81,7 +109,7 @@ export class AutomationOrchestratorService {
           }
         }
       } catch (error) {
-        const errorMessage = `Failed to process automation for blockchain ${blockchain.name}: ${error}`;
+        const errorMessage = `Failed to process automation for blockchain ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`;
         this.logger.error(errorMessage);
         errors.push({
           blockchain: blockchain.name,
@@ -107,7 +135,7 @@ export class AutomationOrchestratorService {
     };
 
     this.logger.log(
-      `CMA automation completed. Stats: ${JSON.stringify(stats)}`,
+      `Automation execution completed: ${processedContracts} contracts processed across ${processedBlockchains} blockchains`,
     );
 
     return {
@@ -118,8 +146,6 @@ export class AutomationOrchestratorService {
   }
 
   private async processCmaAutomation(blockchain: Blockchain) {
-    this.logger.log(`Processing CMA automation for ${blockchain.name}`);
-
     const selectedContracts =
       await this.contractSelectionService.selectOptimalBids(blockchain);
 
@@ -139,10 +165,6 @@ export class AutomationOrchestratorService {
     const batchResult = await this.batchProcessorService.processContractBatches(
       blockchain,
       selectedContracts,
-    );
-
-    this.logger.log(
-      `Completed automation for ${blockchain.name}: ${batchResult.processedContracts}/${batchResult.totalContracts} contracts processed`,
     );
 
     return batchResult;

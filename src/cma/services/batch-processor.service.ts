@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 import { EngineUtil } from '../utils/engine.util';
 import { CmaConfig } from '../cma.config';
 import {
@@ -9,10 +10,14 @@ import {
   BatchProcessingResult,
   BatchResult,
 } from '../interfaces';
+import { MODULE_NAME } from '../constants';
 
 @Injectable()
 export class BatchProcessorService {
-  private readonly logger = new Logger(BatchProcessorService.name);
+  private readonly logger = createModuleLogger(
+    BatchProcessorService,
+    MODULE_NAME,
+  );
 
   constructor(
     private readonly engineUtil: EngineUtil,
@@ -28,7 +33,6 @@ export class BatchProcessorService {
     const startTime = new Date();
 
     if (selectedContracts.length === 0) {
-      this.logger.log('No contracts to process');
       return {
         totalBatches: 0,
         successfulBatches: 0,
@@ -49,7 +53,9 @@ export class BatchProcessorService {
       batches.push(selectedContracts.slice(i, i + batchSize));
     }
 
-    this.logger.log(`Processing ${batches.length} batches of contracts`);
+    this.logger.log(
+      `Processing ${selectedContracts.length} contracts in ${batches.length} batches for ${blockchain.name}`,
+    );
 
     let successfulBatches = 0;
     let failedBatches = 0;
@@ -104,7 +110,7 @@ export class BatchProcessorService {
         const batchEndTime = new Date();
         const processingTime =
           batchEndTime.getTime() - batchStartTime.getTime();
-        const errorMessage = `Batch ${batchIndex + 1}/${batches.length} placeBids error: ${error}`;
+        const errorMessage = `Batch ${batchIndex + 1}/${batches.length} failed: ${error instanceof Error ? error.message : String(error)}`;
 
         this.logger.error(errorMessage);
         errors.push(errorMessage);
@@ -119,19 +125,15 @@ export class BatchProcessorService {
         });
 
         failedBatches++;
-        // Continue with next batch even if current batch fails
       }
-    }
-
-    // Log individual contracts for reference
-    for (const contract of selectedContracts) {
-      this.logger.log(
-        `Processed contract ${contract.address} for user ${contract.user}`,
-      );
     }
 
     const endTime = new Date();
     const totalDuration = endTime.getTime() - startTime.getTime();
+
+    this.logger.log(
+      `Batch processing completed for ${blockchain.name}: ${successfulBatches}/${batches.length} batches successful, ${processedContracts} contracts processed`,
+    );
 
     return {
       totalBatches: batches.length,

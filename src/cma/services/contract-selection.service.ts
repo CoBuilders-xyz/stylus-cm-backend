@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
 
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { ContractType, ProviderManager } from 'src/common/utils/provider.util';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 import { CacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 import { CacheManager } from 'src/common/types/contracts/CacheManager';
 import { ArbWasmCache } from 'src/common/types/contracts/ArbWasmCache';
@@ -11,10 +12,14 @@ import { ICacheManagerAutomationV2 } from 'src/common/types/contracts/cacheManag
 
 import { CmaConfig } from '../cma.config';
 import { SelectedContract } from '../interfaces';
+import { MODULE_NAME } from '../constants';
 
 @Injectable()
 export class ContractSelectionService {
-  private readonly logger = new Logger(ContractSelectionService.name);
+  private readonly logger = createModuleLogger(
+    ContractSelectionService,
+    MODULE_NAME,
+  );
 
   constructor(
     private readonly providerManager: ProviderManager,
@@ -49,20 +54,14 @@ export class ContractSelectionService {
       const limit = BigInt(config?.paginationLimit || 30);
       let hasMore = true;
 
-      while (hasMore) {
-        this.logger.debug(
-          `Fetching contracts batch: offset=${offset}, limit=${limit}`,
-        );
+      this.logger.log(`Fetching automated contracts for ${blockchain.name}...`);
 
+      while (hasMore) {
         const result = await cmaContract.getContractsPaginated(offset, limit);
-        const batchContracts = result.userData; // Access userData property
-        hasMore = result.hasMore; // Access hasMore property
+        const batchContracts = result.userData;
+        hasMore = result.hasMore;
 
         automatedUserConfigs = automatedUserConfigs.concat(batchContracts);
-
-        this.logger.debug(
-          `Fetched ${batchContracts.length} users in this batch. Total: ${automatedUserConfigs.length}. HasMore: ${hasMore}`,
-        );
 
         if (!hasMore) {
           break;
@@ -71,8 +70,8 @@ export class ContractSelectionService {
         offset += limit;
       }
 
-      this.logger.debug(
-        `Found ${automatedUserConfigs.length} users with automated contracts (total across all batches)`,
+      this.logger.log(
+        `Found ${automatedUserConfigs.length} users with automated contracts`,
       );
 
       const selectedContracts: SelectedContract[] = [];
@@ -108,12 +107,13 @@ export class ContractSelectionService {
       }
 
       this.logger.log(
-        `Selected ${selectedContracts.length} contracts for automation`,
+        `Selected ${selectedContracts.length} contracts for automation on ${blockchain.name}`,
       );
       return selectedContracts;
     } catch (error) {
-      this.logger.error(`Error selecting optimal bids: ${error}`);
-      // Return empty array on error to maintain backward compatibility
+      this.logger.error(
+        `Contract selection failed for ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return [];
     }
   }

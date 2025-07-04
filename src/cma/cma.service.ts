@@ -1,13 +1,15 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
+import { createModuleLogger } from 'src/common/utils/logger.util';
 import { CmaConfig } from './cma.config';
 import { AutomationOrchestratorService } from './services';
+import { MODULE_NAME } from './constants';
 
 @Injectable()
 export class CmaService implements OnModuleInit {
-  private readonly logger = new Logger(CmaService.name);
+  private readonly logger = createModuleLogger(CmaService, MODULE_NAME);
 
   constructor(
     private readonly configService: ConfigService,
@@ -19,7 +21,6 @@ export class CmaService implements OnModuleInit {
     const config = this.configService.get<CmaConfig>('cma');
 
     if (!config?.automationEnabled) {
-      this.logger.debug('CMA automation is disabled via configuration');
       return;
     }
 
@@ -29,20 +30,22 @@ export class CmaService implements OnModuleInit {
 
       if (result.success) {
         this.logger.log(
-          `CMA automation completed successfully. Processed ${result.stats.processedContracts} contracts across ${result.stats.processedBlockchains} blockchains.`,
+          `Automation completed: ${result.stats.processedContracts} contracts processed across ${result.stats.processedBlockchains} blockchains`,
         );
       } else {
         this.logger.warn(
-          `CMA automation completed with ${result.errors.length} errors. Processed ${result.stats.processedContracts} contracts across ${result.stats.processedBlockchains} blockchains.`,
+          `Automation completed with ${result.errors.length} errors: ${result.stats.processedContracts} contracts processed across ${result.stats.processedBlockchains} blockchains`,
         );
       }
     } catch (error) {
-      this.logger.error('CMA automation failed:', error);
+      this.logger.error(
+        `Automation failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   async onModuleInit(): Promise<void> {
-    this.logger.log('CMA automation system initialized.');
+    this.logger.log('CMA automation system initialized');
     await Promise.resolve();
   }
 }
