@@ -43,6 +43,10 @@ export class UserContractCrudService {
     contract: Contract,
     name?: string,
   ): Promise<UserContract> {
+    this.logger.log(
+      `Creating user contract for user ${user.id} with address ${address} on blockchain ${blockchain.name}`,
+    );
+
     // Check if user contract already exists
     const existingUserContract = await this.userContractRepository.findOne({
       where: {
@@ -53,6 +57,9 @@ export class UserContractCrudService {
     });
 
     if (existingUserContract) {
+      this.logger.debug(
+        `User contract already exists for address ${address} on blockchain ${blockchain.name}`,
+      );
       UserContractsErrorHelpers.throwContractAlreadyExists(
         address,
         blockchain.name,
@@ -70,7 +77,14 @@ export class UserContractCrudService {
       name: nonEmptyName,
     });
 
-    return this.userContractRepository.save(newUserContract);
+    const savedUserContract =
+      await this.userContractRepository.save(newUserContract);
+
+    this.logger.log(
+      `Successfully created user contract ${savedUserContract.id} for user ${user.id}`,
+    );
+
+    return savedUserContract;
   }
 
   async getUserContracts(
@@ -80,6 +94,10 @@ export class UserContractCrudService {
     sortingDto: ContractSortingDto,
     searchDto: SearchDto,
   ): Promise<{ data: UserContract[]; total: number }> {
+    this.logger.log(
+      `Querying user contracts for user ${user.id} on blockchain ${blockchainId}`,
+    );
+
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -96,6 +114,9 @@ export class UserContractCrudService {
       .take(limit);
 
     if (searchDto.search) {
+      this.logger.debug(
+        `Applying search filter: "${searchDto.search}" for user ${user.id}`,
+      );
       queryBuilder.andWhere(
         '(LOWER(userContract.address) LIKE LOWER(:search) OR LOWER(userContract.name) LIKE LOWER(:search))',
         {
@@ -103,6 +124,9 @@ export class UserContractCrudService {
         },
       );
     } else if (sortingDto.sortBy) {
+      this.logger.debug(
+        `Applying sort: ${sortingDto.sortBy.join(', ')} for user ${user.id}`,
+      );
       sortingDto.sortBy.forEach((field, index) => {
         const direction =
           sortingDto.sortDirection?.[index] || SortDirection.DESC;
@@ -134,6 +158,10 @@ export class UserContractCrudService {
     // Execute query
     const [userContracts, totalItems] = await queryBuilder.getManyAndCount();
 
+    this.logger.log(
+      `Successfully retrieved ${userContracts.length} user contracts (total: ${totalItems}) for user ${user.id}`,
+    );
+
     return {
       data: userContracts,
       total: totalItems,
@@ -141,15 +169,22 @@ export class UserContractCrudService {
   }
 
   async getUserContract(user: User, id: string): Promise<UserContract> {
+    this.logger.log(`Fetching user contract ${id} for user ${user.id}`);
+
     const userContract = await this.userContractRepository.findOne({
       where: { id, user },
       relations: this.defaultRelations,
     });
 
     if (!userContract) {
+      this.logger.debug(`User contract ${id} not found for user ${user.id}`);
       UserContractsErrorHelpers.throwUserContractNotFound(id);
       throw new Error('Unreachable');
     }
+
+    this.logger.log(
+      `Successfully retrieved user contract ${id} for user ${user.id}`,
+    );
 
     return userContract;
   }
@@ -159,6 +194,10 @@ export class UserContractCrudService {
     id: string,
     updateNameDto: UpdateUserContractNameDto,
   ): Promise<UserContract> {
+    this.logger.log(
+      `Updating name for user contract ${id} for user ${user.id} to "${updateNameDto.name}"`,
+    );
+
     // Find the user contract, ensuring it belongs to the authenticated user
     const userContract = await this.userContractRepository.findOne({
       where: { id, user },
@@ -166,6 +205,7 @@ export class UserContractCrudService {
     });
 
     if (!userContract) {
+      this.logger.debug(`User contract ${id} not found for user ${user.id}`);
       UserContractsErrorHelpers.throwUserContractNotFound(id);
       throw new Error('Unreachable');
     }
@@ -174,22 +214,36 @@ export class UserContractCrudService {
     userContract.name = updateNameDto.name;
 
     // Save the updated user contract
-    return this.userContractRepository.save(userContract);
+    const updatedUserContract =
+      await this.userContractRepository.save(userContract);
+
+    this.logger.log(
+      `Successfully updated name for user contract ${id} for user ${user.id}`,
+    );
+
+    return updatedUserContract;
   }
 
   async deleteUserContract(user: User, id: string): Promise<void> {
+    this.logger.log(`Deleting user contract ${id} for user ${user.id}`);
+
     // Find the user contract, ensuring it belongs to the authenticated user
     const userContract = await this.userContractRepository.findOne({
       where: { id, user },
     });
 
     if (!userContract) {
+      this.logger.debug(`User contract ${id} not found for user ${user.id}`);
       UserContractsErrorHelpers.throwUserContractNotFound(id);
       throw new Error('Unreachable');
     }
 
     // Delete the user contract
     await this.userContractRepository.remove(userContract);
+
+    this.logger.log(
+      `Successfully deleted user contract ${id} for user ${user.id}`,
+    );
   }
 
   async checkContractsSavedByUser(
@@ -197,7 +251,12 @@ export class UserContractCrudService {
     contractIds: string[],
     blockchainId?: string,
   ): Promise<Record<string, boolean>> {
+    this.logger.log(
+      `Checking ${contractIds.length} contracts saved by user ${user.id}${blockchainId ? ` on blockchain ${blockchainId}` : ''}`,
+    );
+
     if (!contractIds.length) {
+      this.logger.debug('No contract IDs provided for check');
       return {};
     }
 
@@ -227,6 +286,10 @@ export class UserContractCrudService {
     contractIds.forEach((id) => {
       resultMap[id] = savedContractIds.includes(id);
     });
+
+    this.logger.log(
+      `Contract check completed: ${savedContractIds.length} of ${contractIds.length} contracts are saved by user ${user.id}`,
+    );
 
     return resultMap;
   }

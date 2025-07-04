@@ -33,6 +33,10 @@ export class UserContractsService {
     blockchainId: string,
     name?: string,
   ): Promise<any> {
+    this.logger.log(
+      `Creating user contract for user ${user.id} with address ${address} on blockchain ${blockchainId}`,
+    );
+
     try {
       // 1. Validate creation - migrated from original logic
       const { blockchain, verifiedAddress } =
@@ -42,12 +46,20 @@ export class UserContractsService {
           blockchainId,
         );
 
+      this.logger.debug(
+        `Validation completed for contract ${verifiedAddress} on blockchain ${blockchain.name}`,
+      );
+
       // 2. Validate on blockchain - migrated from original logic
       const { onChainBytecode } =
         await this.validationService.validateContractOnBlockchain(
           verifiedAddress,
           blockchain,
         );
+
+      this.logger.debug(
+        `On-chain validation completed for contract ${verifiedAddress}`,
+      );
 
       // 3. Create or get contract entities - migrated from original logic
       const contract = await this.entityService.getOrCreateContract(
@@ -66,6 +78,10 @@ export class UserContractsService {
       );
 
       // 5. Enrich and return - migrated from original logic
+      this.logger.log(
+        `Successfully created user contract ${userContract.id} for user ${user.id}`,
+      );
+
       return this.enrichmentService.enrichUserContract(userContract, user);
     } catch (error) {
       this.logger.error('Failed to create user contract', error);
@@ -80,6 +96,10 @@ export class UserContractsService {
     sortingDto: ContractSortingDto,
     searchDto: SearchDto,
   ): Promise<any> {
+    this.logger.log(
+      `Fetching user contracts for user ${user.id} on blockchain ${blockchainId}`,
+    );
+
     try {
       // 1. Get user contracts from database - migrated from original logic
       const { data: userContracts, total } =
@@ -91,12 +111,21 @@ export class UserContractsService {
           searchDto,
         );
 
+      this.logger.debug(
+        `Retrieved ${userContracts.length} user contracts (total: ${total})`,
+      );
+
       // 2. Enrich contracts - migrated from original logic
       const enrichedUserContracts =
         await this.enrichmentService.enrichUserContracts(userContracts, user);
 
       // 3. Create paginated response - migrated from original logic
       const { page = 1, limit = 10 } = paginationDto;
+
+      this.logger.log(
+        `Successfully retrieved ${enrichedUserContracts.length} user contracts for user ${user.id}`,
+      );
+
       return this.enrichmentService.createPaginationResponse(
         enrichedUserContracts,
         page,
@@ -110,11 +139,19 @@ export class UserContractsService {
   }
 
   async getUserContract(user: User, id: string): Promise<any> {
+    this.logger.log(`Fetching user contract ${id} for user ${user.id}`);
+
     try {
       // 1. Get user contract from database - migrated from original logic
       const userContract = await this.crudService.getUserContract(user, id);
 
+      this.logger.debug(`Retrieved user contract ${id}`);
+
       // 2. Enrich and return - migrated from original logic
+      this.logger.log(
+        `Successfully retrieved user contract ${id} for user ${user.id}`,
+      );
+
       return this.enrichmentService.enrichUserContract(
         userContract,
         user,
@@ -131,8 +168,16 @@ export class UserContractsService {
     id: string,
     updateNameDto: UpdateUserContractNameDto,
   ) {
+    this.logger.log(
+      `Updating name for user contract ${id} for user ${user.id} to "${updateNameDto.name}"`,
+    );
+
     try {
       // Delegate to CRUD service - exact same logic as original
+      this.logger.log(
+        `Successfully updated name for user contract ${id} for user ${user.id}`,
+      );
+
       return this.crudService.updateUserContractName(user, id, updateNameDto);
     } catch (error) {
       this.logger.error('Failed to update user contract name', error);
@@ -141,9 +186,15 @@ export class UserContractsService {
   }
 
   async deleteUserContract(user: User, id: string): Promise<void> {
+    this.logger.log(`Deleting user contract ${id} for user ${user.id}`);
+
     try {
       // Delegate to CRUD service - exact same logic as original
-      return this.crudService.deleteUserContract(user, id);
+      await this.crudService.deleteUserContract(user, id);
+
+      this.logger.log(
+        `Successfully deleted user contract ${id} for user ${user.id}`,
+      );
     } catch (error) {
       this.logger.error('Failed to delete user contract', error);
       throw error;
@@ -162,8 +213,16 @@ export class UserContractsService {
     contractIds: string[],
     blockchainId?: string,
   ): Promise<Record<string, boolean>> {
+    this.logger.log(
+      `Checking ${contractIds.length} contracts saved by user ${user.id}${blockchainId ? ` on blockchain ${blockchainId}` : ''}`,
+    );
+
     try {
       // Delegate to CRUD service - exact same logic as original
+      this.logger.debug(
+        `Contract check completed for ${contractIds.length} contracts`,
+      );
+
       return this.crudService.checkContractsSavedByUser(
         user,
         contractIds,

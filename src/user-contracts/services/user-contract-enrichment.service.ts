@@ -24,6 +24,10 @@ export class UserContractEnrichmentService {
     user: User,
     includeDetailed: boolean = false,
   ): Promise<any> {
+    this.logger.log(
+      `Enriching user contract ${userContract.id} for user ${user.id}${includeDetailed ? ' (detailed)' : ''}`,
+    );
+
     try {
       // Get alerts for this user contract - exact same logic as original
       const alerts = await this.alertsService.getAlertsForUserContract(
@@ -31,13 +35,25 @@ export class UserContractEnrichmentService {
         userContract.id,
       );
 
+      this.logger.debug(
+        `Retrieved ${alerts.length} alerts for user contract ${userContract.id}`,
+      );
+
       // If the userContract has an associated contract, process it - exact same logic as original
       if (userContract.contract) {
+        this.logger.debug(
+          `Processing associated contract ${userContract.contract.id} for user contract ${userContract.id}`,
+        );
+
         const processedContract =
           await this.contractEnrichmentService.processContract(
             userContract.contract,
             includeDetailed,
           );
+
+        this.logger.log(
+          `Successfully enriched user contract ${userContract.id} with contract data for user ${user.id}`,
+        );
 
         return {
           ...userContract,
@@ -45,6 +61,10 @@ export class UserContractEnrichmentService {
           alerts,
         };
       }
+
+      this.logger.log(
+        `Successfully enriched user contract ${userContract.id} for user ${user.id}`,
+      );
 
       return {
         ...userContract,
@@ -66,12 +86,20 @@ export class UserContractEnrichmentService {
     userContracts: UserContract[],
     user: User,
   ): Promise<any[]> {
+    this.logger.log(
+      `Enriching ${userContracts.length} user contracts for user ${user.id}`,
+    );
+
     try {
       // Process contracts that have an associated contract - exact same logic as original
       const processedUserContracts = await Promise.all(
         userContracts.map((userContract) => {
           return this.enrichUserContract(userContract, user, false);
         }),
+      );
+
+      this.logger.log(
+        `Successfully enriched ${processedUserContracts.length} user contracts for user ${user.id}`,
       );
 
       return processedUserContracts;
@@ -93,6 +121,10 @@ export class UserContractEnrichmentService {
     limit: number,
     totalItems: number,
   ): any {
+    this.logger.debug(
+      `Creating pagination response: ${enrichedUserContracts.length} items, page ${page}, limit ${limit}, total ${totalItems}`,
+    );
+
     // Calculate pagination metadata - exact same logic as original
     const totalPages = Math.ceil(totalItems / limit);
 
