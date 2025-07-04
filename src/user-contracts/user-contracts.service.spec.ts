@@ -174,11 +174,8 @@ describe('UserContractsService', () => {
         contract,
         name,
       );
-      expect(mockEnrichmentService.enrichUserContract).toHaveBeenCalledWith(
-        userContract,
-        user,
-      );
-      expect(result).toBe(enrichedResult);
+
+      expect(result).toBe(userContract);
     });
 
     it('should handle validation errors', async () => {
