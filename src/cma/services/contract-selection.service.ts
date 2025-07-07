@@ -25,7 +25,7 @@ export class ContractSelectionService {
   private readonly CACHE_THRESHOLD = 98; // Start bidding when 98% full
   private readonly HORIZON_SECONDS = 30 * 24 * 60 * 60; // 30 days in seconds
   private readonly BID_INCREMENT = 1; // Bid increment for uniqueness
-  private readonly DEFAULT_DECAY_RATE = 11574; // Default: approximately 1 gwei per day (1e9 / 86400)
+  private readonly DEFAULT_DECAY_RATE = 0; // Default: approximately 1 gwei per day (1e9 / 86400)
 
   constructor(
     private readonly providerManager: ProviderManager,
@@ -210,7 +210,7 @@ export class ContractSelectionService {
     // CACHE NOT FULL CASE
     // If cache is not full, return minBid (likely 0 for utilization < 98%)
     if (cacheUtilization < this.CACHE_THRESHOLD) {
-      return minBid;
+      return BigInt(0);
     }
 
     // CACHE FULL CASE (>= 98% usage)
