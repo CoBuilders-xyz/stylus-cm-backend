@@ -6,7 +6,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { AuthGuard } from './auth.guard';
+import { AuthGuard, OptionalAuthGuard } from './auth.guard';
 import { AuthConfig } from './auth.config';
 import { DevelopmentOnlyGuard } from './development-only.guard';
 
@@ -14,12 +14,14 @@ import { DevelopmentOnlyGuard } from './development-only.guard';
   providers: [
     AuthService,
     DevelopmentOnlyGuard,
+    OptionalAuthGuard,
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
   ],
   controllers: [AuthController],
+  exports: [OptionalAuthGuard],
   imports: [
     UsersModule,
     CacheModule.register(),

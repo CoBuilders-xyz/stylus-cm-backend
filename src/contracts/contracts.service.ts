@@ -31,7 +31,7 @@ export class ContractsService {
   ) {}
 
   async findAll(
-    user: User,
+    user: User | null,
     blockchainId: string,
     paginationDto: PaginationDto,
     sortingDto: ContractSortingDto,
@@ -39,7 +39,7 @@ export class ContractsService {
   ): Promise<PaginationResponse<ContractResponse>> {
     try {
       this.logger.log(
-        `Finding contracts for blockchain ${blockchainId}, user ${user.address}, page ${paginationDto.page}`,
+        `Finding contracts for blockchain ${blockchainId}, user ${user?.address || 'anonymous'}, page ${paginationDto.page}`,
       );
 
       const { page = 1, limit = 10 } = paginationDto;
@@ -69,29 +69,41 @@ export class ContractsService {
       const processedContracts =
         await this.contractEnrichmentService.processContracts(contracts);
 
-      // Get contract IDs to check if they're saved by the user
-      const contractIds = contracts.map((contract) => contract.id);
+      // Only check for saved contracts if user is provided
+      let processedContractsWithSavedStatus = processedContracts;
+      if (user) {
+        // Get contract IDs to check if they're saved by the user
+        const contractIds = contracts.map((contract) => contract.id);
 
-      // Check which contracts are saved by the user using query builder service
-      const savedContractsMap = await this.checkContractsSavedByUser(
-        user,
-        contractIds,
-        blockchainId,
-      );
+        // Check which contracts are saved by the user using query builder service
+        const savedContractsMap = await this.checkContractsSavedByUser(
+          user,
+          contractIds,
+          blockchainId,
+        );
 
-      // Add isSavedByUser property to each contract
-      const processedContractsWithSavedStatus = processedContracts.map(
-        (contract) => ({
-          ...contract,
-          isSavedByUser: savedContractsMap[contract.id] || false,
-        }),
-      );
+        // Add isSavedByUser property to each contract
+        processedContractsWithSavedStatus = processedContracts.map(
+          (contract) => ({
+            ...contract,
+            isSavedByUser: savedContractsMap[contract.id] || false,
+          }),
+        );
+      } else {
+        // For anonymous users, set isSavedByUser to false for all contracts
+        processedContractsWithSavedStatus = processedContracts.map(
+          (contract) => ({
+            ...contract,
+            isSavedByUser: false,
+          }),
+        );
+      }
 
       // Calculate pagination metadata
       const totalPages = Math.ceil(totalItems / limit);
 
       this.logger.log(
-        `Successfully retrieved ${processedContractsWithSavedStatus.length} contracts for user ${user.address}`,
+        `Successfully retrieved ${processedContractsWithSavedStatus.length} contracts for user ${user?.address || 'anonymous'}`,
       );
 
       return {
