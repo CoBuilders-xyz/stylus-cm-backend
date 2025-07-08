@@ -16,6 +16,8 @@ import { BlockchainState } from '../blockchains/entities/blockchain-state.entity
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { UserContract } from '../user-contracts/entities/user-contract.entity';
+import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { UserContract } from '../user-contracts/entities/user-contract.entity';
       BlockchainEvent,
       UserContract,
     ]),
+    AuthModule,
+    UsersModule,
   ],
   controllers: [ContractsController],
   providers: [
