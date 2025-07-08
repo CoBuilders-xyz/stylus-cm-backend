@@ -98,6 +98,7 @@ export interface ContractResponse extends Contract {
   suggestedBids?: SuggestedBidsResult;
   biddingHistory?: BidHistoryItem[];
   isSavedByUser?: boolean;
+  savedContractName?: string | null;
 }
 
 /**

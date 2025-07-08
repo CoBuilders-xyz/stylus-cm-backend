@@ -73,6 +73,7 @@ export class ContractQueryBuilderService {
       .createQueryBuilder('userContract')
       .leftJoin('userContract.contract', 'contract')
       .select('contract.id', 'contractId')
+      .addSelect('userContract.name', 'contractName')
       .where('userContract.user = :userId', { userId: user.id })
       .andWhere('contract.id IN (:...contractIds)', { contractIds });
 

@@ -18,6 +18,12 @@ import { SearchDto } from '../common/dto/search.dto';
 import { User } from '../users/entities/user.entity';
 import { ContractErrorHelpers } from './contracts.errors';
 
+// Interface for saved contract information
+interface SavedContractInfo {
+  isSaved: boolean;
+  name?: string;
+}
+
 @Injectable()
 export class ContractsService {
   private readonly logger = new Logger(ContractsService.name);
@@ -86,7 +92,8 @@ export class ContractsService {
         processedContractsWithSavedStatus = processedContracts.map(
           (contract) => ({
             ...contract,
-            isSavedByUser: savedContractsMap[contract.id] || false,
+            isSavedByUser: savedContractsMap[contract.id]?.isSaved || false,
+            savedContractName: savedContractsMap[contract.id]?.name || null,
           }),
         );
       } else {
@@ -95,6 +102,7 @@ export class ContractsService {
           (contract) => ({
             ...contract,
             isSavedByUser: false,
+            savedContractName: null,
           }),
         );
       }
@@ -177,7 +185,9 @@ export class ContractsService {
 
         // Add isSavedByUser property
         processedContract.isSavedByUser =
-          savedContractsMap[validContract.id] || false;
+          savedContractsMap[validContract.id]?.isSaved || false;
+        processedContract.savedContractName =
+          savedContractsMap[validContract.id]?.name || null;
       }
 
       this.logger.log(
@@ -324,13 +334,13 @@ export class ContractsService {
    * @param user The user to check
    * @param contractIds Array of contract IDs to check
    * @param blockchainId Optional blockchain ID filter
-   * @returns A map of contract IDs to boolean values indicating if they are saved by the user
+   * @returns A map of contract IDs to SavedContractInfo indicating if they are saved by the user and their custom name
    */
   private async checkContractsSavedByUser(
     user: User,
     contractIds: string[],
     blockchainId?: string,
-  ): Promise<Record<string, boolean>> {
+  ): Promise<Record<string, SavedContractInfo>> {
     try {
       if (!contractIds.length) {
         this.logger.debug('No contract IDs provided, returning empty result');
@@ -349,20 +359,30 @@ export class ContractsService {
           blockchainId,
         );
 
-      // Execute query to get all saved contract IDs
+      // Execute query to get all saved contract IDs and names
       const savedContractResults = await queryBuilder.getRawMany();
-      const savedContractIds = savedContractResults.map(
-        (result: { contractId: string }) => result.contractId,
-      );
 
-      // Create result map with true for saved contracts, false for others
-      const resultMap: Record<string, boolean> = {};
+      // Create result map with saved contracts info
+      const resultMap: Record<string, SavedContractInfo> = {};
+
+      // Initialize all contracts as not saved
       contractIds.forEach((id) => {
-        resultMap[id] = savedContractIds.includes(id);
+        resultMap[id] = { isSaved: false };
       });
 
+      // Update saved contracts with their info
+      savedContractResults.forEach(
+        (result: { contractId: string; contractName: string }) => {
+          resultMap[result.contractId] = {
+            isSaved: true,
+            name: result.contractName,
+          };
+        },
+      );
+
+      const savedCount = savedContractResults.length;
       this.logger.debug(
-        `Found ${savedContractIds.length} saved contracts out of ${contractIds.length} for user ${user.address}`,
+        `Found ${savedCount} saved contracts out of ${contractIds.length} for user ${user.address}`,
       );
 
       return resultMap;
@@ -375,7 +395,11 @@ export class ContractsService {
 
       // For database errors, return empty result to avoid breaking the main flow
       this.logger.warn('Returning empty saved contracts map due to error');
-      return {};
+      const fallbackMap: Record<string, SavedContractInfo> = {};
+      contractIds.forEach((id) => {
+        fallbackMap[id] = { isSaved: false };
+      });
+      return fallbackMap;
     }
   }
 }
