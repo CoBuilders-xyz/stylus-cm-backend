@@ -17,3 +17,5 @@ export {
   PeriodData,
   BlockchainUpsertResult,
 } from './internal.interface';
+
+export * from './blockchain-events.interface';
