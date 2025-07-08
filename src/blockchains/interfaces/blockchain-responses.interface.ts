@@ -4,10 +4,14 @@
 export interface BidTrendsResponse {
   periods: Array<{
     period: string;
-    count: number;
+    insertCount: number;
+    deleteCount: number;
+    netChange: number;
   }>;
   global: {
-    count: number;
+    insertCount: number;
+    deleteCount: number;
+    netChange: number;
   };
 }
 

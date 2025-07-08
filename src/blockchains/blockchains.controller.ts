@@ -92,7 +92,7 @@ export class BlockchainsController {
       blockchainId,
     );
     this.logger.log(
-      `GET /blockchains/${blockchainId}/bid-trends - Returned ${result.global.count} total bids across ${result.periods.length} periods`,
+      `GET /blockchains/${blockchainId}/bid-trends - Returned ${result.global.insertCount} inserts, ${result.global.deleteCount} deletes, ${result.global.netChange} net change across ${result.periods.length} periods`,
     );
     return result;
   }

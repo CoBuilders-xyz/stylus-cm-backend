@@ -18,7 +18,6 @@ import {
   BidTrendsResponse,
   AverageBidResponse,
   NetBytecodesTrendsResponse,
-  BidPlacementQueryResult,
   NetBytecodeQueryResult,
   AverageBidQueryResult,
   PeriodData,
@@ -65,15 +64,19 @@ export class BlockchainAnalyticsService {
       const dateFormat = getDateFormat(dto.timespan);
 
       this.logger.debug(
-        `Querying InsertBid events from ${backTraceTimestamp.toISOString()} with format ${dateFormat} for blockchain ${dto.blockchainId}`,
+        `Querying InsertBid and DeleteBid events from ${backTraceTimestamp.toISOString()} with format ${dateFormat} for blockchain ${dto.blockchainId}`,
       );
 
       const queryBuilder = this.blockchainEventRepository
         .createQueryBuilder('event')
         .select(`to_char(event.blockTimestamp, '${dateFormat}')`, 'period')
+        .addSelect('event.eventName', 'eventName')
         .addSelect('COUNT(*)', 'count')
-        .where('event.eventName = :eventName', {
-          eventName: BlockchainEventName.INSERT_BID,
+        .where('event.eventName IN (:...eventNames)', {
+          eventNames: [
+            BlockchainEventName.INSERT_BID,
+            BlockchainEventName.DELETE_BID,
+          ],
         })
         .andWhere('event.blockTimestamp >= :timestamp', {
           timestamp: backTraceTimestamp,
@@ -83,36 +86,82 @@ export class BlockchainAnalyticsService {
           blockchainId: dto.blockchainId,
         });
 
-      const result = await queryBuilder
-        .groupBy('period')
+      const events = await queryBuilder
+        .groupBy(
+          `to_char(event.blockTimestamp, '${dateFormat}'), event.eventName`,
+        )
         .orderBy('period', 'ASC')
-        .getRawMany<BidPlacementQueryResult>();
+        .getRawMany<NetBytecodeQueryResult>();
 
       this.logger.debug(
-        `Retrieved ${result.length} periods of bid placement data for blockchain ${dto.blockchainId}`,
+        `Retrieved ${events.length} event type/period combinations for bid placement trends for blockchain ${dto.blockchainId}`,
       );
 
-      const totalCount = result.reduce(
-        (acc, item) => acc + parseInt(item.count, 10),
-        0,
+      // Process the results to calculate counts per period
+      const periodMap = new Map<string, PeriodData>();
+      const uniquePeriods = [...new Set(events.map((e) => e.period))].sort();
+
+      this.logger.debug(
+        `Processing ${uniquePeriods.length} unique periods for blockchain ${dto.blockchainId}: [${uniquePeriods.join(', ')}]`,
       );
+
+      uniquePeriods.forEach((period) => {
+        periodMap.set(period, { insertCount: 0, deleteCount: 0 });
+      });
+
+      events.forEach((event) => {
+        const periodData = periodMap.get(event.period);
+        if (periodData) {
+          if (
+            (event.eventName as BlockchainEventName) ===
+            BlockchainEventName.INSERT_BID
+          ) {
+            periodData.insertCount = parseInt(event.count, 10);
+          } else if (
+            (event.eventName as BlockchainEventName) ===
+            BlockchainEventName.DELETE_BID
+          ) {
+            periodData.deleteCount = parseInt(event.count, 10);
+          }
+        }
+      });
+
+      // Calculate totals
+      let totalInsertCount = 0;
+      let totalDeleteCount = 0;
+
+      const periods = Array.from(periodMap.entries()).map(([period, data]) => {
+        const netChange = data.insertCount - data.deleteCount;
+        totalInsertCount += data.insertCount;
+        totalDeleteCount += data.deleteCount;
+        return {
+          period,
+          insertCount: data.insertCount,
+          deleteCount: data.deleteCount,
+          netChange,
+        };
+      });
+
+      const totalNetChange = totalInsertCount - totalDeleteCount;
 
       const response: BidTrendsResponse = {
-        periods: result.map((item) => ({
-          period: item.period,
-          count: parseInt(item.count, 10),
-        })),
+        periods,
         global: {
-          count: totalCount,
+          insertCount: totalInsertCount,
+          deleteCount: totalDeleteCount,
+          netChange: totalNetChange,
         },
       };
 
       this.logger.log(
-        `Bid placement trends calculated for blockchain ${dto.blockchainId} (${dto.timespan}): ${totalCount} total bids across ${result.length} periods`,
+        `Bid placement trends calculated for blockchain ${dto.blockchainId} (${dto.timespan}): ${totalInsertCount} inserts, ${totalDeleteCount} deletes, ${totalNetChange} net change across ${periods.length} periods`,
       );
       this.logger.debug(
         `Period breakdown for blockchain ${dto.blockchainId}:`,
-        response.periods,
+        periods.map(
+          (p) =>
+            `${p.period}: ${p.insertCount} inserts, ${p.deleteCount} deletes, ${p.netChange > 0 ? '+' : ''}${p.netChange} net`,
+        ),
       );
 
       return response;
