@@ -1,15 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { BlockchainEvent } from '../entities/blockchain-event.entity';
-import { Blockchain } from '../entities/blockchain.entity';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { SearchDto } from '../../common/dto/search.dto';
 import { PaginationResponse } from '../../common/interfaces/pagination-response.interface';
-import { BlockchainEventsQueryDto, BlockchainEventType } from '../dto';
+import {
+  BlockchainEventsQueryDto,
+  BlockchainEventType,
+  BlockchainEventsSortingDto,
+  BlockchainEventSortField,
+} from '../dto';
 import { BlockchainEventResponse } from '../interfaces';
 import { createModuleLogger } from '../../common/utils/logger.util';
 import { MODULE_NAME } from '../constants';
+import { Contract } from '../../contracts/entities/contract.entity';
 
 @Injectable()
 export class BlockchainEventsService {
@@ -21,21 +26,22 @@ export class BlockchainEventsService {
   constructor(
     @InjectRepository(BlockchainEvent)
     private readonly blockchainEventRepository: Repository<BlockchainEvent>,
-    @InjectRepository(Blockchain)
-    private readonly blockchainRepository: Repository<Blockchain>,
+    @InjectRepository(Contract)
+    private readonly contractRepository: Repository<Contract>,
   ) {}
 
   /**
-   * Find all blockchain events with pagination, filtering, and search
+   * Find all blockchain events with pagination, filtering, sorting, and search
    */
   async findAll(
     queryDto: BlockchainEventsQueryDto,
     paginationDto: PaginationDto,
     searchDto: SearchDto,
+    sortingDto: BlockchainEventsSortingDto,
   ): Promise<PaginationResponse<BlockchainEventResponse>> {
     try {
       this.logger.log(
-        `Finding blockchain events with filters: ${JSON.stringify(queryDto)}`,
+        `Finding blockchain events with filters: ${JSON.stringify(queryDto)}, search: ${searchDto.search}, sorting: ${JSON.stringify(sortingDto)}`,
       );
 
       // Build the query
@@ -60,19 +66,17 @@ export class BlockchainEventsService {
         });
       }
 
-      // Apply search filter if provided - Template for now
+      // Apply enhanced search filter if provided
       if (searchDto.search) {
-        // TODO: Implement search functionality
-        // This is a template - implement based on requirements
-        queryBuilder.andWhere(
-          '(event.contractName ILIKE :search OR event.contractAddress ILIKE :search OR event.transactionHash ILIKE :search)',
-          { search: `%${searchDto.search}%` },
+        await this.applySearchFilter(
+          queryBuilder,
+          searchDto.search,
+          queryDto.blockchainId,
         );
       }
 
-      // Order by block timestamp and log index for consistent ordering
-      queryBuilder.orderBy('event.blockTimestamp', 'DESC');
-      queryBuilder.addOrderBy('event.logIndex', 'DESC');
+      // Apply sorting
+      this.applySorting(queryBuilder, sortingDto);
 
       // Apply pagination
       const page = paginationDto.page || 1;
@@ -115,6 +119,95 @@ export class BlockchainEventsService {
         err.stack,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Apply search filter that looks up contracts by address and matches bytecode hashes
+   */
+  private async applySearchFilter(
+    queryBuilder: SelectQueryBuilder<BlockchainEvent>,
+    searchTerm: string,
+    blockchainId: string,
+  ): Promise<void> {
+    try {
+      this.logger.debug(`Applying search filter for term: ${searchTerm}`);
+
+      // Build contract search query
+      const contractQueryBuilder = this.contractRepository
+        .createQueryBuilder('contract')
+        .leftJoinAndSelect('contract.bytecode', 'bytecode')
+        .where('LOWER(contract.address) LIKE :searchTerm', {
+          searchTerm: `%${searchTerm.toLowerCase()}%`,
+        });
+
+      contractQueryBuilder.andWhere('contract.blockchain.id = :blockchainId', {
+        blockchainId,
+      });
+
+      // Execute contract search
+      const matchingContracts = await contractQueryBuilder.getMany();
+
+      this.logger.debug(
+        `Found ${matchingContracts.length} contracts matching search term: ${searchTerm}`,
+      );
+
+      if (matchingContracts.length > 0) {
+        // Extract bytecode hashes from matching contracts
+        const bytecodeHashes = matchingContracts.map(
+          (contract) => contract.bytecode.bytecodeHash,
+        );
+
+        this.logger.debug(
+          `Searching for events with bytecode hashes: ${bytecodeHashes.join(', ')}`,
+        );
+
+        // Search for events where the first element of eventData matches any of the bytecode hashes
+        queryBuilder.andWhere(
+          'CAST(event."eventData"->>0 AS TEXT) IN (:...bytecodeHashes)',
+          { bytecodeHashes },
+        );
+      } else {
+        // No matching contracts found, add a condition that will return no results
+        queryBuilder.andWhere('1 = 0');
+      }
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Failed to apply search filter for term "${searchTerm}": ${err.message}`,
+        err.stack,
+      );
+      // If search fails, continue without search filter rather than failing the entire query
+    }
+  }
+
+  /**
+   * Apply sorting to the query builder
+   */
+  private applySorting(
+    queryBuilder: SelectQueryBuilder<BlockchainEvent>,
+    sortingDto: BlockchainEventsSortingDto,
+  ): void {
+    const sortBy =
+      sortingDto.sortBy || BlockchainEventSortField.BLOCK_TIMESTAMP;
+    const sortOrder = sortingDto.sortOrder || 'DESC';
+
+    switch (sortBy) {
+      case BlockchainEventSortField.BLOCK_TIMESTAMP:
+        queryBuilder.orderBy('event.blockTimestamp', sortOrder);
+        // Add secondary sort by logIndex for consistent ordering
+        queryBuilder.addOrderBy('event.logIndex', sortOrder);
+        break;
+      case BlockchainEventSortField.BLOCK_NUMBER:
+        queryBuilder.orderBy('event.blockNumber', sortOrder);
+        // Add secondary sort by logIndex for consistent ordering
+        queryBuilder.addOrderBy('event.logIndex', sortOrder);
+        break;
+      default:
+        // Default to blockTimestamp if invalid sort field
+        queryBuilder.orderBy('event.blockTimestamp', 'DESC');
+        queryBuilder.addOrderBy('event.logIndex', 'DESC');
+        break;
     }
   }
 

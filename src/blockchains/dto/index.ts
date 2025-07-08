@@ -6,3 +6,4 @@ export { BidAverageDto } from './bid-average.dto';
 export * from './bid-trends-query.dto';
 export * from './bid-average-query.dto';
 export * from './blockchain-events.dto';
+export * from './blockchain-events-sorting.dto';

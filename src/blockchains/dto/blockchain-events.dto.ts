@@ -9,7 +9,7 @@ export enum BlockchainEventType {
 export class BlockchainEventsQueryDto {
   @IsUUID()
   @Type(() => String)
-  blockchainId?: string;
+  blockchainId: string;
 
   @IsOptional()
   @IsEnum(BlockchainEventType)
