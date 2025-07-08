@@ -25,6 +25,9 @@ describe('ContractSelectionService', () => {
   const createMockContract = () => ({
     getContractsPaginated: jest.fn(),
     'getMinBid(address)': jest.fn(),
+    cacheSize: jest.fn(),
+    queueSize: jest.fn(),
+    decay: jest.fn(),
   });
 
   const createMockProvider = () => ({
@@ -128,6 +131,9 @@ describe('ContractSelectionService', () => {
       });
 
       mockCmContract['getMinBid(address)'].mockResolvedValue(500n);
+      mockCmContract.cacheSize.mockResolvedValue(100n);
+      mockCmContract.queueSize.mockResolvedValue(98n);
+      mockCmContract.decay.mockResolvedValue(1000n);
       mockProvider.getCode.mockResolvedValue(
         '0x608060405234801561001057600080fd5b50',
       );
