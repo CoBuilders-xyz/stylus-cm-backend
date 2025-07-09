@@ -1,20 +1,24 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { EventStorageService } from './event-storage.service';
+import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
 import {
   ContractType,
   ProviderManager,
-} from '../../common/utils/provider.util';
-import { EthersEvent } from '../interfaces/event.interface';
-import { safeContractCall } from '../utils/contract-call.util';
+} from '../../../common/utils/provider.util';
+import { EventStorageService } from '../../shared/services/event-storage.service';
+import { EventConfigService } from '../../shared/services/event-config.service';
+import { EthersEvent } from '../../shared/interfaces';
+import { safeContractCall } from '../../utils/contract-call.util';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
 @Injectable()
 export class EventSyncService {
-  private readonly logger = new Logger(EventSyncService.name);
+  private readonly logger = createModuleLogger(EventSyncService, MODULE_NAME);
 
   constructor(
     private readonly eventStorageService: EventStorageService,
+    private readonly eventConfigService: EventConfigService,
     private readonly providerManager: ProviderManager,
   ) {}
 
@@ -40,15 +44,11 @@ export class EventSyncService {
         const provider = this.providerManager.getFastSyncProvider(blockchain);
         await this.syncBlockchainEvents(blockchain, provider, eventTypes);
       } catch (error) {
-        if (error instanceof Error) {
-          this.logger.error(
-            `Error syncing blockchain ${blockchain.id}: ${error.message}`,
-          );
-        } else {
-          this.logger.error(
-            `Error syncing blockchain ${blockchain.id}: Unknown error`,
-          );
-        }
+        this.logger.error(
+          `Error syncing blockchain ${blockchain.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
       }
     }
 
@@ -86,7 +86,10 @@ export class EventSyncService {
         provider as unknown as ethers.Contract,
         'getBlockNumber',
         [],
-        { retries: 3, retryDelay: 2000 },
+        {
+          retries: this.eventConfigService.getRetries(),
+          retryDelay: this.eventConfigService.getRetryDelay(),
+        },
       );
 
       if (blockNumber !== undefined) {
@@ -164,88 +167,6 @@ export class EventSyncService {
   }
 
   /**
-   * Fetches events of specific types within a block range
-   */
-  private async fetchEvents(
-    contract: ethers.Contract,
-    eventTypes: string[],
-    fromBlock: number,
-    toBlock: number,
-  ): Promise<EthersEvent[]> {
-    let allEvents: EthersEvent[] = [];
-    const eventTypeCount: Record<string, number> = {};
-
-    // Initialize counts for each event type
-    eventTypes.forEach((type) => {
-      eventTypeCount[type] = 0;
-    });
-
-    this.logger.log(`Querying events from ${fromBlock} to ${toBlock}...`);
-    this.logger.debug(`Looking for event types: ${eventTypes.join(', ')}`);
-
-    for (const eventType of eventTypes) {
-      try {
-        // Check if this event type exists in the contract
-        if (!contract.filters[eventType]) {
-          this.logger.warn(
-            `Event type ${eventType} does not exist in the contract filters`,
-          );
-          continue;
-        }
-
-        // Log the event filter we're creating
-        this.logger.debug(`Creating filter for event type: ${eventType}`);
-
-        // Safely get the filter for this event
-        const eventFilter = contract.filters[eventType]();
-
-        // Use safe contract call to query the filter
-        this.logger.debug(
-          `Querying ${eventType} events from block ${fromBlock} to ${toBlock}...`,
-        );
-        const events = await safeContractCall<EthersEvent[]>(
-          contract,
-          'queryFilter',
-          [eventFilter, fromBlock, toBlock],
-          {
-            retries: 3,
-            retryDelay: 2000,
-            fallbackValue: [],
-          },
-        );
-
-        if (events && events.length > 0) {
-          this.logger.log(
-            `Found ${events.length} ${eventType} events from ${fromBlock} to ${toBlock}`,
-          );
-
-          // Update count for this event type
-          eventTypeCount[eventType] = events.length;
-
-          // Add to all events
-          allEvents = [...allEvents, ...events];
-        } else {
-          this.logger.debug(
-            `No ${eventType} events found from block ${fromBlock} to ${toBlock}`,
-          );
-        }
-      } catch (error) {
-        this.logger.error(
-          `Error fetching ${eventType} events: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
-
-    // Log the counts by event type
-    const eventCountsStr = Object.entries(eventTypeCount)
-      .map(([type, count]) => `${type}: ${count}`)
-      .join(', ');
-
-    this.logger.log(`Total events by type: ${eventCountsStr}`);
-    return allEvents;
-  }
-
-  /**
    * Resyncs events for a specific blockchain within a given block range
    * Used for catching up on events that might have been missed
    */
@@ -291,5 +212,87 @@ export class EventSyncService {
     this.logger.log(
       `Resynced ${result.successCount} events (with ${result.errorCount} errors) for blockchain ${blockchain.id}`,
     );
+  }
+
+  /**
+   * Fetches events of specific types within a block range
+   */
+  private async fetchEvents(
+    contract: ethers.Contract,
+    eventTypes: string[],
+    fromBlock: number,
+    toBlock: number,
+  ): Promise<EthersEvent[]> {
+    let allEvents: EthersEvent[] = [];
+    const eventTypeCount: Record<string, number> = {};
+
+    // Initialize counts for each event type
+    eventTypes.forEach((type) => {
+      eventTypeCount[type] = 0;
+    });
+
+    this.logger.log(`Querying events from ${fromBlock} to ${toBlock}...`);
+    this.logger.debug(`Looking for event types: ${eventTypes.join(', ')}`);
+
+    for (const eventType of eventTypes) {
+      try {
+        // Check if this event type exists in the contract
+        if (!contract.filters[eventType]) {
+          this.logger.warn(
+            `Event type ${eventType} does not exist in the contract filters`,
+          );
+          continue;
+        }
+
+        // Log the event filter we're creating
+        this.logger.debug(`Creating filter for event type: ${eventType}`);
+
+        // Safely get the filter for this event
+        const eventFilter = contract.filters[eventType]();
+
+        // Use safe contract call to query the filter
+        this.logger.debug(
+          `Querying ${eventType} events from block ${fromBlock} to ${toBlock}...`,
+        );
+        const events = await safeContractCall<EthersEvent[]>(
+          contract,
+          'queryFilter',
+          [eventFilter, fromBlock, toBlock],
+          {
+            retries: this.eventConfigService.getRetries(),
+            retryDelay: this.eventConfigService.getRetryDelay(),
+            fallbackValue: [],
+          },
+        );
+
+        if (events && events.length > 0) {
+          this.logger.log(
+            `Found ${events.length} ${eventType} events from ${fromBlock} to ${toBlock}`,
+          );
+
+          // Update count for this event type
+          eventTypeCount[eventType] = events.length;
+
+          // Add to all events
+          allEvents = [...allEvents, ...events];
+        } else {
+          this.logger.debug(
+            `No ${eventType} events found from block ${fromBlock} to ${toBlock}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error fetching ${eventType} events: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    // Log the counts by event type
+    const eventCountsStr = Object.entries(eventTypeCount)
+      .map(([type, count]) => `${type}: ${count}`)
+      .join(', ');
+
+    this.logger.log(`Total events by type: ${eventCountsStr}`);
+    return allEvents;
   }
 }

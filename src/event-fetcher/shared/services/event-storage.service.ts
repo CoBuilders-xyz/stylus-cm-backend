@@ -1,32 +1,42 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ethers } from 'ethers';
-import { Blockchain } from '../../blockchains/entities/blockchain.entity';
-import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
+import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
+import { BlockchainEvent } from '../../../blockchains/entities/blockchain-event.entity';
+import { EventConfigService } from './event-config.service';
 import {
   BlockchainEventData,
   EthersEvent,
   EventProcessResult,
-} from '../interfaces/event.interface';
+} from '../interfaces';
 import {
   getTransactionHash,
   getLogIndex,
   hasFragment,
   hasArgs,
   serializeEventArgs,
-} from '../utils/event-parser.util';
+} from '../../utils/event-parser.util';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
+/**
+ * Handles the storage and retrieval of blockchain events
+ */
 @Injectable()
 export class EventStorageService {
-  private readonly logger = new Logger(EventStorageService.name);
-  private readonly BATCH_SIZE = 50; // Smaller batch size for better error isolation
+  private readonly logger = createModuleLogger(
+    EventStorageService,
+    MODULE_NAME,
+  );
+  private readonly DEFAULT_BATCH_SIZE = 50;
 
   constructor(
     @InjectRepository(BlockchainEvent)
     private readonly eventRepository: Repository<BlockchainEvent>,
     @InjectRepository(Blockchain)
     private readonly blockchainRepository: Repository<Blockchain>,
+    private readonly eventConfigService: EventConfigService,
   ) {}
 
   /**
@@ -65,6 +75,8 @@ export class EventStorageService {
     events: EthersEvent[],
     provider: ethers.JsonRpcProvider,
     isRealTime: boolean = false,
+    eventType?: string,
+    eventData?: Record<string, any>,
   ): Promise<BlockchainEventData[]> {
     if (events.length === 0) return [];
 
@@ -101,18 +113,46 @@ export class EventStorageService {
           );
         }
 
+        // Use provided eventType if available, otherwise try to extract from fragment
+        let finalEventName = '';
+        if (eventType) {
+          // Use the explicitly provided eventType (from queue)
+          finalEventName = eventType;
+          this.logger.debug(
+            `Using provided eventType: ${eventType} for event at block ${event.blockNumber}`,
+          );
+        } else {
+          // Fallback to fragment extraction (for historical sync)
+          finalEventName = hasFragment(event) ? event.fragment.name : '';
+          if (!finalEventName) {
+            this.logger.warn(
+              `Could not determine event name for event at block ${event.blockNumber}, address ${event.address}`,
+            );
+          }
+        }
+
+        // Use provided eventData if available, otherwise try to extract from args
+        let finalEventData: Record<string, any> = {};
+        if (eventData) {
+          // Use the explicitly provided eventData (from queue)
+          finalEventData = eventData;
+        } else {
+          // Fallback to args extraction (for historical sync)
+          finalEventData = hasArgs(event) ? serializeEventArgs(event.args) : {};
+        }
+
         return {
           blockchain: blockchain,
           contractName: contractName,
           contractAddress: event.address,
-          eventName: hasFragment(event) ? event.fragment.name : '',
+          eventName: finalEventName,
           blockTimestamp: new Date(block ? block.timestamp * 1000 : 0),
           blockNumber: event.blockNumber,
           transactionHash: transactionHash,
           logIndex: logIndex,
           isRealTime: isRealTime,
           originAddress: originAddress,
-          eventData: hasArgs(event) ? serializeEventArgs(event.args) : {},
+          eventData: finalEventData,
         };
       }),
     );
@@ -130,8 +170,9 @@ export class EventStorageService {
 
     // Split events into smaller batches
     const eventBatches: BlockchainEventData[][] = [];
-    for (let i = 0; i < events.length; i += this.BATCH_SIZE) {
-      eventBatches.push(events.slice(i, i + this.BATCH_SIZE));
+    const batchSize = this.eventConfigService.getBatchSize();
+    for (let i = 0; i < events.length; i += batchSize) {
+      eventBatches.push(events.slice(i, i + batchSize));
     }
 
     let successCount = 0;

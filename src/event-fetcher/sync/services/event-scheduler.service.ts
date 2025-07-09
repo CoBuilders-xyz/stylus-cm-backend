@@ -1,12 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { EventConfigService } from './event-config.service';
+import { EventConfigService } from '../../shared';
 import { EventSyncService } from './event-sync.service';
-import { ProviderManager } from '../../common/utils/provider.util';
+import { ProviderManager } from '../../../common/utils/provider.util';
+import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
+import { createModuleLogger } from '../../../common/utils/logger.util';
+import { MODULE_NAME } from '../../constants/module.constants';
 
 @Injectable()
 export class EventSchedulerService {
-  private readonly logger = new Logger(EventSchedulerService.name);
+  private readonly logger = createModuleLogger(
+    EventSchedulerService,
+    MODULE_NAME,
+  );
 
   constructor(
     private readonly eventConfigService: EventConfigService,
@@ -105,9 +111,14 @@ export class EventSchedulerService {
         );
         return `Resynchronized events for blockchain ${blockchainId}`;
       } else {
-        throw new Error(
-          `Blockchain with ID ${blockchainId} not found or has no RPC URL`,
-        );
+        // Use standardized error - this covers both "not found" and "missing RPC URL"
+        if (!blockchain) {
+          EventFetcherErrorHelpers.throwInvalidBlockchainConfig();
+        } else {
+          EventFetcherErrorHelpers.throwMissingRpcUrl();
+        }
+        // This line never executes but satisfies TypeScript
+        return '';
       }
     } else {
       // Resync all blockchains
