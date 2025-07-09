@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Post, Body } from '@nestjs/common';
-import { GenerateNonceDto } from './dto/generate-nonce.dto';
-import { VerifySignatureDto } from './dto/verify-signature.dto';
+import { Controller, Get, Param, Post, Body, UseGuards } from '@nestjs/common';
+import { GenerateNonceDto, VerifySignatureDto, SignMessageDto } from './dto';
 import { AuthService } from './auth.service';
 import { Public } from './auth.guard';
+import { DevelopmentOnlyGuard } from './development-only.guard';
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -14,16 +15,17 @@ export class AuthController {
     return { nonce };
   }
 
+  // Testing Purposes Only - RESTRICTED TO DEVELOPMENT ENVIRONMENTS
+  @Public()
+  @UseGuards(DevelopmentOnlyGuard)
+  @Post('sign-message')
+  sign(@Body() body: SignMessageDto) {
+    return this.authService.signMessage(body.pk, body.message);
+  }
+
   @Public()
   @Post('login')
   verifySignature(@Body() body: VerifySignatureDto) {
     return this.authService.verifySignature(body.address, body.signature);
-  }
-
-  // Testing Purposes Only
-  @Public()
-  @Post('sign-message')
-  sign(@Body() body: { pk: string; message: string }) {
-    return this.authService.signMessage(body.pk, body.message);
   }
 }

@@ -19,6 +19,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:module": "jest src/${MODULE:-auth}",
+    "test:module:watch": "jest src/${MODULE:-auth} --watch",
+    "test:module:cov": "jest src/${MODULE:-auth} --coverage",
+    "test:module:verbose": "jest src/${MODULE:-auth}",
     "generate-contract-types": "typechain --target ethers-v6 --out-dir src/common/types/contracts 'src/common/abis/**/*.json'"
   },
   "dependencies": {
@@ -91,6 +95,10 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    },
+    "verbose": true
   }
 }

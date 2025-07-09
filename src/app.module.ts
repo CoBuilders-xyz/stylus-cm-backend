@@ -3,6 +3,7 @@ import config from './common/config/config';
 import databaseConfig from './common/config/database.config';
 import redisConfig from './common/config/redis.config';
 import appConfig from './common/config/app.config';
+import authConfig from './auth/auth.config';
 
 // nestjs modules
 import { ScheduleModule } from '@nestjs/schedule';
@@ -43,7 +44,7 @@ const appModules = [
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [config, databaseConfig, redisConfig, appConfig],
+      load: [config, databaseConfig, redisConfig, appConfig, authConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
