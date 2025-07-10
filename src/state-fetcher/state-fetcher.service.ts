@@ -1,138 +1,177 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Repository } from 'typeorm';
 import { ethers } from 'ethers';
+import { ConfigService } from '@nestjs/config';
 
 import { Blockchain } from '../blockchains/entities/blockchain.entity';
-import { BlockchainState } from '../blockchains/entities/blockchain-state.entity';
-import { abi } from '../common/abis/cacheManager/cacheManager.json';
+import { StateFetcherConfig } from './state-fetcher.config';
+import { StateFetcherErrorHelpers } from './state-fetcher.errors';
+import { ContractInteractionService, StateStorageService } from './services';
+import { createModuleLogger } from '../common/utils/logger.util';
+import { MODULE_NAME } from './constants';
 
 @Injectable()
 export class StateFetcherService implements OnModuleInit {
-  private readonly logger = new Logger(StateFetcherService.name);
+  private readonly logger = createModuleLogger(
+    StateFetcherService,
+    MODULE_NAME,
+  );
+  private readonly config: StateFetcherConfig;
 
   constructor(
     @InjectRepository(Blockchain)
     private readonly blockchainRepository: Repository<Blockchain>,
-    @InjectRepository(BlockchainState)
-    private readonly BlockchainStateRepository: Repository<BlockchainState>,
-  ) {}
-
-  async onModuleInit() {
-    this.logger.log('Checking for initial blockchain state data...');
-    const blockchains = await this.blockchainRepository.find();
-
-    for (const blockchain of blockchains) {
-      if (!blockchain.rpcUrl || !blockchain.cacheManagerAddress) {
-        this.logger.warn(
-          `Cannot fetch initial state for blockchain ${blockchain.id} due to missing RPC URL or contract address.`,
-        );
-        continue;
-      }
-
-      try {
-        const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
-        await this.pollMetrics(blockchain, provider);
-        this.logger.log(
-          `Initial state fetched for blockchain ${blockchain.id}`,
-        );
-      } catch (error) {
-        if (error instanceof Error) {
-          this.logger.error(
-            `Error fetching initial state for blockchain ${blockchain.id}: ${error.message}`,
-          );
-        } else {
-          this.logger.error(
-            `Error fetching initial state for blockchain ${blockchain.id}: Unknown error`,
-          );
-        }
-      }
-    }
-
-    this.logger.log('Initial state check completed.');
+    private readonly configService: ConfigService,
+    private readonly contractInteractionService: ContractInteractionService,
+    private readonly stateStorageService: StateStorageService,
+  ) {
+    this.config = this.configService.get<StateFetcherConfig>('state-fetcher')!;
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
-    const blockchains = await this.blockchainRepository.find();
+    this.logger.log('Starting scheduled blockchain state polling...');
+
+    const blockchains = await this.blockchainRepository.find({
+      where: { enabled: true },
+    });
+
+    if (blockchains.length === 0) {
+      this.logger.warn('No enabled blockchains found for scheduled polling');
+      return;
+    }
+
+    this.logger.log(
+      `Found ${blockchains.length} enabled blockchain(s) for polling`,
+    );
+
+    const pollingPromises = blockchains.map((blockchain) =>
+      this.pollBlockchainSafely(blockchain, 'scheduled'),
+    );
+
+    const results = await Promise.allSettled(pollingPromises);
+
+    const successful = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+
+    this.logger.log(
+      `Scheduled polling completed: ${successful} successful, ${failed} failed`,
+    );
+  }
+
+  async onModuleInit() {
+    this.logger.log('Initializing StateFetcherService...');
+
+    if (!this.config.enableInitialPolling) {
+      this.logger.log('Initial polling disabled via configuration');
+      return;
+    }
+
+    this.logger.log('Starting initial blockchain state data collection...');
+
+    const blockchains = await this.blockchainRepository.find({
+      where: { enabled: true },
+    });
+
+    if (blockchains.length === 0) {
+      this.logger.warn('No enabled blockchains found for initial polling');
+      return;
+    }
+
+    this.logger.log(
+      `Found ${blockchains.length} enabled blockchain(s) for initial collection`,
+    );
+
+    let successful = 0;
+    let failed = 0;
+
     for (const blockchain of blockchains) {
-      if (!blockchain.rpcUrl || !blockchain.cacheManagerAddress) {
-        this.logger.warn(
-          `Skipping blockchain ${blockchain.id} due to missing RPC URL or contract address.`,
-        );
-        continue;
+      try {
+        await this.pollBlockchainSafely(blockchain, 'initial');
+        successful++;
+      } catch {
+        failed++;
+        // Error already logged in pollBlockchainSafely
+      }
+    }
+
+    this.logger.log(
+      `Initial state collection completed: ${successful} successful, ${failed} failed`,
+    );
+    this.logger.log('StateFetcherService initialized successfully');
+  }
+
+  private async pollBlockchainSafely(
+    blockchain: Blockchain,
+    context: string,
+  ): Promise<void> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.debug(
+        `Starting ${context} state polling for blockchain ${blockchain.id}`,
+      );
+
+      this.validateBlockchainConfig(blockchain);
+
+      const provider = await this.createProvider(blockchain);
+      const stateData = await this.contractInteractionService.getContractState(
+        blockchain,
+        provider,
+      );
+      await this.stateStorageService.saveBlockchainState(blockchain, stateData);
+
+      const duration = Date.now() - startTime;
+      this.logger.log(
+        `${context} state fetched for blockchain ${blockchain.id} (${duration}ms)`,
+      );
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(
+        `Error during ${context} state polling for blockchain ${blockchain.id} (${duration}ms): ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+
+      if (this.config.enableMetrics) {
+        // TODO: Record metrics when monitoring service is implemented
       }
 
-      try {
-        const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
-        await this.pollMetrics(blockchain, provider);
-      } catch (error) {
-        if (error instanceof Error) {
-          this.logger.error(
-            `Error polling blockchain ${blockchain.id}: ${error.message}`,
-          );
-        } else {
-          this.logger.error(
-            `Error polling blockchain ${blockchain.id}: Unknown error`,
-          );
-        }
-      }
+      throw error; // Re-throw to be caught by caller for counting
     }
   }
 
-  async pollMetrics(blockchain: Blockchain, provider: ethers.JsonRpcProvider) {
-    const cacheManagerContract = new ethers.Contract(
-      blockchain.cacheManagerAddress,
-      abi as ethers.InterfaceAbi,
-      provider,
-    );
+  private validateBlockchainConfig(blockchain: Blockchain): void {
+    if (!blockchain.rpcUrl || !blockchain.cacheManagerAddress) {
+      this.logger.warn(
+        `Blockchain ${blockchain.id} has missing RPC URL or contract address`,
+      );
+      StateFetcherErrorHelpers.throwInvalidBlockchainConfig();
+    }
+  }
 
-    const results = await Promise.all([
-      cacheManagerContract.getEntries() as Promise<
-        Array<{
-          code: string;
-          size: ethers.BigNumberish;
-          bid: ethers.BigNumberish;
-        }>
-      >,
-      cacheManagerContract.decay() as Promise<ethers.BigNumberish>,
-      cacheManagerContract.cacheSize() as Promise<ethers.BigNumberish>,
-      cacheManagerContract.queueSize() as Promise<ethers.BigNumberish>,
-      cacheManagerContract.isPaused() as Promise<boolean>,
-      provider.getBlock('latest'),
-    ]);
+  private async createProvider(
+    blockchain: Blockchain,
+  ): Promise<ethers.JsonRpcProvider> {
+    try {
+      this.logger.debug(
+        `Creating provider for blockchain ${blockchain.id}: ${blockchain.rpcUrl}`,
+      );
 
-    const entries = results[0];
-    const decayRate = results[1];
-    const cacheSize = results[2];
-    const queueSize = results[3];
-    const isPaused = results[4];
-    const block = results[5];
+      const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
 
-    this.logger.verbose('Fetched smart contract state values', {
-      entries: entries.length,
-      decayRate,
-      cacheSize,
-      queueSize,
-      isPaused,
-      blockNumber: block?.number,
-      blockTimestamp: new Date(Number(block?.timestamp) * 1000),
-    });
+      // Test the connection
+      const network = await provider.getNetwork();
+      this.logger.debug(
+        `Provider connected to network ${network.name} (chainId: ${network.chainId})`,
+      );
 
-    const newPoll = this.BlockchainStateRepository.create({
-      blockchain,
-      minBid: '0',
-      decayRate: decayRate.toString(),
-      cacheSize: cacheSize.toString(),
-      queueSize: queueSize.toString(),
-      isPaused,
-      blockNumber: block?.number,
-      blockTimestamp: new Date(Number(block?.timestamp) * 1000),
-      totalContractsCached: entries.length.toString(),
-    });
-
-    await this.BlockchainStateRepository.save(newPoll);
-    this.logger.debug(`State values saved for blockchain ${blockchain.id}`);
+      return provider;
+    } catch (error) {
+      this.logger.error(
+        `Failed to create provider for blockchain ${blockchain.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return StateFetcherErrorHelpers.throwProviderCreationFailed();
+    }
   }
 }

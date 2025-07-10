@@ -10,24 +10,36 @@ export class Blockchain {
   @Column()
   rpcUrl: string;
 
-  @Column({})
+  @Column()
+  fastSyncRpcUrl: string;
+
+  @Column()
+  rpcWssUrl: string;
+
+  @Column()
   cacheManagerAddress: string;
 
-  @Column({})
+  @Column({ nullable: true })
   cacheManagerAutomationAddress: string;
 
-  @Column({})
+  @Column()
   arbWasmCacheAddress: string;
+
+  @Column()
+  arbWasmAddress: string;
 
   @Column({ unique: true })
   chainId: number;
 
-  @Column('jsonb', { nullable: true }) // Flexible field for extra metadata
-  otherInfo: Record<string, any>;
+  @Column({ default: 0 })
+  originBlock: number;
 
   @Column({ default: 0 })
   lastSyncedBlock: number;
 
   @Column({ default: 0 })
   lastProcessedBlockNumber: number;
+
+  @Column({ default: true })
+  enabled: boolean;
 }

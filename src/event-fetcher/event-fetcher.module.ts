@@ -3,11 +3,24 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventFetcherService } from './event-fetcher.service';
 import { Blockchain } from '../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../blockchains/entities/blockchain-event.entity';
-import { EventStorageService } from './services/event-storage.service';
-import { EventListenerService } from './services/event-listener.service';
-import { EventSyncService } from './services/event-sync.service';
-import { EventSchedulerService } from './services/event-scheduler.service';
-import { EventConfigService } from './services/event-config.service';
+
+// Domain-based imports
+import {
+  EventListenerService,
+  EventQueueService,
+  WebSocketManagerService,
+  ListenerStateService,
+  ReconnectionHandlerService,
+} from './listener';
+
+import { EventSyncService, EventSchedulerService } from './sync';
+
+import {
+  EventStorageService,
+  EventConfigService,
+  EventProcessorService,
+} from './shared';
+
 import { ProviderManager } from '../common/utils/provider.util';
 import { BlockchainsModule } from 'src/blockchains/blockchains.module';
 
@@ -15,14 +28,24 @@ import { BlockchainsModule } from 'src/blockchains/blockchains.module';
   imports: [
     TypeOrmModule.forFeature([Blockchain, BlockchainEvent]),
     BlockchainsModule,
+    // Note: Event queues are created dynamically in EventQueueService since queue names depend on blockchain IDs
   ],
   providers: [
     EventFetcherService,
-    EventStorageService,
+    // Listener Domain Services
     EventListenerService,
+    EventQueueService,
+    WebSocketManagerService,
+    ListenerStateService,
+    ReconnectionHandlerService,
+    // Sync Domain Services
     EventSyncService,
     EventSchedulerService,
+    // Shared Domain Services
+    EventStorageService,
     EventConfigService,
+    EventProcessorService,
+    // External Dependencies
     ProviderManager,
   ],
   exports: [EventFetcherService],

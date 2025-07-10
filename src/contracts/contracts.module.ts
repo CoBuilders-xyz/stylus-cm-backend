@@ -4,10 +4,21 @@ import { ContractsController } from './contracts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Bytecode } from './entities/bytecode.entity';
 import { Contract } from './entities/contract.entity';
-import { ContractsUtilsService } from './contracts.utils.service';
+import {
+  ContractBidCalculatorService,
+  ContractBidAssessmentService,
+  ContractHistoryService,
+  ContractEnrichmentService,
+  CacheStatisticsService,
+  ContractQueryBuilderService,
+} from './services';
 import { BlockchainState } from '../blockchains/entities/blockchain-state.entity';
 import { BlockchainEvent } from 'src/blockchains/entities/blockchain-event.entity';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
+import { UserContract } from '../user-contracts/entities/user-contract.entity';
+import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -16,10 +27,27 @@ import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
       Blockchain,
       BlockchainState,
       BlockchainEvent,
+      UserContract,
     ]),
+    AuthModule,
+    UsersModule,
   ],
   controllers: [ContractsController],
-  providers: [ContractsService, ContractsUtilsService],
-  exports: [ContractsUtilsService],
+  providers: [
+    ContractsService,
+    ContractBidCalculatorService,
+    ContractBidAssessmentService,
+    ContractHistoryService,
+    ContractEnrichmentService,
+    CacheStatisticsService,
+    ContractQueryBuilderService,
+  ],
+  exports: [
+    ContractBidCalculatorService,
+    ContractBidAssessmentService,
+    ContractHistoryService,
+    ContractEnrichmentService,
+    CacheStatisticsService,
+  ],
 })
 export class ContractsModule {}

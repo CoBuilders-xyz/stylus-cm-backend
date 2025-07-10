@@ -1,12 +1,11 @@
-FROM node:20.18.0-bullseye
+FROM node:22.14.0-bullseye
 
-
-RUN mkdir /app && chown node:node /app
+# Create app directory
 WORKDIR /app
 
-USER node
+# A wildcard is used to ensure both package.json AND package-lock.json are copied
+COPY . .
 
-COPY --chown=node:node ./package*.json ./
+# Install app dependencies
 RUN npm install
-
-COPY --chown=node:node . .
+RUN npm run build

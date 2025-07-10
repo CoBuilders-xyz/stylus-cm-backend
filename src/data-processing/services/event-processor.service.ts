@@ -1,18 +1,29 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, MoreThan, Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
-import { ContractBytecodeState } from '../interfaces/contract-bytecode-state.interface';
 import { InsertBidService } from './insert-bid.service';
 import { DeleteBidService } from './delete-bid.service';
-import { DecayRateService } from './decay-rate.service';
-import { ContractBytecodeService } from './contract-bytecode.service';
-import { findApplicableDecayRate } from '../utils/event-utils';
+import { DataProcessingErrorHelpers } from '../data-processing.errors';
+import { EVENT_TYPES } from '../constants/event-processing.constants';
+import { createModuleLogger } from '../../common/utils/logger.util';
+
+// Define a type for event handler functions
+type EventHandler = (
+  blockchain: Blockchain,
+  event: BlockchainEvent,
+) => Promise<void>;
 
 @Injectable()
 export class EventProcessorService {
-  private readonly logger = new Logger(EventProcessorService.name);
+  private readonly logger = createModuleLogger(
+    EventProcessorService,
+    'DataProcessing',
+  );
+
+  // Define a map of event processors with proper typing
+  private readonly eventHandlers: Map<string, EventHandler>;
 
   constructor(
     @InjectRepository(Blockchain)
@@ -21,10 +32,21 @@ export class EventProcessorService {
     private readonly blockchainEventRepository: Repository<BlockchainEvent>,
     private readonly insertBidService: InsertBidService,
     private readonly deleteBidService: DeleteBidService,
-    private readonly decayRateService: DecayRateService,
-    private readonly contractBytecodeService: ContractBytecodeService,
-    private readonly dataSource: DataSource,
-  ) {}
+  ) {
+    // Initialize the event handlers map
+    this.eventHandlers = new Map<string, EventHandler>([
+      [
+        EVENT_TYPES.INSERT_BID,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.insertBidService.processInsertBidEvent(blockchain, event),
+      ],
+      [
+        EVENT_TYPES.DELETE_BID,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.deleteBidService.processDeleteBidEvent(blockchain, event),
+      ],
+    ]);
+  }
 
   /**
    * Process all events for all blockchains
@@ -34,16 +56,28 @@ export class EventProcessorService {
 
     try {
       // Get all blockchains
-      const blockchains = await this.blockchainRepository.find();
+      const blockchains = await this.blockchainRepository.find({
+        where: { enabled: true },
+      });
+
+      this.logger.log(
+        `Found ${blockchains.length} enabled blockchains to process`,
+      );
 
       for (const blockchain of blockchains) {
         await this.processBlockchainAllEvents(blockchain);
       }
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in full event processing: ${errorMessage}`);
-      throw error;
+
+      this.logger.log('Full event processing completed successfully');
+    } catch (error) {
+      this.logger.error(
+        `Error in full event processing: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwEventProcessingFailed(
+        'all-events',
+        'FullEventProcessing',
+      );
     }
   }
 
@@ -52,13 +86,18 @@ export class EventProcessorService {
    */
   async processNewEvent(blockchainId: string, eventId: string): Promise<void> {
     try {
+      this.logger.log(
+        `Processing new event: ${eventId} for blockchain: ${blockchainId}`,
+      );
+
       // Get the blockchain
       const blockchain = await this.blockchainRepository.findOne({
         where: { id: blockchainId },
       });
       if (!blockchain) {
         this.logger.error(`Blockchain not found: ${blockchainId}`);
-        throw new Error(`Blockchain not found: ${blockchainId}`);
+        DataProcessingErrorHelpers.throwBlockchainNotFound();
+        return;
       }
 
       const event = await this.blockchainEventRepository.findOne({
@@ -66,15 +105,21 @@ export class EventProcessorService {
       });
       if (!event) {
         this.logger.error(`Event not found: ${eventId}`);
-        throw new Error(`Event not found: ${eventId}`);
+        DataProcessingErrorHelpers.throwEventNotFound();
+        return;
       }
 
       await this.processBlockchainNewEvent(blockchain, event);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in new event processing: ${errorMessage}`);
-      throw error;
+      this.logger.log(`Successfully processed new event: ${eventId}`);
+    } catch (error) {
+      this.logger.error(
+        `Error in new event processing: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwEventProcessingFailed(
+        eventId,
+        'NewEvent',
+      );
     }
   }
 
@@ -88,53 +133,61 @@ export class EventProcessorService {
   ): Promise<void> {
     this.logger.log(`Processing all events for blockchain: ${blockchain.name}`);
 
-    let events: BlockchainEvent[] = [];
+    try {
+      let events: BlockchainEvent[] = [];
 
-    // Check if we've processed events for this blockchain before
-    this.logger.debug(
-      `Resuming processing from last processed  block: ${blockchain.lastProcessedBlockNumber}`,
-    );
+      // Check if we've processed events for this blockchain before
+      this.logger.debug(
+        `Resuming processing from last processed block: ${blockchain.lastProcessedBlockNumber}`,
+      );
 
-    // Load all events for blockchain sorted by block number
-    events = await this.blockchainEventRepository.find({
-      where: {
-        blockchain: { id: blockchain.id },
-        blockNumber: MoreThan(blockchain.lastProcessedBlockNumber || 0),
-      },
-      order: { blockNumber: 'ASC', logIndex: 'ASC' },
-    });
+      // Load all events for blockchain sorted by block number
+      events = await this.blockchainEventRepository.find({
+        where: {
+          blockchain: { id: blockchain.id },
+          blockNumber: MoreThan(blockchain.lastProcessedBlockNumber || 0),
+        },
+        order: { blockNumber: 'ASC', logIndex: 'ASC' },
+      });
 
-    // Log what events were returned and count by type
-    const eventsByType: Record<string, number> = {};
-    events.forEach((e) => {
-      eventsByType[e.eventName] = (eventsByType[e.eventName] || 0) + 1;
-    });
+      // Log what events were returned and count by type
+      const eventsByType: Record<string, number> = {};
+      events.forEach((e) => {
+        eventsByType[e.eventName] = (eventsByType[e.eventName] || 0) + 1;
+      });
 
-    const eventTypeSummary = Object.entries(eventsByType)
-      .map(([type, count]) => `${type}: ${count}`)
-      .join(', ');
+      const eventTypeSummary = Object.entries(eventsByType)
+        .map(([type, count]) => `${type}: ${count}`)
+        .join(', ');
 
-    this.logger.debug(`Query returned events by type: ${eventTypeSummary}`);
+      this.logger.debug(`Query returned events by type: ${eventTypeSummary}`);
 
-    // Process the events
-    if (events.length > 0) {
-      for (const event of events) {
-        const eventProcessor =
-          this.processEvent[event.eventName] || this.processEvent.Default;
-        await eventProcessor(blockchain, event);
+      // Process the events
+      if (events.length > 0) {
+        for (const event of events) {
+          await this.processEvent(blockchain, event);
+        }
+
+        // Update the last processed event in the blockchain record
+        await this.updateLastProcessedEvent(
+          blockchain,
+          events[events.length - 1],
+        );
+      } else {
+        this.logger.debug(
+          `No new events to process for blockchain: ${blockchain.name}`,
+        );
       }
-
-      // Update the last processed event in the blockchain record
-      await this.updateLastProcessedEvent(
-        blockchain,
-        events[events.length - 1],
+    } catch (error) {
+      this.logger.error(
+        `Error processing all events for blockchain ${blockchain.name}: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwEventProcessingFailed(
+        blockchain.id,
+        'BlockchainAllEvents',
       );
     }
-
-    // // Verify contract bytecodes at the end of processing if needed
-    // await this.contractBytecodeService.verifyContractBytecodeCacheStatus(
-    //   blockchain,
-    // );
   }
 
   /**
@@ -146,25 +199,68 @@ export class EventProcessorService {
     blockchain: Blockchain,
     event: BlockchainEvent,
   ): Promise<void> {
-    this.logger.log(`Processing new events for blockchain: ${blockchain.name}`);
+    this.logger.log(`Processing new event for blockchain: ${blockchain.name}`);
 
-    // We can only process new events if we have processed some events before
-    if (!blockchain.lastProcessedBlockNumber) {
-      this.logger.log(
-        `No events have been processed yet for blockchain ${blockchain.name}. Running full processing...`,
+    try {
+      // We can only process new events if we have processed some events before
+      if (!blockchain.lastProcessedBlockNumber) {
+        this.logger.log(
+          `No events have been processed yet for blockchain ${blockchain.name}. Running full processing...`,
+        );
+        return this.processBlockchainAllEvents(blockchain);
+      }
+
+      this.logger.debug(
+        `New event query returned event by type: ${event.eventName}`,
       );
-      return this.processBlockchainAllEvents(blockchain);
+
+      await this.processEvent(blockchain, event);
+
+      // Update the last processed event in the blockchain record
+      await this.updateLastProcessedEvent(blockchain, event);
+    } catch (error) {
+      this.logger.error(
+        `Error processing new event for blockchain ${blockchain.name}: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwEventProcessingFailed(
+        event.id,
+        'BlockchainNewEvent',
+      );
     }
+  }
 
-    this.logger.debug(
-      `New event query returned event by type: ${event.eventName}`,
-    );
-    const eventProcessor =
-      this.processEvent[event.eventName] || this.processEvent.Default;
-    await eventProcessor(blockchain, event);
+  /**
+   * Process a single event with proper type safety
+   */
+  private async processEvent(
+    blockchain: Blockchain,
+    event: BlockchainEvent,
+  ): Promise<void> {
+    try {
+      const handler = this.eventHandlers.get(event.eventName);
 
-    // Update the last processed event in the blockchain record
-    await this.updateLastProcessedEvent(blockchain, event);
+      if (handler) {
+        this.logger.debug(
+          `Processing event ${event.eventName} for blockchain ${blockchain.name}`,
+        );
+        await handler(blockchain, event);
+        this.logger.debug(`Successfully processed event ${event.eventName}`);
+      } else {
+        this.logger.debug(
+          `No event processor defined for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error processing event ${event.eventName}: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwEventProcessingFailed(
+        event.id,
+        event.eventName,
+      );
+    }
   }
 
   /**
@@ -182,29 +278,16 @@ export class EventProcessorService {
       await this.blockchainRepository.save(blockchain);
 
       this.logger.log(
-        `Updated last processed block for blockchain ${blockchain.name} to ${lastEvent.blockNumber})`,
+        `Updated last processed block for blockchain ${blockchain.name} to ${lastEvent.blockNumber}`,
       );
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error updating last processed event: ${errorMessage}`);
-      throw error;
+    } catch (error) {
+      this.logger.error(
+        `Error updating last processed event: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwDatabaseOperationFailed(
+        'update last processed event',
+      );
     }
   }
-
-  private processEvent = {
-    InsertBid: (blockchain: Blockchain, event: BlockchainEvent) =>
-      this.insertBidService.processInsertBidEvent(blockchain, event),
-    DeleteBid: (blockchain: Blockchain, event: BlockchainEvent) =>
-      this.deleteBidService.processDeleteBidEvent(blockchain, event),
-    // SetDecayRate: (blockchain: Blockchain, event: BlockchainEvent) =>
-    //   this.decayRateService.processSetDecayRateEvent2(blockchain, event),
-    // SetCacheSize: (blockchain: Blockchain, event: BlockchainEvent) =>
-    //   this.contractBytecodeService.processSetCacheSizeEvent2(blockchain, event),
-    Default: (blockchain: Blockchain, event: BlockchainEvent) => {
-      this.logger.warn(
-        `No event processor defined for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
-      );
-    },
-  };
 }

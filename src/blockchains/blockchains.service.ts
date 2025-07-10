@@ -1,530 +1,277 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import {
+  BlockchainCrudService,
+  BlockchainMetricsService,
+  BlockchainAnalyticsService,
+} from './services';
+import { TimespanType, ContractSizeRange, MODULE_NAME } from './constants';
+import { BidAverageDto } from './dto';
+import {
+  BlockchainDataResponse,
+  BytecodeStatsResponse,
+  CacheStatsResponse,
+  BidTrendsResponse,
+  AverageBidResponse,
+} from './interfaces';
 import { Blockchain } from './entities/blockchain.entity';
-import { Bytecode } from '../contracts/entities/bytecode.entity';
-import { BlockchainState } from './entities/blockchain-state.entity';
-import { BlockchainEvent } from './entities/blockchain-event.entity';
-import { calculateActualBid } from '../data-processing/utils/bid-utils';
-import { ethers } from 'ethers';
+import { createModuleLogger } from '../common/utils/logger.util';
 
 @Injectable()
 export class BlockchainsService {
+  private readonly logger = createModuleLogger(BlockchainsService, MODULE_NAME);
+
   constructor(
-    @InjectRepository(Blockchain)
-    private blockchainRepository: Repository<Blockchain>,
-    @InjectRepository(Bytecode)
-    private bytecodeRepository: Repository<Bytecode>,
-    @InjectRepository(BlockchainState)
-    private blockchainStateRepository: Repository<BlockchainState>,
-    @InjectRepository(BlockchainEvent)
-    private blockchainEventRepository: Repository<BlockchainEvent>,
-    private readonly configService: ConfigService,
+    private readonly crudService: BlockchainCrudService,
+    private readonly metricsService: BlockchainMetricsService,
+    private readonly analyticsService: BlockchainAnalyticsService,
   ) {}
 
-  async onModuleInit() {
-    const blockchainsConfig = this.configService.get(
-      'blockchains',
-    ) as Blockchain[];
+  /**
+   * Find all enabled blockchains
+   */
+  async findAll(): Promise<Blockchain[]> {
+    this.logger.debug('Fetching all enabled blockchains');
+    const blockchains = await this.crudService.findAll();
+    this.logger.log(`Retrieved ${blockchains.length} enabled blockchains`);
+    return blockchains;
+  }
 
-    if (!blockchainsConfig || !Array.isArray(blockchainsConfig)) {
-      return [];
-    }
+  /**
+   * Get comprehensive blockchain data for dashboard
+   */
+  async getBlockchainData(
+    blockchainId: string,
+  ): Promise<BlockchainDataResponse> {
+    const startTime = Date.now();
 
-    for (const blockchain of blockchainsConfig) {
-      const existingBlockchain = await this.blockchainRepository.findOne({
-        where: { chainId: blockchain.chainId, rpcUrl: blockchain.rpcUrl },
-      });
+    try {
+      this.logger.log(
+        `Starting comprehensive data fetch for blockchain: ${blockchainId}`,
+      );
 
-      if (!existingBlockchain) {
-        await this.blockchainRepository.insert(blockchain);
-      }
+      // Get bytecode trends first (needed for metrics calculation)
+      this.logger.debug(
+        `Fetching net bytecode trends for blockchain: ${blockchainId}`,
+      );
+      const netBytecodesTrends =
+        await this.analyticsService.getNetBytecodesTrends({
+          blockchainId,
+          timespan: TimespanType.MONTHLY,
+        });
+
+      this.logger.debug(
+        `Starting parallel data fetch for ${9} operations for blockchain: ${blockchainId}`,
+      );
+
+      // Get all data in parallel
+      const [
+        bytecodeStatsWithTrends,
+        cacheStats,
+        bidPlacementTrends,
+        bidPlacementTrendsWeek,
+        bidPlacementTrendsMonth,
+        bidPlacementTrendsYear,
+        averageBidAll,
+        averageBidSmall,
+        averageBidMedium,
+        averageBidLarge,
+      ] = await Promise.all([
+        this.metricsService.getTotalBytecodesWithTrends(
+          blockchainId,
+          netBytecodesTrends,
+        ),
+        this.metricsService.getCacheStats(blockchainId),
+        this.analyticsService.getBidPlacementTrends({
+          blockchainId,
+          timespan: TimespanType.DAILY,
+        }),
+        this.analyticsService.getBidPlacementTrends({
+          blockchainId,
+          timespan: TimespanType.WEEKLY,
+        }),
+        this.analyticsService.getBidPlacementTrends({
+          blockchainId,
+          timespan: TimespanType.MONTHLY,
+        }),
+        this.analyticsService.getBidPlacementTrends({
+          blockchainId,
+          timespan: TimespanType.YEARLY,
+        }),
+        this.analyticsService.getAverageBid({
+          blockchainId,
+          timespan: TimespanType.DAILY,
+        }),
+        this.analyticsService.getAverageBid({
+          blockchainId,
+          timespan: TimespanType.DAILY,
+          maxSize: ContractSizeRange.SMALL_MAX,
+          minSize: 0,
+        }),
+        this.analyticsService.getAverageBid({
+          blockchainId,
+          timespan: TimespanType.DAILY,
+          maxSize: ContractSizeRange.MEDIUM_MAX,
+          minSize: ContractSizeRange.SMALL_MAX,
+        }),
+        this.analyticsService.getAverageBid({
+          blockchainId,
+          timespan: TimespanType.DAILY,
+          minSize: ContractSizeRange.MEDIUM_MAX,
+        }),
+      ]);
+
+      this.logger.debug(
+        `Assembling comprehensive response for blockchain: ${blockchainId}`,
+      );
+
+      const result: BlockchainDataResponse = {
+        bytecodeCount: bytecodeStatsWithTrends.bytecodeCount,
+        bytecodeCountDiffWithLastPeriod:
+          bytecodeStatsWithTrends.bytecodeCountDiffWithLastPeriod,
+        queueSize: cacheStats.queueSize,
+        cacheSize: cacheStats.cacheSize,
+        bidPlacementTrends,
+        bidPlacementTrendsWeek,
+        bidPlacementTrendsMonth,
+        bidPlacementTrendsYear,
+        netBytecodesTrends,
+        averageBids: {
+          all: averageBidAll,
+          small: averageBidSmall, // 0-800KB
+          medium: averageBidMedium, // 800-1600KB
+          large: averageBidLarge, // >1600KB
+        },
+      };
+
+      const duration = Date.now() - startTime;
+      this.logger.log(
+        `Comprehensive blockchain data retrieved for: ${blockchainId} (${duration}ms)`,
+      );
+      this.logger.debug(
+        `Response summary - Bytecodes: ${result.bytecodeCount}, Cache: ${((Number(result.queueSize) / Number(result.cacheSize)) * 100).toFixed(1)}% full, Total bids: ${result.averageBids.all.global.count}`,
+      );
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const err = error as Error;
+      this.logger.error(
+        `Failed to get comprehensive blockchain data for: ${blockchainId} after ${duration}ms: ${err.message}`,
+        err.stack,
+      );
+      throw error;
     }
   }
 
-  findAll() {
-    return this.blockchainRepository.find(); // TODO Add interceptor to only share the necessary data
-  }
+  /**
+   * Get total bytecodes for a blockchain
+   */
+  async getTotalBytecodes(
+    blockchainId: string,
+  ): Promise<BytecodeStatsResponse> {
+    try {
+      this.logger.debug(
+        `Getting total bytecodes for blockchain: ${blockchainId}`,
+      );
 
-  async getBlockchainData(blockchainId: string) {
-    // Bytecode Data
-    const netBytecodesTrends = await this.getNetBytecodesTrends(
-      'M',
-      blockchainId,
-    );
-    const bytecodeCount = await this.bytecodeRepository.count({
-      where: { blockchain: { id: blockchainId }, isCached: true },
-    });
-    const bytecodeCountDiffWithLastPeriod =
-      netBytecodesTrends[netBytecodesTrends.length - 1].currentTotal -
-      netBytecodesTrends[netBytecodesTrends.length - 2].currentTotal;
+      const netBytecodesTrends =
+        await this.analyticsService.getNetBytecodesTrends({
+          blockchainId,
+          timespan: TimespanType.MONTHLY,
+        });
 
-    // Get queue size from blockchain state
-    const blockchainState = await this.blockchainStateRepository.findOne({
-      where: { blockchain: { id: blockchainId } },
-      order: { blockNumber: 'DESC' },
-    });
-
-    if (!blockchainState) {
-      throw new Error('Blockchain state not found');
-    }
-
-    const { queueSize, cacheSize } = blockchainState;
-
-    const bidPlacementTrends = await this.getBidPlacementTrends(
-      'D',
-      blockchainId,
-    );
-    const bidPlacementTrendsWeek = await this.getBidPlacementTrends(
-      'W',
-      blockchainId,
-    );
-    const bidPlacementTrendsMonth = await this.getBidPlacementTrends(
-      'M',
-      blockchainId,
-    );
-    const bidPlacementTrendsYear = await this.getBidPlacementTrends(
-      'Y',
-      blockchainId,
-    );
-
-    // Get average bids for different size ranges
-    const averageBidAll = await this.getAverageBid('D', blockchainId, 0); // All sizes
-    const averageBidSmall = await this.getAverageBid('D', blockchainId, 800, 0); // 0-800KB
-    const averageBidMedium = await this.getAverageBid(
-      'D',
-      blockchainId,
-      1600,
-      800,
-    ); // 800-1600KB
-    const averageBidLarge = await this.getAverageBid(
-      'D',
-      blockchainId,
-      0,
-      1600,
-    ); // >1600KB
-
-    return {
-      bytecodeCount,
-      bytecodeCountDiffWithLastPeriod,
-      queueSize,
-      cacheSize,
-      bidPlacementTrends,
-      bidPlacementTrendsWeek,
-      bidPlacementTrendsMonth,
-      bidPlacementTrendsYear,
-      netBytecodesTrends,
-      averageBids: {
-        all: averageBidAll,
-        small: averageBidSmall, // 0-800KB
-        medium: averageBidMedium, // 800-1600KB
-        large: averageBidLarge, // >1600KB
-      },
-    };
-  }
-
-  async getTotalBytecodes(blockchainId: string) {
-    // Bytecode Data
-    const netBytecodesTrends = await this.getNetBytecodesTrends(
-      'M',
-      blockchainId,
-    );
-    const bytecodeCount = await this.bytecodeRepository.count({
-      where: { blockchain: { id: blockchainId }, isCached: true },
-    });
-    const bytecodeCountDiffWithLastMonth =
-      netBytecodesTrends[netBytecodesTrends.length - 1].currentTotal -
-      netBytecodesTrends[netBytecodesTrends.length - 2].currentTotal;
-
-    return {
-      bytecodeCount,
-      bytecodeCountDiffWithLastMonth,
-    };
-  }
-
-  async getCacheStats(blockchainId: string) {
-    const blockchainState = await this.blockchainStateRepository.findOne({
-      where: { blockchain: { id: blockchainId } },
-      order: { blockNumber: 'DESC' },
-    });
-
-    if (!blockchainState) {
-      throw new Error('Blockchain state not found');
-    }
-
-    const { queueSize, cacheSize } = blockchainState;
-
-    const cacheFilledPercentage = (Number(queueSize) / Number(cacheSize)) * 100;
-
-    const queueSizeMB = Number(queueSize) / 1000 / 1000;
-    const cacheSizeMB = Number(cacheSize) / 1000 / 1000;
-
-    return {
-      queueSize,
-      cacheSize,
-      queueSizeMB,
-      cacheSizeMB,
-      cacheFilledPercentage,
-    };
-  }
-
-  async getBidPlacementTrends(timespan: string, blockchainId: string) {
-    // Will filter insertBid events and group them by different timespans D, W, M, Y
-
-    const timespans = ['D', 'W', 'M', 'Y']; // TODO Add to Validator instead of here.
-    if (!timespans.includes(timespan)) {
-      throw new Error('Invalid timespan');
-    }
-
-    // N times the timespan to have several bars in the chart
-    const backTraceTimestamp = getBackTraceTimestamp(timespan, 12);
-    // Define the date format based on timespan
-    const dateFormat = getDateFormat(timespan);
-
-    // Use query builder to group by date format
-    let queryBuilder = this.blockchainEventRepository
-      .createQueryBuilder('event')
-      .select(`to_char(event.blockTimestamp, '${dateFormat}')`, 'period')
-      .addSelect('COUNT(*)', 'count')
-      .where('event.eventName = :eventName', { eventName: 'InsertBid' })
-      .andWhere('event.blockTimestamp >= :timestamp', {
-        timestamp: backTraceTimestamp,
-      })
-      .innerJoin('event.blockchain', 'blockchain')
-      .andWhere('blockchain.id = :blockchainId', {
+      const result = await this.metricsService.getTotalBytecodesWithTrends(
         blockchainId,
-      });
+        netBytecodesTrends,
+      );
 
-    const result = await queryBuilder
-      .groupBy('period')
-      .orderBy('period', 'ASC')
-      .getRawMany();
+      const response = {
+        bytecodeCount: result.bytecodeCount,
+        bytecodeCountDiffWithLastMonth: result.bytecodeCountDiffWithLastPeriod,
+      };
 
-    return result.map((item) => ({
-      period: item.period,
-      count: parseInt(item.count, 10),
-    }));
+      this.logger.log(
+        `Total bytecodes retrieved for blockchain ${blockchainId}: ${response.bytecodeCount} (${response.bytecodeCountDiffWithLastMonth > 0 ? '+' : ''}${response.bytecodeCountDiffWithLastMonth} vs last month)`,
+      );
+
+      return response;
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Failed to get total bytecodes for blockchain ${blockchainId}: ${err.message}`,
+        err.stack,
+      );
+      throw error;
+    }
   }
 
-  async getNetBytecodesTrends(timespan: string, blockchainId: string) {
-    const timespans = ['D', 'W', 'M', 'Y'];
-    if (!timespans.includes(timespan)) {
-      throw new Error('Invalid timespan');
-    }
+  /**
+   * Get cache statistics for a blockchain
+   */
+  async getCacheStats(blockchainId: string): Promise<CacheStatsResponse> {
+    this.logger.debug(
+      `Delegating cache stats request for blockchain: ${blockchainId}`,
+    );
+    return this.metricsService.getCacheStats(blockchainId);
+  }
 
-    // N times the timespan to have several bars in the chart
-    const backTraceTimestamp = getBackTraceTimestamp(timespan, 2);
-    // Define the date format based on timespan
-    const dateFormat = getDateFormat(timespan);
+  /**
+   * Get bid placement trends for a blockchain
+   */
+  async getBidPlacementTrends(
+    timespan: string,
+    blockchainId: string,
+  ): Promise<BidTrendsResponse> {
+    this.logger.debug(
+      `Getting bid placement trends for blockchain ${blockchainId} with timespan: ${timespan}`,
+    );
 
-    // Get all relevant events
-    let queryBuilder = this.blockchainEventRepository
-      .createQueryBuilder('event')
-      .select(`to_char(event.blockTimestamp, '${dateFormat}')`, 'period')
-      .addSelect('event.eventName', 'eventName')
-      .addSelect('COUNT(*)', 'count')
-      .where('event.eventName IN (:...eventNames)', {
-        eventNames: ['InsertBid', 'DeleteBid'],
-      })
-      .andWhere('event.blockTimestamp >= :timestamp', {
-        timestamp: backTraceTimestamp,
-      })
-      .innerJoin('event.blockchain', 'blockchain')
-      .andWhere('blockchain.id = :blockchainId', {
-        blockchainId,
-      });
-
-    const events = await queryBuilder
-      .groupBy(
-        `to_char(event.blockTimestamp, '${dateFormat}'), event.eventName`,
-      )
-      .orderBy('period', 'ASC')
-      .getRawMany();
-
-    // Process the results to calculate net changes per period
-    const periodMap = new Map();
-
-    // Initialize with all periods
-    const uniquePeriods = [...new Set(events.map((e) => e.period))].sort();
-    uniquePeriods.forEach((period) => {
-      periodMap.set(period, { insertCount: 0, deleteCount: 0 });
+    // Convert string timespan to enum for validation
+    const timespanEnum = timespan as TimespanType;
+    const result = await this.analyticsService.getBidPlacementTrends({
+      blockchainId,
+      timespan: timespanEnum,
     });
 
-    // Fill in the actual counts
-    events.forEach((event) => {
-      const periodData = periodMap.get(event.period);
-      if (event.eventName === 'InsertBid') {
-        periodData.insertCount = parseInt(event.count, 10);
-      } else if (event.eventName === 'DeleteBid') {
-        periodData.deleteCount = parseInt(event.count, 10);
-      }
-    });
-
-    // Calculate net change and running total
-    let runningTotal = 0;
-    const result: Array<{
-      period: string;
-      insertCount: number;
-      deleteCount: number;
-      netChange: number;
-      currentTotal: number;
-    }> = [];
-
-    uniquePeriods.forEach((period) => {
-      const { insertCount, deleteCount } = periodMap.get(period);
-      const netChange = insertCount - deleteCount;
-      runningTotal += netChange;
-
-      result.push({
-        period,
-        insertCount,
-        deleteCount,
-        netChange,
-        currentTotal: runningTotal,
-      });
-    });
+    this.logger.log(
+      `Bid placement trends retrieved for blockchain ${blockchainId} (${timespan}): ${result.global.insertCount} inserts, ${result.global.deleteCount} deletes, ${result.global.netChange} net change across ${result.periods.length} periods`,
+    );
 
     return result;
   }
 
+  /**
+   * Get average bid for a blockchain with optional size filtering
+   */
   async getAverageBid(
     timespan: string,
     blockchainId: string,
     maxSizeKB: number = 0,
     minSizeKB: number = 0,
-  ) {
-    // Will filter insertBid events and group them by different timespans D, W, M, Y
-    const timespans = ['D', 'W', 'M', 'Y'];
-    if (!timespans.includes(timespan)) {
-      throw new Error('Invalid timespan');
-    }
+  ): Promise<AverageBidResponse> {
+    const sizeFilter =
+      maxSizeKB > 0 || minSizeKB > 0
+        ? ` with size filter: ${minSizeKB || 0}-${maxSizeKB || '∞'}KB`
+        : '';
+    this.logger.debug(
+      `Getting average bid for blockchain ${blockchainId} (${timespan})${sizeFilter}`,
+    );
 
-    const backTraceTimestamp = getBackTraceTimestamp(timespan, 12);
-    const dateFormat = getDateFormat(timespan);
-
-    // Create base query conditions
-    const baseConditions = {
-      eventName: 'InsertBid',
-      timestamp: backTraceTimestamp,
+    // Convert string timespan to enum for validation
+    const timespanEnum = timespan as TimespanType;
+    const dto: BidAverageDto = {
+      blockchainId,
+      timespan: timespanEnum,
+      maxSize: maxSizeKB > 0 ? maxSizeKB : undefined,
+      minSize: minSizeKB > 0 ? minSizeKB : undefined,
     };
 
-    // Create size conditions if needed
-    // If both are 0, no size condition, bring all.
+    const result = await this.analyticsService.getAverageBid(dto);
 
-    let sizeCondition = '';
-    const sizeParams: Record<string, number> = {};
+    this.logger.log(
+      `Average bid retrieved for blockchain ${blockchainId} (${timespan})${sizeFilter}: ${result.global.parsedAverageBid} ETH (${result.global.count} bids)`,
+    );
 
-    if (maxSizeKB > 0 && minSizeKB > 0) {
-      // Between minSize and maxSize
-      sizeCondition =
-        'CAST(event."eventData"->>3 AS DECIMAL) >= :minSize AND CAST(event."eventData"->>3 AS DECIMAL) <= :maxSize';
-      sizeParams.minSize = minSizeKB * 1024; // Convert KB to bytes
-      sizeParams.maxSize = maxSizeKB * 1024; // Convert KB to bytes
-    } else if (maxSizeKB > 0) {
-      // Up to maxSize
-      sizeCondition = 'CAST(event."eventData"->>3 AS DECIMAL) <= :maxSize';
-      sizeParams.maxSize = maxSizeKB * 1024; // Convert KB to bytes
-    } else if (minSizeKB > 0) {
-      // Greater than or equal to minSize
-      sizeCondition = 'CAST(event."eventData"->>3 AS DECIMAL) >= :minSize';
-      sizeParams.minSize = minSizeKB * 1024; // Convert KB to bytes
-    }
-
-    // Get the most recent blockchain state to use as fallback for decay rate
-    const whereClause = { blockchain: { id: blockchainId } };
-
-    const latestBlockchainState = await this.blockchainStateRepository.findOne({
-      where: whereClause,
-      order: { blockNumber: 'DESC' },
-    });
-
-    // Default decay rate from the latest blockchain state or '0' if not available
-    const defaultDecayRate = latestBlockchainState?.decayRate ?? '0';
-
-    // Fetch all SetDecayRate events first
-    const eventWhereClause: any = {
-      eventName: 'SetDecayRate',
-    };
-
-    if (blockchainId) {
-      eventWhereClause.blockchain = { id: blockchainId };
-    }
-
-    const decayRateEvents = await this.blockchainEventRepository.find({
-      where: eventWhereClause,
-      order: {
-        blockNumber: 'ASC',
-        logIndex: 'ASC',
-      },
-    });
-
-    // Fetch all InsertBid events
-    let eventsQueryBuilder = this.blockchainEventRepository
-      .createQueryBuilder('event')
-      .select('event.id', 'id')
-      .addSelect('event.blockNumber', 'blockNumber')
-      .addSelect('event.blockTimestamp', 'blockTimestamp')
-      .addSelect('event."eventData"', 'eventData')
-      .addSelect(`to_char(event.blockTimestamp, '${dateFormat}')`, 'period')
-      .where('event.eventName = :eventName', {
-        eventName: baseConditions.eventName,
-      })
-      .andWhere('event.blockTimestamp >= :timestamp', {
-        timestamp: baseConditions.timestamp,
-      })
-      .innerJoin('event.blockchain', 'blockchain')
-      .andWhere('blockchain.id = :blockchainId', {
-        blockchainId,
-      });
-
-    // Add size filter if needed
-    if (sizeCondition) {
-      eventsQueryBuilder = eventsQueryBuilder.andWhere(
-        sizeCondition,
-        sizeParams,
-      );
-    }
-
-    const insertBidEvents = await eventsQueryBuilder.getRawMany();
-
-    // Group events by period for later averaging
-    const periodBids = new Map<string, { sum: bigint; count: number }>();
-    let globalSum = BigInt(0);
-    let globalCount = 0;
-
-    // Process each InsertBid event
-    for (const event of insertBidEvents) {
-      const eventData = event.eventData;
-      const period = event.period;
-      const bidValue = eventData[2];
-      const blockTimestamp = new Date(event.blockTimestamp);
-      const blockNumber = event.blockNumber;
-
-      // Find the most recent decay rate event for this InsertBid
-      let applicableDecayRate = defaultDecayRate;
-
-      // Search for the applicable decay rate by finding the most recent
-      // decay rate event that occurred before this InsertBid event
-      for (let i = 0; i < decayRateEvents.length; i++) {
-        const decayEvent = decayRateEvents[i];
-
-        // If this decay event is after our InsertBid, stop looking
-        if (
-          decayEvent.blockNumber > blockNumber ||
-          (decayEvent.blockNumber === blockNumber &&
-            decayEvent.logIndex >= event.logIndex)
-        ) {
-          break;
-        }
-
-        // Otherwise, this is a valid decay rate to use
-        applicableDecayRate = decayEvent.eventData[0];
-      }
-
-      // Calculate the actual bid with the decay applied
-      const actualBid = calculateActualBid(
-        bidValue,
-        applicableDecayRate,
-        blockTimestamp,
-      );
-
-      // Keep as BigInt to maintain integer precision
-      const actualBidValue = BigInt(actualBid);
-
-      // Add to the period's sum and count
-      if (!periodBids.has(period)) {
-        periodBids.set(period, { sum: BigInt(0), count: 0 });
-      }
-      const periodData = periodBids.get(period);
-      if (periodData) {
-        periodData.sum += actualBidValue;
-        periodData.count += 1;
-      }
-
-      // Add to global sum and count
-      globalSum = typeof globalSum === 'bigint' ? globalSum : BigInt(0);
-      globalSum += actualBidValue;
-      globalCount += 1;
-    }
-
-    // Calculate averages for each period
-    const periodResults = Array.from(periodBids.entries())
-      .map(([period, data]) => {
-        let averageBid = BigInt(0);
-        if (data.count > 0) {
-          // Integer division with BigInt
-          averageBid = data.sum / BigInt(data.count);
-        }
-        return {
-          period,
-          averageBid: averageBid.toString(), // Convert to string to preserve full integer value
-          parsedAverageBid: ethers.formatEther(averageBid), // Add parsed value in ETH
-          count: data.count,
-        };
-      })
-      .sort((a, b) => a.period.localeCompare(b.period));
-
-    // Calculate global average
-    let globalAverage = BigInt(0);
-    if (globalCount > 0) {
-      globalAverage = globalSum / BigInt(globalCount);
-    }
-
-    return {
-      periods: periodResults,
-      global: {
-        averageBid: globalAverage.toString(), // Convert to string to preserve full integer value
-        parsedAverageBid: ethers.formatEther(globalAverage), // Add parsed value in ETH
-        count: globalCount,
-      },
-    };
+    return result;
   }
-}
-
-// Add this helper function to convert timespan string to milliseconds
-function getTimespanInMs(timespan: string): number {
-  switch (timespan) {
-    case 'D':
-      return 24 * 60 * 60 * 1000; // 1 day in ms
-    case 'W':
-      return 7 * 24 * 60 * 60 * 1000; // 1 week in ms
-    case 'M':
-      return 30 * 24 * 60 * 60 * 1000; // ~1 month in ms
-    case 'Y':
-      return 365 * 24 * 60 * 60 * 1000; // ~1 year in ms
-    default:
-      throw new Error('Invalid timespan');
-  }
-}
-
-function getBackTraceTimestamp(
-  timespan: string,
-  numberOfBackTimespans: number,
-): Date {
-  return new Date(
-    Date.now() - getTimespanInMs(timespan) * numberOfBackTimespans,
-  );
-}
-
-function getDateFormat(timespan: string): string {
-  // Define the date format based on timespan
-  let dateFormat: string;
-  switch (timespan) {
-    case 'D':
-      dateFormat = 'YYYY-MM-DD';
-      break;
-    case 'W':
-      dateFormat = 'YYYY-WW'; // ISO week
-      break;
-    case 'M':
-      dateFormat = 'YYYY-MM';
-      break;
-    case 'Y':
-      dateFormat = 'YYYY';
-      break;
-    default:
-      throw new Error('Invalid timespan');
-  }
-  return dateFormat;
 }
