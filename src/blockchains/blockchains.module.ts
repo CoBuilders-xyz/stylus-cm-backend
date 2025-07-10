@@ -1,13 +1,24 @@
 import { Module } from '@nestjs/common';
-import { BlockchainsService } from './blockchains.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-// entities
+// Main service and controller
+import { BlockchainsService } from './blockchains.service';
+import { BlockchainsController } from './blockchains.controller';
+
+// Specialized services
+import {
+  BlockchainCrudService,
+  BlockchainMetricsService,
+  BlockchainAnalyticsService,
+  BlockchainInitializerService,
+} from './services';
+
+// Entities
 import { Blockchain } from './entities/blockchain.entity';
 import { BlockchainState } from './entities/blockchain-state.entity';
 import { BlockchainEvent } from './entities/blockchain-event.entity';
+import { BlockchainMetric } from './entities/blockchain-metric.entity';
 import { Bytecode } from '../contracts/entities/bytecode.entity';
-import { BlockchainsController } from './blockchains.controller';
 
 @Module({
   imports: [
@@ -15,11 +26,29 @@ import { BlockchainsController } from './blockchains.controller';
       Blockchain,
       BlockchainState,
       BlockchainEvent,
+      BlockchainMetric,
       Bytecode,
     ]),
   ],
-  exports: [BlockchainsService],
-  providers: [BlockchainsService],
   controllers: [BlockchainsController],
+  providers: [
+    // Main orchestration service
+    BlockchainsService,
+
+    // Specialized services
+    BlockchainCrudService,
+    BlockchainMetricsService,
+    BlockchainAnalyticsService,
+    BlockchainInitializerService,
+  ],
+  exports: [
+    // Export main service for other modules
+    BlockchainsService,
+
+    // Export specialized services for potential direct use
+    BlockchainCrudService,
+    BlockchainMetricsService,
+    BlockchainAnalyticsService,
+  ],
 })
 export class BlockchainsModule {}
