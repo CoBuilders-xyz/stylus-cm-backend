@@ -1,12 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { AlertType } from 'src/alerts/entities/alert.entity';
+import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
 export class SlackNotificationService {
-  private readonly logger = new Logger(SlackNotificationService.name);
+  private readonly logger = createModuleLogger(
+    SlackNotificationService,
+    'Notifications',
+  );
 
   constructor(private readonly httpService: HttpService) {}
 
@@ -23,6 +27,13 @@ export class SlackNotificationService {
     contractName: string;
     contractAddress: string;
   }): Promise<boolean> {
+    this.logger.log(
+      `Sending Slack notification to webhook for alert type: ${alertType}`,
+    );
+    this.logger.debug(
+      `Slack details: contract=${contractName}, destination=${destination}`,
+    );
+
     try {
       // Format the alert message based on the alert type
       const message = this.formatAlertMessage(
@@ -75,13 +86,15 @@ export class SlackNotificationService {
         ],
       };
 
+      this.logger.debug(
+        `Slack message: ${this.getAlertTypeDisplayName(alertType)} for ${contractName}`,
+      );
+
       // Send the notification to Slack
       await firstValueFrom(
         this.httpService.post(destination, payload).pipe(
           catchError((error: AxiosError) => {
-            this.logger.error(
-              `Failed to send Slack notification: ${error.message}`,
-            );
+            this.logger.error(`Failed to send Slack webhook: ${error.message}`);
             throw new Error(
               `Failed to send Slack notification: ${error.message}`,
             );
@@ -89,14 +102,13 @@ export class SlackNotificationService {
         ),
       );
 
-      this.logger.log(`Slack notification sent successfully to ${destination}`);
+      this.logger.log(`Successfully sent Slack notification to webhook`);
       return true;
     } catch (error) {
-      if (error instanceof Error) {
-        this.logger.error(`Error sending Slack notification: ${error.message}`);
-      } else {
-        this.logger.error(`Error sending Slack notification: Unknown error`);
-      }
+      this.logger.error(
+        `Failed to send Slack notification to ${destination}`,
+        error,
+      );
       throw error;
     }
   }
