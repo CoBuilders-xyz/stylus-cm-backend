@@ -1,21 +1,17 @@
-import {
-  Injectable,
-  Logger,
-  Inject,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ethers } from 'ethers';
 import { UsersService } from 'src/users/users.service';
 import { ConfigService } from '@nestjs/config';
+import { AuthConfig } from './auth.config';
+import { AuthErrorHelpers } from './auth.errors';
 import crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
-  logger = new Logger('AuthService');
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -34,16 +30,22 @@ ${address}
 Nonce:
 ${crypto.randomUUID()}`;
 
-    const nonceExpiration = this.configService.get<number>(
-      'AUTH_NONCE_EXPIRATION',
-      10000,
-    );
-    await this.cacheManager.set(address, nonce, nonceExpiration);
+    const authConfig = this.configService.get<AuthConfig>('auth')!;
+
+    await this.cacheManager.set(address, nonce, authConfig.nonceExpiration);
+    this.logger.log(`Nonce generated for address: ${address}`);
     return nonce;
   }
 
-  async getNonce(address: string) {
-    return await this.cacheManager.get(address);
+  async getNonce(address: string): Promise<string | null> {
+    const cachedValue = await this.cacheManager.get(address);
+
+    // Type guard: ensure we get a string or return null
+    if (typeof cachedValue === 'string' && cachedValue.length > 0) {
+      return cachedValue;
+    }
+
+    return null;
   }
 
   // Testing Purposes Only
@@ -54,25 +56,38 @@ ${crypto.randomUUID()}`;
   }
 
   async verifySignature(address: string, signature: string) {
-    // Get the stored nonce message from redis
-    const nonceMessage = (await this.getNonce(address)) as string;
-    if (!nonceMessage)
-      throw new NotFoundException('Nonce not found or expired');
+    // Get the stored nonce message from redis with proper type safety
+    const nonceMessage = await this.getNonce(address);
+    if (!nonceMessage) {
+      this.logger.warn(
+        `Login attempt without valid nonce for address: ${address}`,
+      );
+      AuthErrorHelpers.throwNonceNotFound();
+    }
+
+    // At this point, nonceMessage is guaranteed to be string (not null)
+    const validNonce = nonceMessage!; // Non-null assertion after validation
 
     this.logger.debug(
-      'Attempting to verify signature with message:',
-      nonceMessage,
+      `Attempting to verify signature with message: ${validNonce.replaceAll(
+        '\n',
+        ' ',
+      )}`,
     );
 
     // Verify the signature using ethers.verifyMessage
-    const recoveredAddress = ethers.verifyMessage(nonceMessage, signature);
+    const recoveredAddress = ethers.verifyMessage(validNonce, signature);
 
     if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
-      this.logger.debug('Signature verification successful!');
+      this.logger.log(`Login successful for address: ${address}`);
+
+      // CRITICAL: Delete the nonce immediately after successful verification
+      await this.cacheManager.del(address);
+      this.logger.debug(`Nonce deleted for address: ${address}`);
 
       const user = await this.usersService.findOrCreate(address);
       if (!user) {
-        throw new NotFoundException('User not found');
+        AuthErrorHelpers.throwUserNotFound();
       }
 
       const accessToken = await this.jwtService.signAsync({
@@ -81,15 +96,14 @@ ${crypto.randomUUID()}`;
       });
       return { accessToken };
     } else {
-      this.logger.error(
-        'Signature verification FAILED - addresses do not match',
+      this.logger.warn(
+        `Login failed for address: ${address} - signature verification failed`,
       );
-      this.logger.error(`Expected: ${address.toLowerCase()}`);
-      this.logger.error(`Recovered: ${recoveredAddress.toLowerCase()}`);
+      this.logger.debug(`Expected: ${address.toLowerCase()}`);
+      this.logger.debug(`Recovered: ${recoveredAddress.toLowerCase()}`);
 
-      throw new BadRequestException(
-        `Error verifying signature: ${signature} for address: ${address}`,
-      );
+      // Use centralized error without leaking sensitive information
+      AuthErrorHelpers.throwSignatureVerificationFailed();
     }
   }
 }

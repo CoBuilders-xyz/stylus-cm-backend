@@ -4,18 +4,25 @@ import { BullModule } from '@nestjs/bullmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { User } from 'src/users/entities/user.entity';
-import { AlertsConsumer } from './alerts.processor';
-import { SlackNotificationProcessor } from './notif.slack.processor';
-import { TelegramNotificationProcessor } from './notif.telegram.processor';
-import { EmailNotificationProcessor } from './notif.email.processor';
-import { WebhookNotificationProcessor } from './notif.webhook.processor';
+import { AlertsConsumer } from './processors/alerts.processor';
+import {
+  SlackNotificationProcessor,
+  TelegramNotificationProcessor,
+  EmailNotificationProcessor,
+  WebhookNotificationProcessor,
+} from './processors';
 import { HttpModule } from '@nestjs/axios';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
 import { NotificationsController } from './notifications.controller';
-import { EmailNotificationService } from './notif.email.service';
-import { SlackNotificationService } from './notif.slack.service';
-import { TelegramNotificationService } from './notif.telegram.service';
-import { WebhookNotificationService } from './notif.webhook.service';
+import {
+  EmailNotificationService,
+  SlackNotificationService,
+  TelegramNotificationService,
+  WebhookNotificationService,
+  NotificationQueueService,
+  MockNotificationService,
+  TimingService,
+} from './services';
 
 @Module({
   imports: [
@@ -78,6 +85,9 @@ import { WebhookNotificationService } from './notif.webhook.service';
     SlackNotificationService,
     TelegramNotificationService,
     WebhookNotificationService,
+    NotificationQueueService,
+    MockNotificationService,
+    TimingService,
   ],
   exports: [
     NotificationsService,
@@ -85,6 +95,9 @@ import { WebhookNotificationService } from './notif.webhook.service';
     SlackNotificationService,
     TelegramNotificationService,
     WebhookNotificationService,
+    NotificationQueueService,
+    MockNotificationService,
+    TimingService,
   ],
 })
 export class NotificationsModule {}

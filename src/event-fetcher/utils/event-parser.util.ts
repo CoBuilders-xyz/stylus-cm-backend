@@ -1,8 +1,9 @@
 import { ethers } from 'ethers';
-import { Logger } from '@nestjs/common';
-import { EthersEvent } from '../interfaces/event.interface';
+import { createContextLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
+import { EthersEvent } from '../shared';
 
-const logger = new Logger('EventParserUtil');
+const logger = createContextLogger('EventParser', MODULE_NAME);
 
 /**
  * Safely extracts transaction hash from an ethers event

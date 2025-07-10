@@ -1,7 +1,9 @@
-import { Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
+import { EventFetcherErrorHelpers } from '../event-fetcher.errors';
+import { createContextLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
-const logger = new Logger('ContractCallUtil');
+const logger = createContextLogger('ContractCall', MODULE_NAME);
 
 /**
  * Options for safe contract calls
@@ -92,9 +94,8 @@ export async function safeContractCall<T = any>(
   // Re-throw the last error if no fallback provided
   if (!lastError) {
     // This should never happen, but just in case
-    throw new Error(
-      `Unknown error calling ${methodName} on contract ${contractAddress}`,
-    );
+    EventFetcherErrorHelpers.throwContractCallFailed();
+    return; // Never executes but satisfies TypeScript
   }
   throw lastError;
 }
