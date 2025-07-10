@@ -18,6 +18,12 @@ import { SearchDto } from '../common/dto/search.dto';
 import { User } from '../users/entities/user.entity';
 import { ContractErrorHelpers } from './contracts.errors';
 
+// Interface for saved contract information
+interface SavedContractInfo {
+  isSaved: boolean;
+  name?: string;
+}
+
 @Injectable()
 export class ContractsService {
   private readonly logger = new Logger(ContractsService.name);
@@ -31,7 +37,7 @@ export class ContractsService {
   ) {}
 
   async findAll(
-    user: User,
+    user: User | null,
     blockchainId: string,
     paginationDto: PaginationDto,
     sortingDto: ContractSortingDto,
@@ -39,7 +45,7 @@ export class ContractsService {
   ): Promise<PaginationResponse<ContractResponse>> {
     try {
       this.logger.log(
-        `Finding contracts for blockchain ${blockchainId}, user ${user.address}, page ${paginationDto.page}`,
+        `Finding contracts for blockchain ${blockchainId}, user ${user?.address || 'anonymous'}, page ${paginationDto.page}`,
       );
 
       const { page = 1, limit = 10 } = paginationDto;
@@ -69,29 +75,43 @@ export class ContractsService {
       const processedContracts =
         await this.contractEnrichmentService.processContracts(contracts);
 
-      // Get contract IDs to check if they're saved by the user
-      const contractIds = contracts.map((contract) => contract.id);
+      // Only check for saved contracts if user is provided
+      let processedContractsWithSavedStatus = processedContracts;
+      if (user) {
+        // Get contract IDs to check if they're saved by the user
+        const contractIds = contracts.map((contract) => contract.id);
 
-      // Check which contracts are saved by the user using query builder service
-      const savedContractsMap = await this.checkContractsSavedByUser(
-        user,
-        contractIds,
-        blockchainId,
-      );
+        // Check which contracts are saved by the user using query builder service
+        const savedContractsMap = await this.checkContractsSavedByUser(
+          user,
+          contractIds,
+          blockchainId,
+        );
 
-      // Add isSavedByUser property to each contract
-      const processedContractsWithSavedStatus = processedContracts.map(
-        (contract) => ({
-          ...contract,
-          isSavedByUser: savedContractsMap[contract.id] || false,
-        }),
-      );
+        // Add isSavedByUser property to each contract
+        processedContractsWithSavedStatus = processedContracts.map(
+          (contract) => ({
+            ...contract,
+            isSavedByUser: savedContractsMap[contract.id]?.isSaved || false,
+            savedContractName: savedContractsMap[contract.id]?.name || null,
+          }),
+        );
+      } else {
+        // For anonymous users, set isSavedByUser to false for all contracts
+        processedContractsWithSavedStatus = processedContracts.map(
+          (contract) => ({
+            ...contract,
+            isSavedByUser: false,
+            savedContractName: null,
+          }),
+        );
+      }
 
       // Calculate pagination metadata
       const totalPages = Math.ceil(totalItems / limit);
 
       this.logger.log(
-        `Successfully retrieved ${processedContractsWithSavedStatus.length} contracts for user ${user.address}`,
+        `Successfully retrieved ${processedContractsWithSavedStatus.length} contracts for user ${user?.address || 'anonymous'}`,
       );
 
       return {
@@ -165,7 +185,9 @@ export class ContractsService {
 
         // Add isSavedByUser property
         processedContract.isSavedByUser =
-          savedContractsMap[validContract.id] || false;
+          savedContractsMap[validContract.id]?.isSaved || false;
+        processedContract.savedContractName =
+          savedContractsMap[validContract.id]?.name || null;
       }
 
       this.logger.log(
@@ -312,13 +334,13 @@ export class ContractsService {
    * @param user The user to check
    * @param contractIds Array of contract IDs to check
    * @param blockchainId Optional blockchain ID filter
-   * @returns A map of contract IDs to boolean values indicating if they are saved by the user
+   * @returns A map of contract IDs to SavedContractInfo indicating if they are saved by the user and their custom name
    */
   private async checkContractsSavedByUser(
     user: User,
     contractIds: string[],
     blockchainId?: string,
-  ): Promise<Record<string, boolean>> {
+  ): Promise<Record<string, SavedContractInfo>> {
     try {
       if (!contractIds.length) {
         this.logger.debug('No contract IDs provided, returning empty result');
@@ -337,20 +359,30 @@ export class ContractsService {
           blockchainId,
         );
 
-      // Execute query to get all saved contract IDs
+      // Execute query to get all saved contract IDs and names
       const savedContractResults = await queryBuilder.getRawMany();
-      const savedContractIds = savedContractResults.map(
-        (result: { contractId: string }) => result.contractId,
-      );
 
-      // Create result map with true for saved contracts, false for others
-      const resultMap: Record<string, boolean> = {};
+      // Create result map with saved contracts info
+      const resultMap: Record<string, SavedContractInfo> = {};
+
+      // Initialize all contracts as not saved
       contractIds.forEach((id) => {
-        resultMap[id] = savedContractIds.includes(id);
+        resultMap[id] = { isSaved: false };
       });
 
+      // Update saved contracts with their info
+      savedContractResults.forEach(
+        (result: { contractId: string; contractName: string }) => {
+          resultMap[result.contractId] = {
+            isSaved: true,
+            name: result.contractName,
+          };
+        },
+      );
+
+      const savedCount = savedContractResults.length;
       this.logger.debug(
-        `Found ${savedContractIds.length} saved contracts out of ${contractIds.length} for user ${user.address}`,
+        `Found ${savedCount} saved contracts out of ${contractIds.length} for user ${user.address}`,
       );
 
       return resultMap;
@@ -363,7 +395,11 @@ export class ContractsService {
 
       // For database errors, return empty result to avoid breaking the main flow
       this.logger.warn('Returning empty saved contracts map due to error');
-      return {};
+      const fallbackMap: Record<string, SavedContractInfo> = {};
+      contractIds.forEach((id) => {
+        fallbackMap[id] = { isSaved: false };
+      });
+      return fallbackMap;
     }
   }
 }

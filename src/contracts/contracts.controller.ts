@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Query, Request, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Request,
+  Logger,
+  UseGuards,
+} from '@nestjs/common';
 import { ContractsService } from './contracts.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginationResponse } from '../common/interfaces/pagination-response.interface';
@@ -7,7 +15,10 @@ import {
   ContractResponse,
   SuggestedBidsResponse,
 } from './interfaces/contract.interfaces';
-import { AuthenticatedRequest } from '../common/types/custom-types';
+import {
+  AuthenticatedRequest,
+  OptionalAuthenticatedRequest,
+} from '../common/types/custom-types';
 import {
   ContractSortingDto,
   ContractQueryDto,
@@ -15,6 +26,7 @@ import {
   SuggestedBidsQueryDto,
 } from './dto';
 import { ContractErrorHelpers } from './contracts.errors';
+import { OptionalAuthGuard, OptionalAuth } from '../auth/auth.guard';
 
 @Controller('contracts')
 export class ContractsController {
@@ -26,11 +38,13 @@ export class ContractsController {
    * Get all contracts with pagination, sorting, and filtering
    *
    * The response will include a boolean 'isSavedByUser' property that indicates
-   * whether each contract is saved by the authenticated user.
+   * whether each contract is saved by the authenticated user (false for anonymous users).
    */
+  @OptionalAuth()
+  @UseGuards(OptionalAuthGuard)
   @Get('')
   async findAll(
-    @Request() req: AuthenticatedRequest,
+    @Request() req: OptionalAuthenticatedRequest,
     @Query() contractQuery: ContractQueryDto,
     @Query() paginationDto: PaginationDto,
     @Query() sortingDto: ContractSortingDto,
@@ -38,7 +52,7 @@ export class ContractsController {
   ): Promise<PaginationResponse<ContractResponse>> {
     try {
       this.logger.log(
-        `Finding contracts for user ${req.user.address}, blockchain ${contractQuery.blockchainId}`,
+        `Finding contracts for user ${req.user?.address || 'anonymous'}, blockchain ${contractQuery.blockchainId}`,
       );
 
       const result = await this.contractsService.findAll(
@@ -50,14 +64,14 @@ export class ContractsController {
       );
 
       this.logger.log(
-        `Successfully returned ${result.data.length} contracts for user ${req.user.address}`,
+        `Successfully returned ${result.data.length} contracts for user ${req.user?.address || 'anonymous'}`,
       );
 
       return result;
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to find contracts for user ${req.user.address}: ${err.message}`,
+        `Failed to find contracts for user ${req.user?.address || 'anonymous'}: ${err.message}`,
         err.stack,
       );
       throw error; // Re-throw to let NestJS handle the HTTP response
