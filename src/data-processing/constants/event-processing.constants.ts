@@ -10,14 +10,6 @@ export const EVENT_DATA_SCHEMAS = {
     requiredFields: 3,
     fields: ['bytecodeHash', 'bidValue', 'size'],
   },
-  ContractAdded: {
-    requiredFields: 2,
-    fields: ['address', 'bytecodeHash'],
-  },
-  ContractUpdated: {
-    requiredFields: 2,
-    fields: ['address', 'bytecodeHash'],
-  },
   SetDecayRate: {
     requiredFields: 1,
     fields: ['decayRate'],
@@ -50,8 +42,6 @@ export const DEFAULT_VALUES = {
 export const EVENT_TYPES = {
   INSERT_BID: 'InsertBid',
   DELETE_BID: 'DeleteBid',
-  CONTRACT_ADDED: 'ContractAdded',
-  CONTRACT_UPDATED: 'ContractUpdated',
   SET_DECAY_RATE: 'SetDecayRate',
   SET_CACHE_SIZE: 'SetCacheSize',
 } as const;

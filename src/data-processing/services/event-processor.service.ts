@@ -1,13 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, MoreThan, Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
 import { InsertBidService } from './insert-bid.service';
 import { DeleteBidService } from './delete-bid.service';
-import { DecayRateService } from './decay-rate.service';
-import { ContractBytecodeService } from './contract-bytecode.service';
-import { AutomationService } from './automation.service';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EVENT_TYPES } from '../constants/event-processing.constants';
 import { createModuleLogger } from '../../common/utils/logger.util';
@@ -35,10 +32,6 @@ export class EventProcessorService {
     private readonly blockchainEventRepository: Repository<BlockchainEvent>,
     private readonly insertBidService: InsertBidService,
     private readonly deleteBidService: DeleteBidService,
-    private readonly decayRateService: DecayRateService,
-    private readonly contractBytecodeService: ContractBytecodeService,
-    private readonly dataSource: DataSource,
-    private readonly automationService: AutomationService,
   ) {
     // Initialize the event handlers map
     this.eventHandlers = new Map<string, EventHandler>([
@@ -51,16 +44,6 @@ export class EventProcessorService {
         EVENT_TYPES.DELETE_BID,
         (blockchain: Blockchain, event: BlockchainEvent) =>
           this.deleteBidService.processDeleteBidEvent(blockchain, event),
-      ],
-      [
-        EVENT_TYPES.CONTRACT_ADDED,
-        (blockchain: Blockchain, event: BlockchainEvent) =>
-          this.automationService.processContractAddedEvent(blockchain, event),
-      ],
-      [
-        EVENT_TYPES.CONTRACT_UPDATED,
-        (blockchain: Blockchain, event: BlockchainEvent) =>
-          this.automationService.processContractUpdatedEvent(blockchain, event),
       ],
     ]);
   }
@@ -264,7 +247,7 @@ export class EventProcessorService {
         await handler(blockchain, event);
         this.logger.debug(`Successfully processed event ${event.eventName}`);
       } else {
-        this.logger.warn(
+        this.logger.debug(
           `No event processor defined for event ${event.eventName} on blockchain ${blockchain.id}, skipping`,
         );
       }
