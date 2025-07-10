@@ -1,4 +1,5 @@
-export { BlockchainCrudService } from './blockchain-crud.service';
-export { BlockchainMetricsService } from './blockchain-metrics.service';
-export { BlockchainAnalyticsService } from './blockchain-analytics.service';
-export { BlockchainInitializerService } from './blockchain-initializer.service';
+export * from './blockchain-crud.service';
+export * from './blockchain-metrics.service';
+export * from './blockchain-analytics.service';
+export * from './blockchain-initializer.service';
+export * from './blockchain-events.service';
