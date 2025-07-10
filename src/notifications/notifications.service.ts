@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Alert } from 'src/alerts/entities/alert.entity';
-import { AlertsSettings, User } from 'src/users/entities/user.entity';
+import { User } from 'src/users/entities/user.entity';
+import { AlertsSettings } from 'src/users/interfaces/alerts-settings.interface';
 import { NotificationQueueService } from './services/queue.service';
 import { MockNotificationService } from './services/mock.service';
 import { TimingService } from './services/timing.service';
