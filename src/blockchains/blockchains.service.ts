@@ -234,7 +234,7 @@ export class BlockchainsService {
     });
 
     this.logger.log(
-      `Bid placement trends retrieved for blockchain ${blockchainId} (${timespan}): ${result.global.count} total bids across ${result.periods.length} periods`,
+      `Bid placement trends retrieved for blockchain ${blockchainId} (${timespan}): ${result.global.insertCount} inserts, ${result.global.deleteCount} deletes, ${result.global.netChange} net change across ${result.periods.length} periods`,
     );
 
     return result;
