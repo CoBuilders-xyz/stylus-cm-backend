@@ -45,6 +45,21 @@ export default () => ({
       originBlock: 1,
       enabled: process.env.ARB_LOCAL_ENABLED === 'true',
     },
+    {
+      name: 'Superposition',
+      rpcUrl: process.env.SUPERPOSITION_RPC,
+      rpcWssUrl: process.env.SUPERPOSITION_RPC_WSS,
+      fastSyncRpcUrl: process.env.SUPERPOSITION_FAST_SYNC_RPC,
+      chainId: 55244,
+      cacheManagerAddress: '0xe3092C5d44BcB222B458d9212E608E0e8fE37591',
+      arbWasmCacheAddress: '0x0000000000000000000000000000000000000072',
+      arbWasmAddress: '0x0000000000000000000000000000000000000071',
+      cacheManagerAutomationAddress:
+        process.env.SUPERPOSITION_CMA_ADDRESS ||
+        '0x0000000000000000000000000000000000000000',
+      originBlock: 1,
+      enabled: process.env.SUPERPOSITION_ENABLED === 'true',
+    },
   ],
   eventTypes: [
     // CacheManager
