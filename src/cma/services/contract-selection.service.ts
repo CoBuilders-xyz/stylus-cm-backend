@@ -21,12 +21,6 @@ export class ContractSelectionService {
     MODULE_NAME,
   );
 
-  // Smart contract constants
-  private readonly CACHE_THRESHOLD = 98; // Start bidding when 98% full
-  private readonly HORIZON_SECONDS = 30 * 24 * 60 * 60; // 30 days in seconds
-  private readonly BID_INCREMENT = 1; // Bid increment for uniqueness
-  private readonly DEFAULT_DECAY_RATE = 0; // Default: approximately 1 gwei per day (1e9 / 86400)
-
   constructor(
     private readonly providerManager: ProviderManager,
     private readonly configService: ConfigService,
@@ -52,6 +46,15 @@ export class ContractSelectionService {
       ) as unknown as ArbWasmCache;
 
       const provider = this.providerManager.getProvider(blockchain);
+
+      // Fetch constants from smart contract
+      const [cacheThreshold, horizonSeconds, bidIncrement] = await Promise.all([
+        this.getCacheThreshold(cmaContract),
+        this.getHorizonSeconds(cmaContract),
+        this.getBidIncrement(cmaContract),
+      ]);
+
+      this.logger.log(`Smart contract constants - Cache threshold: ${cacheThreshold}, Horizon seconds: ${horizonSeconds}, Bid increment: ${bidIncrement}`);
 
       // Fetch all contracts in batches until hasMore is false
       let automatedUserConfigs: ICacheManagerAutomationV2.UserContractsDataStructOutput[] =
@@ -102,6 +105,9 @@ export class ContractSelectionService {
             bidIndex,
             cacheUtilization,
             decayRate,
+            cacheThreshold,
+            horizonSeconds,
+            bidIncrement,
             cmContract,
             arbWasmCacheContract,
             provider,
@@ -140,6 +146,9 @@ export class ContractSelectionService {
     bidIndex: number,
     cacheUtilization: number,
     decayRate: bigint,
+    cacheThreshold: number,
+    horizonSeconds: number,
+    bidIncrement: bigint,
     cmContract: CacheManager,
     arbWasmCacheContract: ArbWasmCache,
     provider: ethers.Provider,
@@ -178,6 +187,9 @@ export class ContractSelectionService {
         minBid,
         cacheUtilization,
         decayRate,
+        cacheThreshold,
+        horizonSeconds,
+        bidIncrement,
       );
 
       // 5. Check if bid is valid
@@ -206,20 +218,23 @@ export class ContractSelectionService {
     minBid: bigint,
     cacheUtilization: number,
     decayRate: bigint,
+    cacheThreshold: number,
+    horizonSeconds: number,
+    bidIncrement: bigint,
   ): bigint {
     // CACHE NOT FULL CASE
-    // If cache is not full, return minBid (likely 0 for utilization < 98%)
-    if (cacheUtilization < this.CACHE_THRESHOLD) {
+    // If cache is not full, return minBid (likely 0 for utilization < threshold)
+    if (cacheUtilization < cacheThreshold) {
       return BigInt(0);
     }
 
-    // CACHE FULL CASE (>= 98% usage)
+    // CACHE FULL CASE (>= threshold usage)
     // Calculate decay value: minBid + decayRate * horizonSeconds
-    const decayValue = minBid + decayRate * BigInt(this.HORIZON_SECONDS);
+    const decayValue = minBid + decayRate * BigInt(horizonSeconds);
 
     // Add bid increment for uniqueness
     const bidWithIncrement =
-      decayValue + BigInt(bidIndex) * BigInt(this.BID_INCREMENT);
+      decayValue + BigInt(bidIndex) * bidIncrement;
 
     // Return minimum of calculated bid and user's max bid
     return bidWithIncrement < userMaxBid ? bidWithIncrement : userMaxBid;
@@ -240,10 +255,10 @@ export class ContractSelectionService {
       const utilization = (Number(queueSize) * 100) / Number(cacheSize);
       return Math.floor(utilization);
     } catch (error) {
-      this.logger.warn(
-        `Error getting cache utilization: ${error instanceof Error ? error.message : String(error)}`,
+      this.logger.error(
+        `Failed to get cache utilization: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return 0;
+      throw new Error(`Cannot retrieve cache utilization from contract: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -254,10 +269,58 @@ export class ContractSelectionService {
     try {
       return await cmContract.decay();
     } catch (error) {
-      this.logger.warn(
-        `Error getting decay rate: ${error instanceof Error ? error.message : String(error)}`,
+      this.logger.error(
+        `Failed to get decay rate: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return BigInt(this.DEFAULT_DECAY_RATE);
+      throw new Error(`Cannot retrieve decay rate from contract: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Get cache threshold from CacheManagerAutomation contract
+   */
+  private async getCacheThreshold(cmaContract: CacheManagerAutomation): Promise<number> {
+    try {
+      // Using direct method call since TypeScript interface might be outdated
+      const threshold = await (cmaContract as any).cacheThreshold();
+      return Number(threshold);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get cache threshold from contract: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error(`Cannot retrieve cache threshold from contract: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Get horizon seconds from CacheManagerAutomation contract
+   */
+  private async getHorizonSeconds(cmaContract: CacheManagerAutomation): Promise<number> {
+    try {
+      // Using direct method call since TypeScript interface might be outdated
+      const horizon = await (cmaContract as any).horizonSeconds();
+      return Number(horizon);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get horizon seconds from contract: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error(`Cannot retrieve horizon seconds from contract: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Get bid increment from CacheManagerAutomation contract
+   */
+  private async getBidIncrement(cmaContract: CacheManagerAutomation): Promise<bigint> {
+    try {
+      // Using direct method call since TypeScript interface might be outdated
+      const increment = await (cmaContract as any).bidIncrement();
+      return BigInt(increment.toString());
+    } catch (error) {
+      this.logger.error(
+        `Failed to get bid increment from contract: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error(`Cannot retrieve bid increment from contract: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
