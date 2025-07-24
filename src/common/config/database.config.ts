@@ -11,12 +11,7 @@ import {
   BlockchainEvent,
   BlockchainState,
 } from '../../blockchains/entities';
-import {
-  Bytecode,
-  Contract,
-  ContractMetric,
-  ContractBytecodeMetric,
-} from '../../contracts/entities';
+import { Bytecode, Contract } from '../../contracts/entities';
 import { Alert } from '../../alerts/entities';
 
 const entities = [
@@ -27,8 +22,6 @@ const entities = [
   User,
   UserContract,
   Contract,
-  ContractMetric,
-  ContractBytecodeMetric,
   Alert,
 ];
 
