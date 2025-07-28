@@ -101,7 +101,7 @@ export class BlockchainInitializerService implements OnModuleInit {
           `Inserted new blockchain: ${blockchain.name} (chainId: ${blockchain.chainId}, enabled: ${blockchain.enabled})`,
         );
         this.logger.debug(
-          `New blockchain details - RPC: ${blockchain.rpcUrl}, WSS: ${blockchain.rpcWssUrl || 'N/A'}, Contract: ${blockchain.cacheManagerAutomationAddress || 'N/A'}`,
+          `New blockchain details - Contract: ${blockchain.cacheManagerAutomationAddress || 'N/A'}`,
         );
         return 'inserted';
       } else {
@@ -121,7 +121,7 @@ export class BlockchainInitializerService implements OnModuleInit {
           `Updated existing blockchain: ${blockchain.name} (chainId: ${blockchain.chainId}, enabled: ${blockchain.enabled})`,
         );
         this.logger.debug(
-          `Updated blockchain details - RPC: ${blockchain.rpcUrl}, WSS: ${blockchain.rpcWssUrl || 'N/A'}, Contract: ${blockchain.cacheManagerAutomationAddress || 'N/A'}`,
+          `Updated blockchain details - Contract: ${blockchain.cacheManagerAutomationAddress || 'N/A'}`,
         );
         return 'updated';
       }
