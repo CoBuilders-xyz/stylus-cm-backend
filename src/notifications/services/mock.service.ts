@@ -5,6 +5,7 @@ import { WebhookNotificationService } from './webhook.service';
 import { SlackNotificationService } from './slack.service';
 import { TelegramNotificationService } from './telegram.service';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { NotificationChannelType } from '../interfaces/notification-channels.interface';
 
 @Injectable()
 export class MockNotificationService {
@@ -21,7 +22,7 @@ export class MockNotificationService {
 
   async sendMockNotification(
     user: User,
-    notificationChannel: 'webhook' | 'slack' | 'telegram',
+    notificationChannel: NotificationChannelType,
   ) {
     this.logger.log(
       `Preparing mock ${notificationChannel} notification for user: ${user.id}`,

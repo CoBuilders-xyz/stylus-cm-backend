@@ -7,7 +7,7 @@ import { MockNotificationService } from './services/mock.service';
 import { TimingService } from './services/timing.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NotificationChannels } from './interfaces';
+import { NotificationChannels, NotificationChannelType } from './interfaces';
 import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
@@ -79,7 +79,7 @@ export class NotificationsService {
 
   async sendMockNotification(
     user: User,
-    notificationChannel: 'webhook' | 'slack' | 'telegram',
+    notificationChannel: NotificationChannelType,
   ) {
     this.logger.log(
       `Sending mock ${notificationChannel} notification for user: ${user.id}`,
