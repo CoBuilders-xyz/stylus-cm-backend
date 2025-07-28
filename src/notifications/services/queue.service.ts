@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { NotificationData, NotificationChannels } from '../interfaces';
+import { BaseNotificationData } from '../interfaces/processor-data.interface';
 import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
@@ -46,7 +47,7 @@ export class NotificationQueueService {
    * Returns the number of notifications queued
    */
   async queueNotifications(
-    baseData: { alertId: string; alertType: any; userId: string },
+    baseData: BaseNotificationData,
     channels: NotificationChannels,
   ): Promise<number> {
     const queuePromises: Promise<void>[] = [];
