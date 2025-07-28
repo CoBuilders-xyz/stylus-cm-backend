@@ -9,8 +9,6 @@ export interface BaseProcessorData {
 
 export type SlackNotificationData = BaseProcessorData;
 
-export type EmailNotificationData = BaseProcessorData;
-
 export type WebhookNotificationData = BaseProcessorData;
 
 export type TelegramNotificationData = BaseProcessorData;

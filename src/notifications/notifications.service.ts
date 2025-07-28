@@ -79,7 +79,7 @@ export class NotificationsService {
 
   async sendMockNotification(
     user: User,
-    notificationChannel: 'webhook' | 'slack' | 'telegram' | 'email',
+    notificationChannel: 'webhook' | 'slack' | 'telegram',
   ) {
     this.logger.log(
       `Sending mock ${notificationChannel} notification for user: ${user.id}`,
@@ -98,10 +98,6 @@ export class NotificationsService {
     userSettings: AlertsSettings,
   ): NotificationChannels {
     const channels: NotificationChannels = {};
-
-    if (alert.emailChannelEnabled && userSettings?.emailSettings?.enabled) {
-      channels.email = userSettings.emailSettings.destination;
-    }
 
     if (alert.slackChannelEnabled && userSettings?.slackSettings?.enabled) {
       channels.slack = userSettings.slackSettings.destination;

@@ -59,7 +59,6 @@ export interface BytecodeSummary {
  * Notification channels configuration
  */
 export interface NotificationChannelsResponse {
-  emailChannelEnabled: boolean;
   slackChannelEnabled: boolean;
   telegramChannelEnabled: boolean;
   webhookChannelEnabled: boolean;

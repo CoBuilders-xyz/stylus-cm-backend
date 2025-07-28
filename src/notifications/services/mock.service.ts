@@ -4,7 +4,6 @@ import { User } from 'src/users/entities/user.entity';
 import { WebhookNotificationService } from './webhook.service';
 import { SlackNotificationService } from './slack.service';
 import { TelegramNotificationService } from './telegram.service';
-import { EmailNotificationService } from './email.service';
 import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
@@ -18,12 +17,11 @@ export class MockNotificationService {
     private webhookService: WebhookNotificationService,
     private slackService: SlackNotificationService,
     private telegramService: TelegramNotificationService,
-    private emailService: EmailNotificationService,
   ) {}
 
   async sendMockNotification(
     user: User,
-    notificationChannel: 'webhook' | 'slack' | 'telegram' | 'email',
+    notificationChannel: 'webhook' | 'slack' | 'telegram',
   ) {
     this.logger.log(
       `Preparing mock ${notificationChannel} notification for user: ${user.id}`,
@@ -58,7 +56,6 @@ export class MockNotificationService {
       webhook: this.webhookService,
       slack: this.slackService,
       telegram: this.telegramService,
-      email: this.emailService,
       default: () => {},
     };
 

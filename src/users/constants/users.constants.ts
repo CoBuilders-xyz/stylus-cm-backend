@@ -8,10 +8,6 @@ export const MODULE_NAME = 'Users';
  * Default settings for new users
  */
 export const DEFAULT_ALERTS_SETTINGS = {
-  emailSettings: {
-    enabled: false,
-    destination: '',
-  },
   telegramSettings: {
     enabled: false,
     destination: '',
@@ -31,7 +27,6 @@ export const DEFAULT_ALERTS_SETTINGS = {
  */
 export const VALIDATION_MESSAGES = {
   INVALID_ADDRESS: 'Invalid Ethereum address format',
-  INVALID_EMAIL: 'Invalid email address format',
   INVALID_URL: 'Invalid URL format',
   DESTINATION_REQUIRED:
     'Destination is required when notifications are enabled',
@@ -43,7 +38,6 @@ export const VALIDATION_MESSAGES = {
  * Alert channel types
  */
 export const ALERT_CHANNEL_TYPES = {
-  EMAIL: 'emailSettings',
   TELEGRAM: 'telegramSettings',
   SLACK: 'slackSettings',
   WEBHOOK: 'webhookSettings',

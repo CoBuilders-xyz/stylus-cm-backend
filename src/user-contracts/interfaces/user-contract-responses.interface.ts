@@ -18,7 +18,6 @@ export interface AlertSummary {
   type: string;
   isActive: boolean;
   triggeredCount: number;
-  emailChannelEnabled: boolean;
   slackChannelEnabled: boolean;
   telegramChannelEnabled: boolean;
   webhookChannelEnabled: boolean;

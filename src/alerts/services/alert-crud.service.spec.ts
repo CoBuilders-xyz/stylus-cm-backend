@@ -22,7 +22,6 @@ describe('AlertCrudService', () => {
     ({
       id: 'user-123',
       username: 'testuser',
-      email: 'test@example.com',
     }) as unknown as User;
 
   const createMockUserContract = (): UserContract =>
@@ -48,7 +47,6 @@ describe('AlertCrudService', () => {
       triggeredCount: 0,
       user: createMockUser(),
       userContract: createMockUserContract(),
-      emailChannelEnabled: true,
       slackChannelEnabled: false,
       telegramChannelEnabled: false,
       webhookChannelEnabled: false,
@@ -159,7 +157,6 @@ describe('AlertCrudService', () => {
         value: '15',
         isActive: true,
         userContractId: userContract.id,
-        emailChannelEnabled: true,
         slackChannelEnabled: false,
         telegramChannelEnabled: false,
         webhookChannelEnabled: false,
@@ -201,7 +198,6 @@ describe('AlertCrudService', () => {
         value: '20',
         isActive: false,
         userContractId: userContract.id,
-        emailChannelEnabled: false,
         slackChannelEnabled: true,
         telegramChannelEnabled: false,
         webhookChannelEnabled: false,
@@ -212,7 +208,6 @@ describe('AlertCrudService', () => {
         value: createAlertDto.value,
         isActive: createAlertDto.isActive,
         slackChannelEnabled: true,
-        emailChannelEnabled: false,
       };
 
       mockUserContractRepository.findOne.mockResolvedValue(userContract);
@@ -228,7 +223,6 @@ describe('AlertCrudService', () => {
           value: createAlertDto.value,
           isActive: createAlertDto.isActive,
           slackChannelEnabled: true,
-          emailChannelEnabled: false,
         }),
       );
       expect(result).toEqual(updatedAlert);
@@ -242,7 +236,6 @@ describe('AlertCrudService', () => {
         value: '10',
         isActive: true,
         userContractId: 'non-existent-contract',
-        emailChannelEnabled: true,
         slackChannelEnabled: false,
         telegramChannelEnabled: false,
         webhookChannelEnabled: false,

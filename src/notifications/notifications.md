@@ -2,11 +2,11 @@
 
 ## Overview
 
-The Notifications module is responsible for delivering alert notifications to users through multiple communication channels. It provides a robust system for queuing, processing, and sending notifications triggered by various events within the application. The module implements an extensible architecture that supports email, Slack, Telegram, and webhook notifications, with built-in error handling, retry logic, and rate limiting.
+The Notifications module is responsible for delivering alert notifications to users through multiple communication channels. It provides a robust system for queuing, processing, and sending notifications triggered by various events within the application. The module implements an extensible architecture that supports Slack, Telegram, and webhook notifications, with built-in error handling, retry logic, and rate limiting.
 
 ## Functionality
 
-- **Multi-Channel Delivery**: Send notifications through email, Slack, Telegram, and webhooks
+- **Multi-Channel Delivery**: Send notifications through Slack, Telegram, and webhooks
 - **Asynchronous Processing**: Queue-based architecture for reliable delivery
 - **Retry Mechanisms**: Automatic retries with exponential backoff for failed notifications
 - **Rate Limiting**: Configurable backoff delay to prevent notification flooding
@@ -21,14 +21,12 @@ The Notifications module is responsible for delivering alert notifications to us
 - **NotificationsService**: Core service that coordinates notification dispatch
 - **Channel-Specific Services**:
 
-  - **EmailNotificationService**: Sends notifications via SendGrid email
   - **SlackNotificationService**: Delivers messages to Slack channels
   - **TelegramNotificationService**: Sends alerts through Telegram bots
   - **WebhookNotificationService**: Posts notification data to external webhooks
 
 - **Queue Processors**:
   - **AlertsConsumer**: Processes trigger events and dispatches to appropriate channels
-  - **EmailNotificationProcessor**: Handles email-specific notification processing
   - **SlackNotificationProcessor**: Processes Slack notification jobs
   - **TelegramNotificationProcessor**: Manages Telegram message delivery
   - **WebhookNotificationProcessor**: Executes webhook notification requests
@@ -56,7 +54,7 @@ The Notifications module is responsible for delivering alert notifications to us
 ### Notification Processing
 
 1. For each enabled notification channel:
-   - A job is queued in the channel-specific queue (email, Slack, Telegram, webhook)
+   - A job is queued in the channel-specific queue (Slack, Telegram, webhook)
    - The channel processor fetches necessary data for the notification
    - The notification is formatted according to templates for the channel
    - The formatted notification is sent to the appropriate destination
@@ -64,15 +62,6 @@ The Notifications module is responsible for delivering alert notifications to us
    - Failed deliveries are automatically retried according to queue settings
 
 ## Notification Channels
-
-### Email Notifications
-
-Email notifications are sent using the SendGrid API and feature:
-
-- HTML and plaintext content formats
-- Responsive email templates with alert-specific styling
-- Custom subject lines based on alert type
-- Contract address and information included in the email
 
 ### Slack Notifications
 
@@ -114,7 +103,6 @@ The module implements a backoff delay mechanism to prevent notification flooding
 
 Each notification channel has its own queue with specific settings:
 
-- **Email**: 3 retry attempts with exponential backoff
 - **Slack**: 3 retry attempts with exponential backoff
 - **Telegram**: 5 retry attempts with exponential backoff
 - **Webhook**: 3 retry attempts with exponential backoff
@@ -172,7 +160,7 @@ The module includes a mock notification system for testing:
 
 ```typescript
 // Example of sending a test notification
-await notificationsService.sendMockNotification(user, 'email');
+await notificationsService.sendMockNotification(user, 'telegram');
 ```
 
 This allows testing notification delivery without triggering actual alerts.
@@ -181,9 +169,6 @@ This allows testing notification delivery without triggering actual alerts.
 
 The module is configured through environment variables:
 
-- **SENDGRID_SENDER_EMAIL**: Email address used as the sender
-- **SENDGRID_SENDER_NAME**: Display name for the email sender
-- **SEND_GRID_TOKEN**: SendGrid API key for email delivery
 - **BACKOFF_DELAY**: Time in milliseconds between notifications for the same alert
 - **TELEGRAM_BOT_TOKEN**: Authentication token for the Telegram bot
 
