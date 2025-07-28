@@ -6,9 +6,3 @@ export interface BaseProcessorData {
   destination: string;
   userId: string;
 }
-
-export type SlackNotificationData = BaseProcessorData;
-
-export type WebhookNotificationData = BaseProcessorData;
-
-export type TelegramNotificationData = BaseProcessorData;

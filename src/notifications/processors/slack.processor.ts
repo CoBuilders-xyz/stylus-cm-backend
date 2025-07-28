@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { SlackNotificationService } from '../services/slack.service';
-import { SlackNotificationData } from '../interfaces';
+import { BaseProcessorData } from '../interfaces';
 import { createContextLogger } from 'src/common/utils/logger.util';
 
 @Processor('notif-slack')
@@ -22,7 +22,7 @@ export class SlackNotificationProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<SlackNotificationData, any, string>): Promise<void> {
+  async process(job: Job<BaseProcessorData, any, string>): Promise<void> {
     const { alertId, destination, userId } = job.data;
 
     this.logger.log(`Processing Slack notification job for alert: ${alertId}`);
