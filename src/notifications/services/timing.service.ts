@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class TimingService {
-  private readonly logger = createModuleLogger(TimingService, 'Notifications');
+  private readonly logger = createModuleLogger(TimingService, MODULE_NAME);
 
   /**
    * Check if the backoff delay has been exceeded since the last notification

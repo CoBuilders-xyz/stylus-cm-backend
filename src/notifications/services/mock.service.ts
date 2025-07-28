@@ -6,12 +6,13 @@ import { SlackNotificationService } from './slack.service';
 import { TelegramNotificationService } from './telegram.service';
 import { EmailNotificationService } from './email.service';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class MockNotificationService {
   private readonly logger = createModuleLogger(
     MockNotificationService,
-    'Notifications',
+    MODULE_NAME,
   );
 
   constructor(

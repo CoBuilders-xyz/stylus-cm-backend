@@ -3,12 +3,13 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { NotificationData, NotificationChannels } from '../interfaces';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class NotificationQueueService {
   private readonly logger = createModuleLogger(
     NotificationQueueService,
-    'Notifications',
+    MODULE_NAME,
   );
 
   constructor(

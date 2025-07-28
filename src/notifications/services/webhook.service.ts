@@ -4,12 +4,13 @@ import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { AlertType } from 'src/alerts/entities/alert.entity';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class WebhookNotificationService {
   private readonly logger = createModuleLogger(
     WebhookNotificationService,
-    'Notifications',
+    MODULE_NAME,
   );
 
   constructor(private readonly httpService: HttpService) {}

@@ -7,13 +7,11 @@ import { Bytecode } from '../../contracts/entities/bytecode.entity';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
 import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class DeleteBidService {
-  private readonly logger = createModuleLogger(
-    DeleteBidService,
-    'DataProcessing',
-  );
+  private readonly logger = createModuleLogger(DeleteBidService, MODULE_NAME);
 
   constructor(
     @InjectRepository(BlockchainEvent)

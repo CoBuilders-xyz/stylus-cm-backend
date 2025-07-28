@@ -7,13 +7,11 @@ import { Contract } from '../../contracts/entities/contract.entity';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
 import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class AutomationService {
-  private readonly logger = createModuleLogger(
-    AutomationService,
-    'DataProcessing',
-  );
+  private readonly logger = createModuleLogger(AutomationService, MODULE_NAME);
 
   constructor(
     @InjectRepository(Contract)

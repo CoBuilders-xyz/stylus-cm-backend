@@ -9,12 +9,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotificationChannels } from './interfaces';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from './constants/module.constants';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = createModuleLogger(
     NotificationsService,
-    'Notifications',
+    MODULE_NAME,
   );
 
   constructor(

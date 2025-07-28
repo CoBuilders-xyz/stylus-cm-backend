@@ -4,12 +4,13 @@ import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { AlertType } from 'src/alerts/entities/alert.entity';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class SlackNotificationService {
   private readonly logger = createModuleLogger(
     SlackNotificationService,
-    'Notifications',
+    MODULE_NAME,
   );
 
   constructor(private readonly httpService: HttpService) {}
