@@ -205,8 +205,8 @@ export class BlockchainEventsService {
         break;
       default:
         // Default to blockTimestamp if invalid sort field
-        queryBuilder.orderBy('event.blockTimestamp', 'DESC');
-        queryBuilder.addOrderBy('event.logIndex', 'DESC');
+        queryBuilder.orderBy('event.blockTimestamp', sortOrder);
+        queryBuilder.addOrderBy('event.logIndex', sortOrder);
         break;
     }
   }
