@@ -5,13 +5,14 @@ import { WebhookNotificationService } from './webhook.service';
 import { SlackNotificationService } from './slack.service';
 import { TelegramNotificationService } from './telegram.service';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 import { NotificationChannelType } from '../interfaces/notification-channels.interface';
 
 @Injectable()
 export class MockNotificationService {
   private readonly logger = createModuleLogger(
     MockNotificationService,
-    'Notifications',
+    MODULE_NAME,
   );
 
   constructor(

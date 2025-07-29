@@ -8,6 +8,7 @@ import { DeleteBidService } from './delete-bid.service';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EVENT_TYPES } from '../constants/event-processing.constants';
 import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 // Define a type for event handler functions
 type EventHandler = (
@@ -19,7 +20,7 @@ type EventHandler = (
 export class EventProcessorService {
   private readonly logger = createModuleLogger(
     EventProcessorService,
-    'DataProcessing',
+    MODULE_NAME,
   );
 
   // Define a map of event processors with proper typing
