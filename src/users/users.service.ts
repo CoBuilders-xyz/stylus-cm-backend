@@ -120,7 +120,6 @@ export class UsersService {
       if (user.alertsSettings) {
         // For each channel, if it's being set to disabled, preserve the destination
         for (const channel of [
-          'emailSettings',
           'telegramSettings',
           'slackSettings',
           'webhookSettings',

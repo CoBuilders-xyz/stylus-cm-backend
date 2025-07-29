@@ -12,7 +12,6 @@ import { RedisConfig } from '../../../common/config/redis.config';
 export interface EventQueueItem {
   blockchain: Blockchain;
   eventLog: EthersEvent;
-  // provider: ethers.JsonRpcProvider; // REMOVED: Can't serialize provider to Redis
   eventType: string;
   eventData: Record<string, any>; // Store event arguments before Redis serialization
   blockNumber: number;

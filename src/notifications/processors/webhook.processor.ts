@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { WebhookNotificationService } from '../services/webhook.service';
-import { WebhookNotificationData } from '../interfaces';
+import { BaseProcessorData } from '../interfaces';
 import { createContextLogger } from 'src/common/utils/logger.util';
 
 @Processor('notif-webhook')
@@ -22,7 +22,7 @@ export class WebhookNotificationProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<WebhookNotificationData, any, string>): Promise<void> {
+  async process(job: Job<BaseProcessorData, any, string>): Promise<void> {
     const { alertId, destination, userId } = job.data;
 
     this.logger.log(

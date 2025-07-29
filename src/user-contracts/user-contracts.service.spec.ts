@@ -42,7 +42,6 @@ describe('UserContractsService', () => {
     ({
       id: 'user-123',
       username: 'testuser',
-      email: 'test@example.com',
     }) as unknown as User;
 
   const createMockBlockchain = (): Blockchain =>

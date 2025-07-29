@@ -8,7 +8,7 @@ The Users module is the central component for managing user accounts and prefere
 
 - **User Management**: Create and retrieve user accounts based on blockchain addresses
 - **Alert Preferences**: Configure and manage user-specific alert notification settings
-- **Multi-Channel Notifications**: Support for email, Telegram, Slack, and webhook notification channels
+- **Multi-Channel Notifications**: Support for Telegram, Slack, and webhook notification channels
 - **Preference Persistence**: Store and retrieve user preferences across sessions
 - **User Identity**: Serve as the central identity provider for the application
 
@@ -34,7 +34,6 @@ The module exposes the following endpoints:
 
 - `GET /users/alerts-settings`: Retrieve a user's notification preferences
 - `PATCH /users/alerts-settings`: Update all notification preferences at once
-- `PATCH /users/alerts-settings/email`: Update email notification settings
 - `PATCH /users/alerts-settings/telegram`: Update Telegram notification settings
 - `PATCH /users/alerts-settings/slack`: Update Slack notification settings
 - `PATCH /users/alerts-settings/webhook`: Update webhook notification settings
@@ -55,7 +54,6 @@ The core entity representing a user account:
 
 Configurable notification preferences:
 
-- **emailSettings**: Email notification configuration
 - **telegramSettings**: Telegram notification configuration
 - **slackSettings**: Slack notification configuration
 - **webhookSettings**: Webhook notification configuration
@@ -63,12 +61,11 @@ Configurable notification preferences:
 Each notification channel has a common structure:
 
 - **enabled**: Boolean indicating if the channel is active
-- **destination**: Channel-specific destination (email address, chat ID, webhook URL, etc.)
+- **destination**: Channel-specific destination (chat ID, webhook URL, etc.)
 
 ### DTOs
 
 - **AlertsSettingsDto**: Validates complete alerts settings updates
-- **EmailSettingsDto**: Validates email notification settings
 - **TelegramSettingsDto**: Validates Telegram notification settings
 - **SlackSettingsDto**: Validates Slack notification settings
 - **WebhookSettingsDto**: Validates webhook notification settings
@@ -101,25 +98,21 @@ Each update method:
 
 ## Usage Example
 
-Configuring email notifications:
+Configuring telegram notifications:
 
 ```typescript
-// Enable email notifications
-PATCH /users/alerts-settings/email
+// Enable telegram notifications
+PATCH /users/alerts-settings/telegram
 {
   "enabled": true,
-  "destination": "user@example.com"
+  "destination": "12345"
 }
 
 // Response
 {
-  "emailSettings": {
-    "enabled": true,
-    "destination": "user@example.com"
-  },
   "telegramSettings": {
-    "enabled": false,
-    "destination": "12345678"
+    "enabled": true,
+    "destination": "12345"
   },
   "slackSettings": {
     "enabled": false
@@ -138,10 +131,6 @@ GET /users/alerts-settings
 
 // Response
 {
-  "emailSettings": {
-    "enabled": true,
-    "destination": "user@example.com"
-  },
   "telegramSettings": {
     "enabled": false,
     "destination": "12345678"
@@ -160,7 +149,7 @@ GET /users/alerts-settings
 - The module automatically handles user creation when authentication is successful
 - When disabling a notification channel, the destination is preserved to simplify re-enabling
 - All endpoints require authentication and users can only access their own data
-- Each notification channel has validation appropriate to its type (email validation, URL validation, etc.)
+- Each notification channel has validation appropriate to its type (URL validation, etc.)
 - The module uses a flexible JSON structure for alert settings to allow for future expansion
 
 ## Security Considerations

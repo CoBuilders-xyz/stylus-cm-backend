@@ -1,5 +1,4 @@
 export {
-  EmailSettings,
   TelegramSettings,
   SlackSettings,
   WebhookSettings,

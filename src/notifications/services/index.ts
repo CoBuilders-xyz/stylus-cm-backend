@@ -1,4 +1,3 @@
-export * from './email.service';
 export * from './slack.service';
 export * from './telegram.service';
 export * from './webhook.service';
