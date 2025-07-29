@@ -1,7 +1,6 @@
 import {
   IsBoolean,
   IsString,
-  IsEmail,
   IsUrl,
   IsOptional,
   ValidateNested,
@@ -9,18 +8,6 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-
-export class EmailSettingsDto {
-  @IsBoolean()
-  enabled: boolean;
-
-  @ValidateIf((o) => o.enabled === true)
-  @IsNotEmpty({
-    message: 'Destination is required when email alerts are enabled',
-  })
-  @IsEmail()
-  destination: string;
-}
 
 export class TelegramSettingsDto {
   @IsBoolean()
@@ -59,11 +46,6 @@ export class WebhookSettingsDto {
 }
 
 export class AlertsSettingsDto {
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => EmailSettingsDto)
-  emailSettings?: EmailSettingsDto;
-
   @IsOptional()
   @ValidateNested()
   @Type(() => TelegramSettingsDto)

@@ -44,7 +44,6 @@ export const MONITORING_CONFIG = {
  * Notification channel constants
  */
 export const NOTIFICATION_CHANNELS = {
-  EMAIL: 'email',
   SLACK: 'slack',
   TELEGRAM: 'telegram',
   WEBHOOK: 'webhook',

@@ -1,12 +1,4 @@
 /**
- * Interface for email notification settings
- */
-export interface EmailSettings {
-  enabled: boolean;
-  destination: string;
-}
-
-/**
  * Interface for Telegram notification settings
  */
 export interface TelegramSettings {
@@ -34,7 +26,6 @@ export interface WebhookSettings {
  * Main alerts settings interface containing all notification channels
  */
 export interface AlertsSettings {
-  emailSettings?: EmailSettings;
   telegramSettings?: TelegramSettings;
   slackSettings?: SlackSettings;
   webhookSettings?: WebhookSettings;
@@ -44,7 +35,6 @@ export interface AlertsSettings {
  * Type for notification channel settings
  */
 export type NotificationChannelSettings =
-  | EmailSettings
   | TelegramSettings
   | SlackSettings
   | WebhookSettings;

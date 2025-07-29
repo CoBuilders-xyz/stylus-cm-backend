@@ -86,7 +86,6 @@ The notification system provides:
 - Real-time updates via Telegram bot
 - Slack integration for team coordination
 - Webhook support for custom integrations
-- Email notifications
 
 ### Analytics and Reporting
 

@@ -103,7 +103,6 @@ POST /alerts
   "value": "20", // 20% above minimum bid
   "isActive": true,
   "userContractId": "uuid-of-user-contract",
-  "emailChannelEnabled": true,
   "telegramChannelEnabled": true
 }
 
@@ -113,7 +112,6 @@ POST /alerts
   "type": "bidSafety",
   "value": "20",
   "isActive": true,
-  "emailChannelEnabled": true,
   "telegramChannelEnabled": true,
   "slackChannelEnabled": false,
   "webhookChannelEnabled": false,

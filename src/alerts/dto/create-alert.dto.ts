@@ -44,10 +44,6 @@ export class CreateAlertDto {
 
   @IsOptional()
   @IsBoolean()
-  emailChannelEnabled?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
   slackChannelEnabled?: boolean;
 
   @IsOptional()

@@ -18,7 +18,6 @@ describe('AlertsController', () => {
       user: {
         id: 'user-123',
         username: 'testuser',
-        email: 'test@example.com',
       },
     }) as unknown as AuthenticatedRequest;
 
@@ -29,7 +28,6 @@ describe('AlertsController', () => {
       value: '10',
       isActive: true,
       triggeredCount: 0,
-      emailChannelEnabled: true,
       slackChannelEnabled: false,
       telegramChannelEnabled: false,
       webhookChannelEnabled: false,
@@ -119,7 +117,6 @@ describe('AlertsController', () => {
         value: '15',
         isActive: true,
         userContractId: 'contract-123',
-        emailChannelEnabled: true,
         slackChannelEnabled: false,
         telegramChannelEnabled: false,
         webhookChannelEnabled: false,
@@ -147,7 +144,6 @@ describe('AlertsController', () => {
         value: '15',
         isActive: true,
         userContractId: 'contract-123',
-        emailChannelEnabled: true,
         slackChannelEnabled: false,
         telegramChannelEnabled: false,
         webhookChannelEnabled: false,
@@ -175,7 +171,6 @@ describe('AlertsController', () => {
         value: '0',
         isActive: true,
         userContractId: 'contract-456',
-        emailChannelEnabled: false,
         slackChannelEnabled: true,
         telegramChannelEnabled: false,
         webhookChannelEnabled: false,

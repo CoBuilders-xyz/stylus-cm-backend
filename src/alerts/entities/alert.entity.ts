@@ -39,9 +39,6 @@ export class Alert {
   user: User;
 
   @Column({ default: false })
-  emailChannelEnabled: boolean;
-
-  @Column({ default: false })
   slackChannelEnabled: boolean;
 
   @Column({ default: false })

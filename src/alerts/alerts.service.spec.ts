@@ -18,7 +18,6 @@ describe('AlertsService', () => {
     ({
       id: 'user-123',
       username: 'testuser',
-      email: 'test@example.com',
     }) as unknown as User;
 
   const createMockAlert = (): Alert =>
@@ -83,7 +82,6 @@ describe('AlertsService', () => {
         value: '15',
         isActive: true,
         userContractId: 'contract-123',
-        emailChannelEnabled: true,
         slackChannelEnabled: false,
         telegramChannelEnabled: false,
         webhookChannelEnabled: false,

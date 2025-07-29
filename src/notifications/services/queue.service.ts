@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { NotificationData, NotificationChannels } from '../interfaces';
+import { BaseNotificationData } from '../interfaces/processor-data.interface';
 import { createModuleLogger } from 'src/common/utils/logger.util';
 
 @Injectable()
@@ -16,18 +17,9 @@ export class NotificationQueueService {
     private slackQueue: Queue,
     @InjectQueue('notif-telegram')
     private telegramQueue: Queue,
-    @InjectQueue('notif-email')
-    private emailQueue: Queue,
     @InjectQueue('notif-webhook')
     private webhookQueue: Queue,
   ) {}
-
-  async queueEmailNotification(data: NotificationData): Promise<void> {
-    this.logger.log(
-      `Queueing email notification to ${data.destination} for alert: ${data.alertId}`,
-    );
-    await this.emailQueue.add('send-email', data);
-  }
 
   async queueSlackNotification(data: NotificationData): Promise<void> {
     this.logger.log(
@@ -55,7 +47,7 @@ export class NotificationQueueService {
    * Returns the number of notifications queued
    */
   async queueNotifications(
-    baseData: { alertId: string; alertType: any; userId: string },
+    baseData: BaseNotificationData,
     channels: NotificationChannels,
   ): Promise<number> {
     const queuePromises: Promise<void>[] = [];
@@ -65,14 +57,6 @@ export class NotificationQueueService {
     );
 
     // Queue each enabled channel
-    if (channels.email) {
-      queuePromises.push(
-        this.queueEmailNotification({
-          ...baseData,
-          destination: channels.email,
-        }),
-      );
-    }
 
     if (channels.slack) {
       queuePromises.push(
