@@ -6,6 +6,7 @@ import { Alert } from 'src/alerts/entities/alert.entity';
 import { WebhookNotificationService } from '../services/webhook.service';
 import { BaseProcessorData } from '../interfaces';
 import { createContextLogger } from 'src/common/utils/logger.util';
+import { TimingService } from '../services/timing.service';
 
 @Processor('notif-webhook')
 export class WebhookNotificationProcessor extends WorkerHost {
@@ -16,6 +17,7 @@ export class WebhookNotificationProcessor extends WorkerHost {
 
   constructor(
     private readonly webhookService: WebhookNotificationService,
+    private readonly timingService: TimingService,
     @InjectRepository(Alert)
     private alertsRepository: Repository<Alert>,
   ) {
@@ -56,6 +58,10 @@ export class WebhookNotificationProcessor extends WorkerHost {
         contractAddress: alert.userContract?.address || 'Unknown Address',
         triggeredCount: alert.triggeredCount,
       });
+
+      // Update lastNotified timestamp
+      const updatedAlert = this.timingService.updateLastNotified(alert);
+      await this.alertsRepository.save(updatedAlert);
 
       this.logger.log(
         `Successfully sent Webhook notification for alert: ${alertId}`,

@@ -15,6 +15,7 @@ export interface AlertResponse {
   value?: string;
   lastTriggered?: Date;
   lastNotified?: Date;
+  lastQueued?: Date;
 }
 
 /**

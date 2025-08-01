@@ -73,8 +73,8 @@ export class NotificationsService {
       `Successfully queued ${queuedCount} notifications for alert: ${alert.id}`,
     );
 
-    // Update lastNotified timestamp
-    const updatedAlert = this.timingService.updateLastNotified(alert);
+    // Update lastQueued timestamp
+    const updatedAlert = this.timingService.updatelastQueued(alert);
     await this.alertsRepository.save(updatedAlert);
   }
 

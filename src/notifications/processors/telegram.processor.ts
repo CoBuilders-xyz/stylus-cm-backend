@@ -6,6 +6,7 @@ import { Alert } from 'src/alerts/entities/alert.entity';
 import { TelegramNotificationService } from '../services/telegram.service';
 import { BaseProcessorData } from '../interfaces';
 import { createContextLogger } from 'src/common/utils/logger.util';
+import { TimingService } from '../services/timing.service';
 
 @Processor('notif-telegram')
 export class TelegramNotificationProcessor extends WorkerHost {
@@ -18,6 +19,7 @@ export class TelegramNotificationProcessor extends WorkerHost {
     private readonly telegramService: TelegramNotificationService,
     @InjectRepository(Alert)
     private alertsRepository: Repository<Alert>,
+    private readonly timingService: TimingService,
   ) {
     super();
   }
@@ -54,6 +56,10 @@ export class TelegramNotificationProcessor extends WorkerHost {
         contractName: alert.userContract?.name || 'Unknown Contract',
         contractAddress: alert.userContract?.address || 'Unknown Address',
       });
+
+      // Update lastNotified timestamp
+      const updatedAlert = this.timingService.updateLastNotified(alert);
+      await this.alertsRepository.save(updatedAlert);
 
       this.logger.log(
         `Successfully sent Telegram notification for alert: ${alertId}`,
