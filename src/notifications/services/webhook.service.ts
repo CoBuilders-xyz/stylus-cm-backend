@@ -114,7 +114,7 @@ export class WebhookNotificationService {
 
     switch (alertType) {
       case AlertType.EVICTION:
-        return `Your contract ${contractName} (${shortAddress}) is at risk of eviction. Please take action immediately.`;
+        return `Your contract ${contractName} (${shortAddress}) has been evicted. Please take action immediately.`;
 
       case AlertType.NO_GAS:
         return `Your contract ${contractName} (${shortAddress}) has run out of gas. Please refill as soon as possible.`;
