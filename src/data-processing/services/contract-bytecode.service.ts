@@ -8,6 +8,7 @@ import { ethers } from 'ethers';
 import { abi } from '../../common/abis/arbWasmCache/arbWasmCache.json';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 // Define interface for the ArbWasmCache contract methods we use
 interface ArbWasmCacheContract {
@@ -18,7 +19,7 @@ interface ArbWasmCacheContract {
 export class ContractBytecodeService {
   private readonly logger = createModuleLogger(
     ContractBytecodeService,
-    'DataProcessing',
+    MODULE_NAME,
   );
 
   // Track problematic contracts bytecodes for analysis

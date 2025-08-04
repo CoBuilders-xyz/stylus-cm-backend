@@ -29,6 +29,9 @@ export class Alert {
   @Column({ nullable: true })
   lastNotified: Date;
 
+  @Column({ nullable: true })
+  lastQueued: Date;
+
   @Column({ default: 0 })
   triggeredCount: number;
 
@@ -37,9 +40,6 @@ export class Alert {
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
   user: User;
-
-  @Column({ default: false })
-  emailChannelEnabled: boolean;
 
   @Column({ default: false })
   slackChannelEnabled: boolean;

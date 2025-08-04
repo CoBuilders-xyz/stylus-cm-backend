@@ -23,7 +23,8 @@
     "test:module:watch": "jest src/${MODULE:-auth} --watch",
     "test:module:cov": "jest src/${MODULE:-auth} --coverage",
     "test:module:verbose": "jest src/${MODULE:-auth}",
-    "generate-contract-types": "typechain --target ethers-v6 --out-dir src/common/types/contracts 'src/common/abis/**/*.json'"
+    "generate-contract-types": "typechain --target ethers-v6 --out-dir src/common/types/contracts 'src/common/abis/**/*.json'",
+    "reset-blockchain-data": "./scripts/reset_blockchain_data.sh"
   },
   "dependencies": {
     "@keyv/redis": "^4.3.2",

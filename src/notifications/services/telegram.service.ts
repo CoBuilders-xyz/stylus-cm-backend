@@ -7,12 +7,13 @@ import { AxiosError } from 'axios';
 import * as http from 'http';
 import * as https from 'https';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class TelegramNotificationService {
   private readonly logger = createModuleLogger(
     TelegramNotificationService,
-    'Notifications',
+    MODULE_NAME,
   );
   private readonly telegramBaseUrl: string;
   private readonly telegramBotToken: string | undefined;
@@ -154,7 +155,7 @@ export class TelegramNotificationService {
     // Add alert-specific message
     switch (alertType) {
       case AlertType.EVICTION:
-        message += `Your contract *${contractName}* is at risk of eviction. Please take action immediately.\n`;
+        message += `Your contract *${contractName}* has been evicted. Please take action immediately.\n`;
         break;
       case AlertType.NO_GAS:
         message += `Your contract *${contractName}* has run out of gas. Please refill as soon as possible.\n`;

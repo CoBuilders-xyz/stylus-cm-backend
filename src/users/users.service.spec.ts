@@ -30,20 +30,10 @@ describe('UsersService', () => {
     address: '0x1234567890123456789012345678901234567890',
     name: 'Test User',
     isActive: true,
-    alertsSettings: {
-      emailSettings: {
-        enabled: true,
-        destination: 'test@example.com',
-      },
-    },
+    alertsSettings: {},
   };
 
-  const mockAlertsSettings: AlertsSettings = {
-    emailSettings: {
-      enabled: true,
-      destination: 'updated@example.com',
-    },
-  };
+  const mockAlertsSettings: AlertsSettings = {};
 
   beforeEach(async () => {
     mockRepository = {
@@ -177,10 +167,10 @@ describe('UsersService', () => {
   describe('updateAlertChannel', () => {
     it('should update specific channel and return user', async () => {
       const testAddress = '0x1234567890123456789012345678901234567890';
-      const channel = 'emailSettings';
+      const channel = 'telegramSettings';
       const newSettings = {
         enabled: true,
-        destination: 'newemail@example.com',
+        destination: '12345',
       };
 
       mockRepository.findOne.mockResolvedValue(mockUser);
@@ -198,10 +188,10 @@ describe('UsersService', () => {
 
     it('should return null when user not found', async () => {
       const testAddress = '0x1234567890123456789012345678901234567890';
-      const channel = 'emailSettings';
+      const channel = 'telegramSettings';
       const newSettings = {
         enabled: true,
-        destination: 'newemail@example.com',
+        destination: '12345',
       };
 
       mockRepository.findOne.mockResolvedValue(null);

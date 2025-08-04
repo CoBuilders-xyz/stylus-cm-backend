@@ -28,6 +28,9 @@ describe('ContractSelectionService', () => {
     cacheSize: jest.fn(),
     queueSize: jest.fn(),
     decay: jest.fn(),
+    cacheThreshold: jest.fn(),
+    horizonSeconds: jest.fn(),
+    bidIncrement: jest.fn(),
   });
 
   const createMockProvider = () => ({
@@ -76,6 +79,10 @@ describe('ContractSelectionService', () => {
         userData: [],
         hasMore: false,
       });
+      // Mock the new getter methods
+      mockCmaContract.cacheThreshold.mockResolvedValue(98);
+      mockCmaContract.horizonSeconds.mockResolvedValue(2592000);
+      mockCmaContract.bidIncrement.mockResolvedValue(1);
 
       mockProviderManager.getContract.mockReturnValue(mockCmaContract);
 
@@ -129,6 +136,10 @@ describe('ContractSelectionService', () => {
         ],
         hasMore: false,
       });
+      // Mock the new getter methods with realistic values
+      mockCmaContract.cacheThreshold.mockResolvedValue(98);
+      mockCmaContract.horizonSeconds.mockResolvedValue(2592000); // 30 days
+      mockCmaContract.bidIncrement.mockResolvedValue(1);
 
       mockCmContract['getMinBid(address)'].mockResolvedValue(500n);
       mockCmContract.cacheSize.mockResolvedValue(100n);

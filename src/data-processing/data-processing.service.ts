@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { EventProcessorService } from './services/event-processor.service';
 import { OnEvent } from '@nestjs/event-emitter';
 import { createModuleLogger } from '../common/utils/logger.util';
+import { MODULE_NAME } from './constants/module.constants';
 /**
  * Main service for processing blockchain event data.
  * This service acts as a façade for the underlying specialized services,
@@ -11,7 +12,7 @@ import { createModuleLogger } from '../common/utils/logger.util';
 export class DataProcessingService implements OnModuleInit {
   private readonly logger = createModuleLogger(
     DataProcessingService,
-    'DataProcessing',
+    MODULE_NAME,
   );
   private isInitialProcessingComplete = false;
 

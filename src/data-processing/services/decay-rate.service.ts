@@ -11,13 +11,11 @@ import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
 import { EVENT_TYPES } from '../constants/event-processing.constants';
 import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class DecayRateService {
-  private readonly logger = createModuleLogger(
-    DecayRateService,
-    'DataProcessing',
-  );
+  private readonly logger = createModuleLogger(DecayRateService, MODULE_NAME);
 
   constructor(
     @InjectRepository(BlockchainEvent)

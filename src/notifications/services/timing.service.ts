@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { createModuleLogger } from 'src/common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class TimingService {
-  private readonly logger = createModuleLogger(TimingService, 'Notifications');
+  private readonly logger = createModuleLogger(TimingService, MODULE_NAME);
 
   /**
    * Check if the backoff delay has been exceeded since the last notification
    */
   isBackoffDelayExceeded(alert: Alert): boolean {
-    if (!alert.lastNotified) {
+    if (!alert.lastQueued) {
       this.logger.debug(
         `No previous notification for alert: ${alert.id} - allowing notification`,
       );
@@ -18,9 +19,9 @@ export class TimingService {
     }
 
     const backoffDelay = process.env.BACKOFF_DELAY;
-    const lastNotified = new Date(alert.lastNotified);
+    const lastQueued = new Date(alert.lastQueued);
     const now = new Date();
-    const timeDiff = now.getTime() - lastNotified.getTime();
+    const timeDiff = now.getTime() - lastQueued.getTime();
 
     const delayExceeded = timeDiff >= Number(backoffDelay);
 
@@ -41,8 +42,14 @@ export class TimingService {
   }
 
   /**
-   * Update the lastNotified timestamp for an alert
+   * Update the lastQueued timestamp for an alert
    */
+  updateLastQueued(alert: Alert): Alert {
+    this.logger.debug(`Updating lastQueued timestamp for alert: ${alert.id}`);
+    alert.lastQueued = new Date();
+    return alert;
+  }
+
   updateLastNotified(alert: Alert): Alert {
     this.logger.debug(`Updating lastNotified timestamp for alert: ${alert.id}`);
     alert.lastNotified = new Date();

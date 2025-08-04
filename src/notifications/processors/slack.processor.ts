@@ -4,8 +4,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from 'src/alerts/entities/alert.entity';
 import { SlackNotificationService } from '../services/slack.service';
-import { SlackNotificationData } from '../interfaces';
+import { BaseProcessorData } from '../interfaces';
 import { createContextLogger } from 'src/common/utils/logger.util';
+import { TimingService } from '../services/timing.service';
 
 @Processor('notif-slack')
 export class SlackNotificationProcessor extends WorkerHost {
@@ -18,11 +19,12 @@ export class SlackNotificationProcessor extends WorkerHost {
     private readonly slackService: SlackNotificationService,
     @InjectRepository(Alert)
     private alertsRepository: Repository<Alert>,
+    private readonly timingService: TimingService,
   ) {
     super();
   }
 
-  async process(job: Job<SlackNotificationData, any, string>): Promise<void> {
+  async process(job: Job<BaseProcessorData, any, string>): Promise<void> {
     const { alertId, destination, userId } = job.data;
 
     this.logger.log(`Processing Slack notification job for alert: ${alertId}`);
@@ -45,6 +47,7 @@ export class SlackNotificationProcessor extends WorkerHost {
         `Processing Slack notification for alert type: ${alert.type}`,
       );
 
+      // Send notification
       await this.slackService.sendNotification({
         destination,
         alertType: alert.type,
@@ -52,6 +55,10 @@ export class SlackNotificationProcessor extends WorkerHost {
         contractName: alert.userContract?.name || 'Unknown Contract',
         contractAddress: alert.userContract?.address || 'Unknown Address',
       });
+
+      // Update lastNotified timestamp
+      const updatedAlert = this.timingService.updateLastNotified(alert);
+      await this.alertsRepository.save(updatedAlert);
 
       this.logger.log(
         `Successfully sent Slack notification for alert: ${alertId}`,

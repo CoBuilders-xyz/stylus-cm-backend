@@ -8,14 +8,12 @@ import { AlertsConsumer } from './processors/alerts.processor';
 import {
   SlackNotificationProcessor,
   TelegramNotificationProcessor,
-  EmailNotificationProcessor,
   WebhookNotificationProcessor,
 } from './processors';
 import { HttpModule } from '@nestjs/axios';
 import { UserContract } from 'src/user-contracts/entities/user-contract.entity';
 import { NotificationsController } from './notifications.controller';
 import {
-  EmailNotificationService,
   SlackNotificationService,
   TelegramNotificationService,
   WebhookNotificationService,
@@ -53,16 +51,6 @@ import {
       },
     }),
     BullModule.registerQueue({
-      name: 'notif-email',
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 1000,
-        },
-      },
-    }),
-    BullModule.registerQueue({
       name: 'notif-webhook',
       defaultJobOptions: {
         attempts: 3,
@@ -79,9 +67,7 @@ import {
     AlertsConsumer,
     SlackNotificationProcessor,
     TelegramNotificationProcessor,
-    EmailNotificationProcessor,
     WebhookNotificationProcessor,
-    EmailNotificationService,
     SlackNotificationService,
     TelegramNotificationService,
     WebhookNotificationService,
@@ -91,7 +77,6 @@ import {
   ],
   exports: [
     NotificationsService,
-    EmailNotificationService,
     SlackNotificationService,
     TelegramNotificationService,
     WebhookNotificationService,

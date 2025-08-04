@@ -124,10 +124,7 @@ export class AlertCrudService {
         existingAlert.isActive = createAlertDto.isActive;
 
         // Update notification channels if provided
-        if (createAlertDto.emailChannelEnabled !== undefined) {
-          existingAlert.emailChannelEnabled =
-            createAlertDto.emailChannelEnabled;
-        }
+
         if (createAlertDto.slackChannelEnabled !== undefined) {
           existingAlert.slackChannelEnabled =
             createAlertDto.slackChannelEnabled;

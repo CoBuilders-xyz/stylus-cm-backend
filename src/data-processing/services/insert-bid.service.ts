@@ -14,13 +14,11 @@ import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EventDataGuards } from '../interfaces/event-data.interface';
 import { DEFAULT_VALUES } from '../constants/event-processing.constants';
 import { createModuleLogger } from '../../common/utils/logger.util';
+import { MODULE_NAME } from '../constants/module.constants';
 
 @Injectable()
 export class InsertBidService {
-  private readonly logger = createModuleLogger(
-    InsertBidService,
-    'DataProcessing',
-  );
+  private readonly logger = createModuleLogger(InsertBidService, MODULE_NAME);
 
   constructor(
     @InjectRepository(Bytecode)

@@ -77,7 +77,8 @@ The module exposes the following endpoints:
 - **userContract**: The contract being monitored
 - **user**: The user who owns the alert
 - **lastTriggered**: When the alert was last triggered
-- **lastNotified**: When a notification was last sent
+- **lastQueued**: When a notification was last queued
+- **lastNotified**: When a notification was succesfully sent
 - **triggeredCount**: How many times the alert has been triggered
 - **Notification Channels**: Flags for each supported notification channel
 
@@ -103,7 +104,6 @@ POST /alerts
   "value": "20", // 20% above minimum bid
   "isActive": true,
   "userContractId": "uuid-of-user-contract",
-  "emailChannelEnabled": true,
   "telegramChannelEnabled": true
 }
 
@@ -113,7 +113,6 @@ POST /alerts
   "type": "bidSafety",
   "value": "20",
   "isActive": true,
-  "emailChannelEnabled": true,
   "telegramChannelEnabled": true,
   "slackChannelEnabled": false,
   "webhookChannelEnabled": false,

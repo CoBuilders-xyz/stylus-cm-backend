@@ -15,6 +15,7 @@ export interface AlertResponse {
   value?: string;
   lastTriggered?: Date;
   lastNotified?: Date;
+  lastQueued?: Date;
 }
 
 /**
@@ -59,7 +60,6 @@ export interface BytecodeSummary {
  * Notification channels configuration
  */
 export interface NotificationChannelsResponse {
-  emailChannelEnabled: boolean;
   slackChannelEnabled: boolean;
   telegramChannelEnabled: boolean;
   webhookChannelEnabled: boolean;

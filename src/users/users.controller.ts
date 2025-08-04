@@ -9,7 +9,6 @@ import {
 import { UsersService } from './users.service';
 import {
   AlertsSettingsDto,
-  EmailSettingsDto,
   TelegramSettingsDto,
   SlackSettingsDto,
   WebhookSettingsDto,
@@ -36,22 +35,6 @@ export class UsersController {
     const user = await this.usersService.updateAlertsSettings(
       req.user.address,
       alertsSettings,
-    );
-    if (!user) {
-      throw new NotFoundException(`User not found`);
-    }
-    return user.alertsSettings;
-  }
-
-  @Patch('alerts-settings/email')
-  async updateEmailSettings(
-    @Request() req: AuthenticatedRequest,
-    @Body() settings: EmailSettingsDto,
-  ) {
-    const user = await this.usersService.updateAlertChannel(
-      req.user.address,
-      'emailSettings',
-      settings,
     );
     if (!user) {
       throw new NotFoundException(`User not found`);
