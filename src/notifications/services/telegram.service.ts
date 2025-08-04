@@ -155,7 +155,7 @@ export class TelegramNotificationService {
     // Add alert-specific message
     switch (alertType) {
       case AlertType.EVICTION:
-        message += `Your contract *${contractName}* is at risk of eviction. Please take action immediately.\n`;
+        message += `Your contract *${contractName}* has been evicted. Please take action immediately.\n`;
         break;
       case AlertType.NO_GAS:
         message += `Your contract *${contractName}* has run out of gas. Please refill as soon as possible.\n`;
