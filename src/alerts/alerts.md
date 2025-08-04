@@ -77,7 +77,8 @@ The module exposes the following endpoints:
 - **userContract**: The contract being monitored
 - **user**: The user who owns the alert
 - **lastTriggered**: When the alert was last triggered
-- **lastNotified**: When a notification was last sent
+- **lastQueued**: When a notification was last queued
+- **lastNotified**: When a notification was succesfully sent
 - **triggeredCount**: How many times the alert has been triggered
 - **Notification Channels**: Flags for each supported notification channel
 

@@ -6,6 +6,7 @@ import { Alert } from 'src/alerts/entities/alert.entity';
 import { SlackNotificationService } from '../services/slack.service';
 import { BaseProcessorData } from '../interfaces';
 import { createContextLogger } from 'src/common/utils/logger.util';
+import { TimingService } from '../services/timing.service';
 
 @Processor('notif-slack')
 export class SlackNotificationProcessor extends WorkerHost {
@@ -18,6 +19,7 @@ export class SlackNotificationProcessor extends WorkerHost {
     private readonly slackService: SlackNotificationService,
     @InjectRepository(Alert)
     private alertsRepository: Repository<Alert>,
+    private readonly timingService: TimingService,
   ) {
     super();
   }
@@ -45,6 +47,7 @@ export class SlackNotificationProcessor extends WorkerHost {
         `Processing Slack notification for alert type: ${alert.type}`,
       );
 
+      // Send notification
       await this.slackService.sendNotification({
         destination,
         alertType: alert.type,
@@ -52,6 +55,10 @@ export class SlackNotificationProcessor extends WorkerHost {
         contractName: alert.userContract?.name || 'Unknown Contract',
         contractAddress: alert.userContract?.address || 'Unknown Address',
       });
+
+      // Update lastNotified timestamp
+      const updatedAlert = this.timingService.updateLastNotified(alert);
+      await this.alertsRepository.save(updatedAlert);
 
       this.logger.log(
         `Successfully sent Slack notification for alert: ${alertId}`,
