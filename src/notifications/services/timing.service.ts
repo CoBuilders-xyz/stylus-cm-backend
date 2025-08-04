@@ -44,7 +44,7 @@ export class TimingService {
   /**
    * Update the lastQueued timestamp for an alert
    */
-  updatelastQueued(alert: Alert): Alert {
+  updateLastQueued(alert: Alert): Alert {
     this.logger.debug(`Updating lastQueued timestamp for alert: ${alert.id}`);
     alert.lastQueued = new Date();
     return alert;
