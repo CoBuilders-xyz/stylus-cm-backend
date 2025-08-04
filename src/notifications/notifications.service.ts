@@ -74,7 +74,7 @@ export class NotificationsService {
     );
 
     // Update lastQueued timestamp
-    const updatedAlert = this.timingService.updatelastQueued(alert);
+    const updatedAlert = this.timingService.updateLastQueued(alert);
     await this.alertsRepository.save(updatedAlert);
   }
 
