@@ -10,11 +10,17 @@ export class Blockchain {
   @Column()
   rpcUrl: string;
 
+  @Column({ nullable: true })
+  rpcUrlBackup: string;
+
   @Column()
   fastSyncRpcUrl: string;
 
   @Column()
   rpcWssUrl: string;
+
+  @Column({ nullable: true })
+  rpcWssUrlBackup: string;
 
   @Column()
   cacheManagerAddress: string;

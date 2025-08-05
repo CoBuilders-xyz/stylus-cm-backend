@@ -73,7 +73,7 @@ export class EventStorageService {
   async prepareEvents(
     blockchain: Blockchain,
     events: EthersEvent[],
-    provider: ethers.JsonRpcProvider,
+    provider: ethers.JsonRpcProvider | ethers.FallbackProvider,
     isRealTime: boolean = false,
     eventType?: string,
     eventData?: Record<string, any>,
