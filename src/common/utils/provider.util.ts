@@ -43,6 +43,7 @@ export class ProviderManager {
   // WebSocket failure tracking for backup fallback
   private wssFailureCount: Map<string, number> = new Map();
   private mainUrlCheckTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private wssPingIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   /**
    * Get WebSocket connection state for debugging
@@ -172,6 +173,13 @@ export class ProviderManager {
         `Creating WebSocket provider for blockchain ${blockchain.id} using ${shouldUseBackup ? 'backup' : 'primary'} URL`,
       );
 
+      // Clear any existing ping interval for this blockchain
+      const existingInterval = this.wssPingIntervals.get(blockchain.id);
+      if (existingInterval) {
+        clearInterval(existingInterval);
+        this.wssPingIntervals.delete(blockchain.id);
+      }
+
       // Create network object for consistent network specification
       const network = ethers.Network.from({
         name: blockchain.name,
@@ -204,6 +212,7 @@ export class ProviderManager {
               `WebSocket connection is not open for blockchain ${blockchain.id}, readyState: ${wsProvider.websocket.readyState} (${connectionState})`,
             );
             clearInterval(pingInterval);
+            this.wssPingIntervals.delete(blockchain.id);
             this.incrementFailureAndReconnect(blockchain);
             return;
           }
@@ -230,14 +239,19 @@ export class ProviderManager {
               );
               // Connection failed, clean up
               clearInterval(pingInterval);
+              this.wssPingIntervals.delete(blockchain.id);
               this.incrementFailureAndReconnect(blockchain);
             });
         } else {
           // Provider was already removed, clear the interval
           clearInterval(pingInterval);
+          this.wssPingIntervals.delete(blockchain.id);
           return;
         }
       }, 15000); // Check every 15 seconds for faster disconnection detection
+
+      // Track the ping interval
+      this.wssPingIntervals.set(blockchain.id, pingInterval);
 
       this.wssProviders.set(blockchain.id, provider);
       logger.log(
@@ -448,6 +462,15 @@ export class ProviderManager {
     });
     this.mainUrlCheckTimeouts.clear();
 
+    // Clear all WebSocket ping intervals
+    this.wssPingIntervals.forEach((interval, blockchainId) => {
+      clearInterval(interval);
+      logger.debug(
+        `Cancelled WebSocket ping interval for blockchain ${blockchainId}`,
+      );
+    });
+    this.wssPingIntervals.clear();
+
     // Close all WebSocket connections before clearing
     this.wssProviders.forEach((provider, blockchainId) => {
       try {
@@ -512,7 +535,7 @@ export class ProviderManager {
     // Check main URL every 30 seconds
     const timeout = setTimeout(() => {
       this.checkAndSwitchToMain(blockchain);
-    }, 30000);
+    }, 10000);
     logger.debug(
       `Started main wssUrl check for blockchain ${blockchainId} every 30 seconds`,
     );
@@ -549,22 +572,14 @@ export class ProviderManager {
           logger.log(
             `Main URL is available again for blockchain ${blockchainId}, switching back`,
           );
-
-          // Close backup provider
-          const backupProvider = this.wssProviders.get(blockchainId);
-          if (backupProvider) {
-            backupProvider.destroy();
-          }
-
-          // Reset failure count and remove provider from cache
-          this.wssFailureCount.delete(blockchainId);
-          this.wssProviders.delete(blockchainId);
-
-          // Clean up test provider
           testProvider.destroy();
 
           // Clear the timeout
           this.mainUrlCheckTimeouts.delete(blockchainId);
+
+          // Reset failure count
+          this.wssFailureCount.delete(blockchainId);
+          this.handleWssProviderReconnect(blockchain);
 
           logger.debug(
             `Switched back to main URL for blockchain ${blockchainId}`,
@@ -598,6 +613,13 @@ export class ProviderManager {
 
     // Remove the closed provider from the cache
     this.wssProviders.delete(blockchainId);
+
+    // Clean up ping interval
+    const pingInterval = this.wssPingIntervals.get(blockchainId);
+    if (pingInterval) {
+      clearInterval(pingInterval);
+      this.wssPingIntervals.delete(blockchainId);
+    }
 
     // Properly clean up the provider if it exists
     if (provider) {
