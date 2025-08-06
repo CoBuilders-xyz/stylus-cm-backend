@@ -42,6 +42,7 @@ export class ProviderManager {
 
   // WebSocket failure tracking for backup fallback
   private wssFailureCount: Map<string, number> = new Map();
+  private mainUrlCheckTimeouts: Map<string, NodeJS.Timeout> = new Map();
 
   /**
    * Get WebSocket connection state for debugging
@@ -180,6 +181,11 @@ export class ProviderManager {
       provider = new ethers.WebSocketProvider(wssUrl, network, {
         staticNetwork: network, // Prevent network detection
       });
+
+      // If using backup, start checking if main URL is available again
+      if (shouldUseBackup) {
+        this.startMainUrlCheck(blockchain);
+      }
 
       // Store provider reference for the interval
       const wsProvider = provider;
@@ -435,6 +441,13 @@ export class ProviderManager {
     this.reconnectionTimeouts.clear();
     this.reconnectionAttempts.clear();
 
+    // Cancel main URL check timeouts
+    this.mainUrlCheckTimeouts.forEach((timeout, blockchainId) => {
+      clearTimeout(timeout);
+      logger.debug(`Cancelled main URL check for blockchain ${blockchainId}`);
+    });
+    this.mainUrlCheckTimeouts.clear();
+
     // Close all WebSocket connections before clearing
     this.wssProviders.forEach((provider, blockchainId) => {
       try {
@@ -484,6 +497,90 @@ export class ProviderManager {
           }`,
         );
       }
+    }
+  }
+
+  private startMainUrlCheck(blockchain: Blockchain): void {
+    const blockchainId = blockchain.id;
+
+    // Clear any existing timeout
+    const existingTimeout = this.mainUrlCheckTimeouts.get(blockchainId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Check main URL every 30 seconds
+    const timeout = setTimeout(() => {
+      this.checkAndSwitchToMain(blockchain);
+    }, 30000);
+    logger.debug(
+      `Started main wssUrl check for blockchain ${blockchainId} every 30 seconds`,
+    );
+    this.mainUrlCheckTimeouts.set(blockchainId, timeout);
+  }
+
+  private checkAndSwitchToMain(blockchain: Blockchain): void {
+    const blockchainId = blockchain.id;
+    const mainUrl = blockchain.rpcWssUrl;
+
+    if (!mainUrl) return;
+
+    try {
+      // Try to create a test provider with main URL
+      const network = ethers.Network.from({
+        name: blockchain.name,
+        chainId: blockchain.chainId,
+      });
+
+      const testProvider = new ethers.WebSocketProvider(mainUrl, network, {
+        staticNetwork: network,
+      });
+
+      // Test connection with a timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Main URL test timeout after 5 seconds'));
+        }, 5000);
+      });
+
+      // Race the getBlockNumber call against the timeout
+      Promise.race([testProvider.getBlockNumber(), timeoutPromise])
+        .then(() => {
+          logger.log(
+            `Main URL is available again for blockchain ${blockchainId}, switching back`,
+          );
+
+          // Close backup provider
+          const backupProvider = this.wssProviders.get(blockchainId);
+          if (backupProvider) {
+            backupProvider.destroy();
+          }
+
+          // Reset failure count and remove provider from cache
+          this.wssFailureCount.delete(blockchainId);
+          this.wssProviders.delete(blockchainId);
+
+          // Clean up test provider
+          testProvider.destroy();
+
+          // Clear the timeout
+          this.mainUrlCheckTimeouts.delete(blockchainId);
+
+          logger.debug(
+            `Switched back to main URL for blockchain ${blockchainId}`,
+          );
+        })
+        .catch(() => {
+          // Main URL still not available, clean up test provider and schedule next check
+          testProvider.destroy();
+          logger.debug(
+            `Main wssURL still not available for blockchain ${blockchainId}, starting next check`,
+          );
+          this.startMainUrlCheck(blockchain);
+        });
+    } catch {
+      // Failed to create test provider, schedule next check
+      this.startMainUrlCheck(blockchain);
     }
   }
 
