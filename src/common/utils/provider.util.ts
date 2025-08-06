@@ -105,7 +105,10 @@ export class ProviderManager {
         name: blockchain.name,
         chainId: blockchain.chainId,
       });
-      provider = new ethers.JsonRpcProvider(blockchain.rpcUrl, network);
+      provider = new ethers.JsonRpcProvider(blockchain.rpcUrl, network, {
+        polling: true,
+        pollingInterval: 10000,
+      });
 
       this.providers.set(blockchain.id, provider);
       logger.debug(`Created new provider for blockchain ${blockchain.id}`);
@@ -182,7 +185,7 @@ export class ProviderManager {
               `WebSocket connection is not open for blockchain ${blockchain.id}, readyState: ${wsProvider.websocket.readyState} (${connectionState})`,
             );
             clearInterval(pingInterval);
-            this.handleProviderDisconnect(blockchain.id);
+            this.handleWssProviderReconnect(blockchain);
             return;
           }
 
@@ -208,7 +211,7 @@ export class ProviderManager {
               );
               // Connection failed, clean up
               clearInterval(pingInterval);
-              this.handleProviderDisconnect(blockchain.id);
+              this.handleWssProviderReconnect(blockchain);
             });
         } else {
           // Provider was already removed, clear the interval
@@ -473,7 +476,8 @@ export class ProviderManager {
   /**
    * Handles provider disconnection by removing it from the cache and cleaning up listeners
    */
-  private handleProviderDisconnect(blockchainId: string): void {
+  private handleWssProviderReconnect(blockchain: Blockchain): void {
+    const blockchainId = blockchain.id;
     logger.warn(
       `WebSocket provider disconnected for blockchain ${blockchainId}`,
     );
@@ -508,13 +512,14 @@ export class ProviderManager {
     });
 
     // Trigger automatic reconnection
-    this.attemptReconnection(blockchainId);
+    this.attemptReconnection(blockchain);
   }
 
   /**
    * Attempts to reconnect to a blockchain with exponential backoff
    */
-  private attemptReconnection(blockchainId: string): void {
+  private attemptReconnection(blockchain: Blockchain): void {
+    const blockchainId = blockchain.id;
     const currentAttempts = this.reconnectionAttempts.get(blockchainId) || 0;
 
     const calculatedDelay =
@@ -555,7 +560,7 @@ export class ProviderManager {
           );
 
           // Schedule next reconnection attempt
-          this.attemptReconnection(blockchainId);
+          this.attemptReconnection(blockchain);
         });
     }, delay);
 
