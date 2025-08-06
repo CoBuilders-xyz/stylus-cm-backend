@@ -157,9 +157,10 @@ export class ProviderManager {
    */
   getWssProvider(blockchain: Blockchain): ethers.WebSocketProvider {
     const failureCount = this.wssFailureCount.get(blockchain.id) || 0;
+    const mainUrl = blockchain.rpcWssUrl;
     const backupUrl = blockchain.rpcWssUrlBackup;
     const shouldUseBackup = failureCount === 2 && backupUrl;
-    const wssUrl = shouldUseBackup ? backupUrl : blockchain.rpcWssUrl;
+    const wssUrl = shouldUseBackup ? backupUrl : mainUrl;
     if (!wssUrl) {
       throw new Error(`Blockchain ${blockchain.id} has no WebSocket RPC URL`);
     }
