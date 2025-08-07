@@ -87,6 +87,8 @@ describe('EventStorageService', () => {
         fastSyncRpcUrl: 'https://test-fast-rpc.com',
         rpcWssUrl: 'wss://test-ws.com',
         cacheManagerAddress: '0x1234567890123456789012345678901234567890',
+        rpcUrlBackup: 'https://test-rpc-backup.com',
+        rpcWssUrlBackup: 'wss://test-ws-backup.com',
         cacheManagerAutomationAddress:
           '0x0987654321098765432109876543210987654321',
         arbWasmCacheAddress: '0x1111111111111111111111111111111111111111',

@@ -111,6 +111,8 @@ export class BlockchainInitializerService implements OnModuleInit {
             name: blockchain.name,
             rpcUrl: blockchain.rpcUrl,
             rpcWssUrl: blockchain.rpcWssUrl,
+            rpcUrlBackup: blockchain.rpcUrlBackup,
+            rpcWssUrlBackup: blockchain.rpcWssUrlBackup,
             fastSyncRpcUrl: blockchain.fastSyncRpcUrl,
             cacheManagerAutomationAddress:
               blockchain.cacheManagerAutomationAddress,

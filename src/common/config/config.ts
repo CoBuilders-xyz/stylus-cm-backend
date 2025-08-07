@@ -3,7 +3,9 @@ export default () => ({
     {
       name: 'Arbitrum One',
       rpcUrl: process.env.ARB_ONE_RPC,
+      rpcUrlBackup: process.env.ARB_ONE_RPC_BACKUP,
       rpcWssUrl: process.env.ARB_ONE_RPC_WSS,
+      rpcWssUrlBackup: process.env.ARB_ONE_RPC_WSS_BACKUP,
       fastSyncRpcUrl: process.env.ARB_ONE_FAST_SYNC_RPC,
       chainId: 42161,
       cacheManagerAddress: '0x51dedbd2f190e0696afbee5e60bfde96d86464ec',
@@ -18,7 +20,9 @@ export default () => ({
     {
       name: 'Arbitrum Sepolia',
       rpcUrl: process.env.ARB_SEPOLIA_RPC,
+      rpcUrlBackup: process.env.ARB_SEPOLIA_RPC_BACKUP,
       rpcWssUrl: process.env.ARB_SEPOLIA_RPC_WSS,
+      rpcWssUrlBackup: process.env.ARB_SEPOLIA_RPC_WSS_BACKUP,
       fastSyncRpcUrl: process.env.ARB_SEPOLIA_FAST_SYNC_RPC,
       chainId: 421614,
       cacheManagerAddress: '0x0c9043d042ab52cfa8d0207459260040cca54253',
@@ -33,7 +37,9 @@ export default () => ({
     {
       name: 'Arbitrum Local',
       rpcUrl: process.env.ARB_LOCAL_RPC,
+      rpcUrlBackup: process.env.ARB_LOCAL_RPC_BACKUP,
       rpcWssUrl: process.env.ARB_LOCAL_RPC_WSS,
+      rpcWssUrlBackup: process.env.ARB_LOCAL_RPC_WSS_BACKUP,
       fastSyncRpcUrl: process.env.ARB_LOCAL_FAST_SYNC_RPC,
       chainId: 412346,
       cacheManagerAddress: '0x0f1f89aaf1c6fdb7ff9d361e4388f5f3997f12a8',
@@ -48,7 +54,9 @@ export default () => ({
     {
       name: 'Superposition',
       rpcUrl: process.env.SUPERPOSITION_RPC,
+      rpcUrlBackup: process.env.SUPERPOSITION_RPC_BACKUP,
       rpcWssUrl: process.env.SUPERPOSITION_RPC_WSS,
+      rpcWssUrlBackup: process.env.SUPERPOSITION_RPC_WSS_BACKUP,
       fastSyncRpcUrl: process.env.SUPERPOSITION_FAST_SYNC_RPC,
       chainId: 55244,
       cacheManagerAddress: '0xe3092C5d44BcB222B458d9212E608E0e8fE37591',

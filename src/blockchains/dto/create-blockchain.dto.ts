@@ -43,6 +43,14 @@ export class CreateBlockchainDto {
   chainId: number;
 
   @IsOptional()
+  @IsUrl()
+  rpcUrlBackup?: string;
+
+  @IsOptional()
+  @IsUrl()
+  rpcWssUrlBackup?: string;
+
+  @IsOptional()
   @IsEthereumAddress()
   cacheManagerAutomationAddress?: string;
 
