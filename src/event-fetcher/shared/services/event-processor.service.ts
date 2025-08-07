@@ -30,7 +30,7 @@ export class EventProcessorService {
   async processEvent(
     blockchain: Blockchain,
     eventLog: EthersEvent,
-    provider: ethers.JsonRpcProvider | ethers.FallbackProvider,
+    provider: ethers.JsonRpcProvider,
     eventType: string,
     eventData?: Record<string, any>,
   ): Promise<void> {
@@ -148,7 +148,7 @@ export class EventProcessorService {
   private async storeEvent(
     blockchain: Blockchain,
     eventLog: EthersEvent,
-    provider: ethers.JsonRpcProvider | ethers.FallbackProvider,
+    provider: ethers.JsonRpcProvider,
     eventType: string,
     eventData?: Record<string, any>,
   ): Promise<void> {
