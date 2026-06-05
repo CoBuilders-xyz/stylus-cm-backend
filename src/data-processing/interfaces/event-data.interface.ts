@@ -38,11 +38,23 @@ export interface ContractAddedEventData extends BaseEventData {
 
 /**
  * ContractUpdated event data structure
+ * Solidity: ContractUpdated(address indexed user, address indexed contractAddress, uint256 maxBid)
  */
 export interface ContractUpdatedEventData extends BaseEventData {
   eventName: 'ContractUpdated';
+  user: string;
   address: string;
-  bytecodeHash: string;
+  maxBid: string;
+}
+
+/**
+ * ContractRemoved event data structure
+ * Solidity: ContractRemoved(address indexed user, address indexed contractAddress)
+ */
+export interface ContractRemovedEventData extends BaseEventData {
+  eventName: 'ContractRemoved';
+  user: string;
+  address: string;
 }
 
 /**
@@ -69,6 +81,7 @@ export type EventData =
   | DeleteBidEventData
   | ContractAddedEventData
   | ContractUpdatedEventData
+  | ContractRemovedEventData
   | SetDecayRateEventData
   | SetCacheSizeEventData;
 
@@ -140,13 +153,28 @@ export const EventDataGuards = {
     );
   },
 
-  isContractUpdatedEventData: (data: unknown[]): data is [string, string] => {
+  isContractUpdatedEventData: (
+    data: unknown[],
+  ): data is [string, string, string] => {
+    return (
+      Array.isArray(data) &&
+      data.length === 3 &&
+      data.every((item) => typeof item === 'string') &&
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) && // contractAddress
+      isValidPositiveNumber(data[2]) // maxBid
+    );
+  },
+
+  isContractRemovedEventData: (
+    data: unknown[],
+  ): data is [string, string] => {
     return (
       Array.isArray(data) &&
       data.length === 2 &&
       data.every((item) => typeof item === 'string') &&
-      isValidEthereumAddress(data[0]) && // address
-      isValidBytecodeHash(data[1]) // bytecodeHash
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) // contractAddress
     );
   },
 

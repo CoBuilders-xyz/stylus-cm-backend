@@ -44,4 +44,7 @@ export const EVENT_TYPES = {
   DELETE_BID: 'DeleteBid',
   SET_DECAY_RATE: 'SetDecayRate',
   SET_CACHE_SIZE: 'SetCacheSize',
+  CONTRACT_ADDED: 'ContractAdded',
+  CONTRACT_UPDATED: 'ContractUpdated',
+  CONTRACT_REMOVED: 'ContractRemoved',
 } as const;

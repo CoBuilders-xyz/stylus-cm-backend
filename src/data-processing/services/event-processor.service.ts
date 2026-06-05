@@ -5,6 +5,7 @@ import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
 import { InsertBidService } from './insert-bid.service';
 import { DeleteBidService } from './delete-bid.service';
+import { AutomationService } from './automation.service';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { EVENT_TYPES } from '../constants/event-processing.constants';
 import { createModuleLogger } from '../../common/utils/logger.util';
@@ -33,6 +34,7 @@ export class EventProcessorService {
     private readonly blockchainEventRepository: Repository<BlockchainEvent>,
     private readonly insertBidService: InsertBidService,
     private readonly deleteBidService: DeleteBidService,
+    private readonly automationService: AutomationService,
   ) {
     // Initialize the event handlers map
     this.eventHandlers = new Map<string, EventHandler>([
@@ -45,6 +47,21 @@ export class EventProcessorService {
         EVENT_TYPES.DELETE_BID,
         (blockchain: Blockchain, event: BlockchainEvent) =>
           this.deleteBidService.processDeleteBidEvent(blockchain, event),
+      ],
+      [
+        EVENT_TYPES.CONTRACT_ADDED,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.automationService.processContractAddedEvent(blockchain, event),
+      ],
+      [
+        EVENT_TYPES.CONTRACT_UPDATED,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.automationService.processContractUpdatedEvent(blockchain, event),
+      ],
+      [
+        EVENT_TYPES.CONTRACT_REMOVED,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.automationService.processContractRemovedEvent(blockchain, event),
       ],
     ]);
   }
