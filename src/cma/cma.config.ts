@@ -7,6 +7,7 @@ export interface CmaConfig {
   retryDelay: number;
   processingTimeout: number;
   automationEnabled: boolean;
+  activationAutomationEnabled: boolean;
 }
 
 export default registerAs('cma', (): CmaConfig => {
@@ -90,6 +91,10 @@ export default registerAs('cma', (): CmaConfig => {
     process.env.CMA_AUTOMATION_ENABLED || 'true',
   );
 
+  const activationAutomationEnabled = validateAutomationEnabled(
+    process.env.CMA_ACTIVATION_AUTOMATION_ENABLED || 'false',
+  );
+
   return {
     batchSize,
     paginationLimit,
@@ -97,5 +102,6 @@ export default registerAs('cma', (): CmaConfig => {
     retryDelay,
     processingTimeout,
     automationEnabled,
+    activationAutomationEnabled,
   };
 });

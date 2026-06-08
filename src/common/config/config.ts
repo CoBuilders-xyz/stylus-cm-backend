@@ -80,5 +80,11 @@ export default () => ({
     'BalanceUpdated',
     'UpkeepPerformed',
     'UserBalanceOperation',
+    // CacheManagerAutomation - Activation
+    'ActivationPerformed',
+    'ActivationError',
+    'ActivationRevertData',
+    'ContractAutoActivateUpdated',
+    'ContractMaxActivationCostUpdated',
   ],
 });

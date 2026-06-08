@@ -42,6 +42,27 @@ export class CmaService implements OnModuleInit {
         `Automation failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+
+    if (config?.activationAutomationEnabled) {
+      try {
+        const activationResult =
+          await this.automationOrchestratorService.executeActivationAutomation();
+
+        if (activationResult.success) {
+          this.logger.log(
+            `Activation automation completed: ${activationResult.stats.processedContracts} contracts processed across ${activationResult.stats.processedBlockchains} blockchains`,
+          );
+        } else {
+          this.logger.warn(
+            `Activation automation completed with ${activationResult.errors.length} errors`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Activation automation failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
   }
 
   async onModuleInit(): Promise<void> {

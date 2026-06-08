@@ -47,4 +47,8 @@ export const EVENT_TYPES = {
   CONTRACT_ADDED: 'ContractAdded',
   CONTRACT_UPDATED: 'ContractUpdated',
   CONTRACT_REMOVED: 'ContractRemoved',
+  ACTIVATION_PERFORMED: 'ActivationPerformed',
+  ACTIVATION_ERROR: 'ActivationError',
+  CONTRACT_AUTO_ACTIVATE_UPDATED: 'ContractAutoActivateUpdated',
+  CONTRACT_MAX_ACTIVATION_COST_UPDATED: 'ContractMaxActivationCostUpdated',
 } as const;

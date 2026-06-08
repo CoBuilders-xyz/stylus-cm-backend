@@ -202,9 +202,16 @@ export class ContractSelectionService {
 
       return true;
     } catch (error) {
-      this.logger.warn(
-        `Error checking if should bid for contract ${contractAddress}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('0xc9b12e52') || msg.includes('ProgramExpired')) {
+        this.logger.debug(
+          `Skipping bid for ${contractAddress}: program expired`,
+        );
+      } else {
+        this.logger.warn(
+          `Error checking if should bid for contract ${contractAddress}: ${msg}`,
+        );
+      }
       return false;
     }
   }
