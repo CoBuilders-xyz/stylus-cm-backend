@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AutomationOrchestratorService } from './automation-orchestrator.service';
 import { ContractSelectionService } from './contract-selection.service';
+import { ActivationSelectionService } from './activation-selection.service';
 import { BatchProcessorService } from './batch-processor.service';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { SelectedContract, BatchProcessingResult } from '../interfaces';
@@ -18,8 +19,12 @@ describe('AutomationOrchestratorService', () => {
   let mockContractSelectionService: {
     selectOptimalBids: jest.Mock;
   };
+  let mockActivationSelectionService: {
+    selectOptimalActivations: jest.Mock;
+  };
   let mockBatchProcessorService: {
     processContractBatches: jest.Mock;
+    processActivationBatches: jest.Mock;
   };
 
   const createMockBlockchain = (): Blockchain =>
@@ -56,8 +61,13 @@ describe('AutomationOrchestratorService', () => {
       selectOptimalBids: jest.fn(),
     };
 
+    mockActivationSelectionService = {
+      selectOptimalActivations: jest.fn(),
+    };
+
     mockBatchProcessorService = {
       processContractBatches: jest.fn(),
+      processActivationBatches: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -76,6 +86,10 @@ describe('AutomationOrchestratorService', () => {
           useValue: mockContractSelectionService,
         },
         {
+          provide: ActivationSelectionService,
+          useValue: mockActivationSelectionService,
+        },
+        {
           provide: BatchProcessorService,
           useValue: mockBatchProcessorService,
         },
@@ -91,29 +105,23 @@ describe('AutomationOrchestratorService', () => {
     jest.clearAllMocks();
   });
 
-  describe('executeAutomation', () => {
-    it('should return success when automation is disabled', async () => {
-      // Arrange
-      mockConfigService.get.mockReturnValue({ automationEnabled: false });
+  describe('executeCachingAutomation', () => {
+    it('should return success when caching automation is disabled', async () => {
+      mockConfigService.get.mockReturnValue({ cachingAutomationEnabled: false });
 
-      // Act
-      const result = await service.executeAutomation();
+      const result = await service.executeCachingAutomation();
 
-      // Assert
       expect(result.success).toBe(true);
       expect(result.stats.totalBlockchains).toBe(0);
       expect(mockBlockchainRepository.find).not.toHaveBeenCalled();
     });
 
     it('should return success when no enabled blockchains found', async () => {
-      // Arrange
-      mockConfigService.get.mockReturnValue({ automationEnabled: true });
+      mockConfigService.get.mockReturnValue({ cachingAutomationEnabled: true });
       mockBlockchainRepository.find.mockResolvedValue([]);
 
-      // Act
-      const result = await service.executeAutomation();
+      const result = await service.executeCachingAutomation();
 
-      // Assert
       expect(result.success).toBe(true);
       expect(result.stats.totalBlockchains).toBe(0);
       expect(mockBlockchainRepository.find).toHaveBeenCalledWith({
@@ -121,15 +129,14 @@ describe('AutomationOrchestratorService', () => {
       });
     });
 
-    it('should process automation for enabled blockchains', async () => {
-      // Arrange
+    it('should process caching automation for enabled blockchains', async () => {
       const blockchain = createMockBlockchain();
       const selectedContracts: SelectedContract[] = [
         { user: '0x123', address: '0xABC' },
       ];
       const batchResult = createMockBatchResult();
 
-      mockConfigService.get.mockReturnValue({ automationEnabled: true });
+      mockConfigService.get.mockReturnValue({ cachingAutomationEnabled: true });
       mockBlockchainRepository.find.mockResolvedValue([blockchain]);
       mockContractSelectionService.selectOptimalBids.mockResolvedValue(
         selectedContracts,
@@ -138,10 +145,8 @@ describe('AutomationOrchestratorService', () => {
         batchResult,
       );
 
-      // Act
-      const result = await service.executeAutomation();
+      const result = await service.executeCachingAutomation();
 
-      // Assert
       expect(result.success).toBe(true);
       expect(result.stats.totalBlockchains).toBe(1);
       expect(result.stats.processedBlockchains).toBe(1);
@@ -156,18 +161,15 @@ describe('AutomationOrchestratorService', () => {
     });
 
     it('should handle blockchain processing errors', async () => {
-      // Arrange
       const blockchain = createMockBlockchain();
-      mockConfigService.get.mockReturnValue({ automationEnabled: true });
+      mockConfigService.get.mockReturnValue({ cachingAutomationEnabled: true });
       mockBlockchainRepository.find.mockResolvedValue([blockchain]);
       mockContractSelectionService.selectOptimalBids.mockRejectedValue(
         new Error('Selection error'),
       );
 
-      // Act
-      const result = await service.executeAutomation();
+      const result = await service.executeCachingAutomation();
 
-      // Assert
       expect(result.success).toBe(false);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].blockchain).toBe(blockchain.name);
@@ -175,22 +177,64 @@ describe('AutomationOrchestratorService', () => {
     });
 
     it('should skip blockchain when no contracts selected', async () => {
-      // Arrange
       const blockchain = createMockBlockchain();
-      mockConfigService.get.mockReturnValue({ automationEnabled: true });
+      mockConfigService.get.mockReturnValue({ cachingAutomationEnabled: true });
       mockBlockchainRepository.find.mockResolvedValue([blockchain]);
       mockContractSelectionService.selectOptimalBids.mockResolvedValue([]);
 
-      // Act
-      const result = await service.executeAutomation();
+      const result = await service.executeCachingAutomation();
 
-      // Assert
       expect(result.success).toBe(true);
       expect(result.stats.processedBlockchains).toBe(1);
       expect(result.stats.totalContracts).toBe(0);
       expect(
         mockBatchProcessorService.processContractBatches,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('executeActivationAutomation', () => {
+    it('should return success when activation automation is disabled', async () => {
+      mockConfigService.get.mockReturnValue({
+        activationAutomationEnabled: false,
+      });
+
+      const result = await service.executeActivationAutomation();
+
+      expect(result.success).toBe(true);
+      expect(result.stats.totalBlockchains).toBe(0);
+      expect(mockBlockchainRepository.find).not.toHaveBeenCalled();
+    });
+
+    it('should process activation automation for enabled blockchains', async () => {
+      const blockchain = createMockBlockchain();
+      const selectedContracts: SelectedContract[] = [
+        { user: '0x123', address: '0xABC' },
+      ];
+      const batchResult = createMockBatchResult();
+
+      mockConfigService.get.mockReturnValue({
+        activationAutomationEnabled: true,
+      });
+      mockBlockchainRepository.find.mockResolvedValue([blockchain]);
+      mockActivationSelectionService.selectOptimalActivations.mockResolvedValue(
+        selectedContracts,
+      );
+      mockBatchProcessorService.processActivationBatches.mockResolvedValue(
+        batchResult,
+      );
+
+      const result = await service.executeActivationAutomation();
+
+      expect(result.success).toBe(true);
+      expect(result.stats.totalBlockchains).toBe(1);
+      expect(result.stats.processedContracts).toBe(2);
+      expect(
+        mockActivationSelectionService.selectOptimalActivations,
+      ).toHaveBeenCalledWith(blockchain);
+      expect(
+        mockBatchProcessorService.processActivationBatches,
+      ).toHaveBeenCalledWith(blockchain, selectedContracts);
     });
   });
 });
