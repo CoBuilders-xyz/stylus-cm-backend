@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { ethers } from 'ethers';
 
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { Contract } from 'src/contracts/entities/contract.entity';
@@ -9,11 +10,15 @@ import { ContractType, ProviderManager } from 'src/common/utils/provider.util';
 import { createModuleLogger } from 'src/common/utils/logger.util';
 import { CacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 import { ArbWasm } from 'src/common/types/contracts/arbWasm/ArbWasm';
-import { ICacheManagerAutomationV2 } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 
 import { CmaConfig } from '../cma.config';
-import { SelectedContract } from '../interfaces';
+import { ActivationSelectionResult, SelectedContract } from '../interfaces';
 import { MODULE_NAME } from '../constants';
+
+const ESCROW_ABI = ['function depositsOf(address) view returns (uint256)'];
+
+const MAX_RETRY_COUNT = 5;
+const RETRY_BACKOFF_MINUTES = 5;
 
 @Injectable()
 export class ActivationSelectionService {
@@ -31,8 +36,12 @@ export class ActivationSelectionService {
 
   async selectOptimalActivations(
     blockchain: Blockchain,
-  ): Promise<SelectedContract[]> {
+  ): Promise<ActivationSelectionResult> {
     const config = this.configService.get<CmaConfig>('cma');
+    const emptyResult: ActivationSelectionResult = {
+      selectedContracts: [],
+      maxActivationsPerIteration: 5,
+    };
 
     try {
       const cmaContract = this.providerManager.getContract(
@@ -45,124 +54,195 @@ export class ActivationSelectionService {
         ContractType.ARB_WASM,
       ) as unknown as ArbWasm;
 
-      let automatedUserConfigs: ICacheManagerAutomationV2.UserContractsDataStructOutput[] =
-        [];
-      let offset = 0n;
-      const limit = BigInt(config?.paginationLimit || 30);
-      let hasMore = true;
-
-      this.logger.log(
-        `Fetching contracts for activation selection on ${blockchain.name}...`,
+      const maxActivationsPerIteration = Number(
+        await cmaContract.maxActivationsPerIteration(),
       );
 
-      while (hasMore) {
-        const result = await cmaContract.getContractsPaginated(offset, limit);
-        const batchContracts = result.userData;
-        hasMore = result.hasMore;
-
-        automatedUserConfigs = automatedUserConfigs.concat(batchContracts);
-
-        if (!hasMore) {
-          break;
-        }
-        offset += limit;
-      }
-
-      this.logger.log(
-        `Found ${automatedUserConfigs.length} users to check for activation eligibility`,
+      const allUserConfigs = await this.fetchAllUserConfigs(
+        cmaContract,
+        config?.paginationLimit || 30,
       );
 
-      const selectedContracts: SelectedContract[] = [];
-
-      for (const auc of automatedUserConfigs) {
-        for (const contractConfig of auc.contracts) {
-          if (!contractConfig.enabled) {
-            continue;
-          }
-
-          const eligible = await this.isEligibleForActivation(
-            blockchain,
-            auc.user,
-            contractConfig.contractAddress,
-            arbWasmContract,
-          );
-
-          if (eligible) {
-            selectedContracts.push({
-              user: auc.user,
-              address: contractConfig.contractAddress,
-            });
-          }
-        }
+      if (allUserConfigs.length === 0) {
+        return { ...emptyResult, maxActivationsPerIteration };
       }
+
+      const candidateAddresses = this.extractCandidateAddresses(allUserConfigs);
+
+      if (candidateAddresses.length === 0) {
+        return { ...emptyResult, maxActivationsPerIteration };
+      }
+
+      const eligibleContracts = await this.contractRepository.find({
+        where: {
+          blockchain: { id: blockchain.id },
+          address: In(candidateAddresses),
+          autoActivate: true,
+        },
+      });
+
+      const eligibleMap = new Map(
+        eligibleContracts
+          .filter((c) => this.passesRetryBackoff(c))
+          .filter(
+            (c) => c.maxActivationCost && BigInt(c.maxActivationCost) > 0n,
+          )
+          .map((c) => [c.address.toLowerCase(), c]),
+      );
+
+      if (eligibleMap.size === 0) {
+        return { ...emptyResult, maxActivationsPerIteration };
+      }
+
+      const selectedContracts = await this.filterByOnChainState(
+        allUserConfigs,
+        eligibleMap,
+        cmaContract,
+        arbWasmContract,
+      );
 
       this.logger.log(
         `Selected ${selectedContracts.length} contracts for activation on ${blockchain.name}`,
       );
-      return selectedContracts;
+
+      return { selectedContracts, maxActivationsPerIteration };
     } catch (error) {
       this.logger.error(
         `Activation selection failed for ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return [];
+      return emptyResult;
     }
   }
 
-  private async isEligibleForActivation(
-    blockchain: Blockchain,
-    user: string,
-    contractAddress: string,
-    arbWasmContract: ArbWasm,
-  ): Promise<boolean> {
-    try {
-      const dbContract = await this.contractRepository.findOne({
-        where: {
-          blockchain: { id: blockchain.id },
-          address: contractAddress,
-        },
-      });
+  private async fetchAllUserConfigs(
+    cmaContract: CacheManagerAutomation,
+    paginationLimit: number,
+  ) {
+    type UserConfigs = Awaited<
+      ReturnType<CacheManagerAutomation['getContractsPaginated']>
+    >['userData'];
 
-      if (!dbContract) {
-        return false;
+    let allConfigs: UserConfigs[number][] = [];
+    let offset = 0n;
+    const limit = BigInt(paginationLimit);
+
+    while (true) {
+      const result = await cmaContract.getContractsPaginated(offset, limit);
+      allConfigs = allConfigs.concat([...result.userData]);
+      if (!result.hasMore) break;
+      offset += limit;
+    }
+
+    return allConfigs;
+  }
+
+  private extractCandidateAddresses(
+    allUserConfigs: Awaited<
+      ReturnType<ActivationSelectionService['fetchAllUserConfigs']>
+    >,
+  ): string[] {
+    const addresses: string[] = [];
+    for (const userConfig of allUserConfigs) {
+      for (const contractConfig of userConfig.contracts) {
+        if (contractConfig.enabled && contractConfig.autoActivate) {
+          addresses.push(contractConfig.contractAddress);
+        }
       }
+    }
+    return addresses;
+  }
 
-      if (!dbContract.autoActivate) {
-        return false;
-      }
-
-      if (
-        !dbContract.maxActivationCost ||
-        BigInt(dbContract.maxActivationCost) <= 0n
-      ) {
-        return false;
-      }
-
-      const expired = await this.isProgramExpired(
-        contractAddress,
-        arbWasmContract,
-      );
-
-      if (!expired) {
-        return false;
-      }
-
-      this.logger.debug(
-        `Contract ${contractAddress} (user: ${user}) is expired and eligible for activation`,
-      );
+  private passesRetryBackoff(contract: Contract): boolean {
+    if (
+      contract.activationStatus !== 'error' ||
+      contract.activationRetryCount === 0
+    ) {
       return true;
-    } catch (error) {
-      this.logger.warn(
-        `Error checking activation eligibility for ${contractAddress}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+    }
+
+    if (contract.activationRetryCount >= MAX_RETRY_COUNT) {
       return false;
     }
+
+    if (!contract.lastActivationTimestamp) {
+      return true;
+    }
+
+    const backoffMs =
+      contract.activationRetryCount * RETRY_BACKOFF_MINUTES * 60 * 1000;
+    const nextRetryAt =
+      new Date(contract.lastActivationTimestamp).getTime() + backoffMs;
+
+    return Date.now() >= nextRetryAt;
   }
 
-  /**
-   * ArbWasm.programTimeLeft reverts with ProgramExpired (0xc9b12e52) when the
-   * program has expired. A successful return with timeLeft > 0 means still active.
-   * timeLeft == 0 also means expired. ProgramNotActivated means never activated.
-   */
+  private async filterByOnChainState(
+    allUserConfigs: Awaited<
+      ReturnType<ActivationSelectionService['fetchAllUserConfigs']>
+    >,
+    eligibleMap: Map<string, Contract>,
+    cmaContract: CacheManagerAutomation,
+    arbWasmContract: ArbWasm,
+  ): Promise<SelectedContract[]> {
+    const selected: SelectedContract[] = [];
+
+    const escrowAddress = await cmaContract.escrow();
+    const provider = (cmaContract as unknown as ethers.BaseContract).runner;
+    const escrowContract = new ethers.Contract(
+      escrowAddress,
+      ESCROW_ABI,
+      provider,
+    );
+
+    const usersToCheck = new Map<string, string[]>();
+    for (const userConfig of allUserConfigs) {
+      for (const contractConfig of userConfig.contracts) {
+        if (!contractConfig.enabled || !contractConfig.autoActivate) continue;
+        const addr = contractConfig.contractAddress.toLowerCase();
+        if (!eligibleMap.has(addr)) continue;
+
+        if (!usersToCheck.has(userConfig.user)) {
+          usersToCheck.set(userConfig.user, []);
+        }
+        usersToCheck.get(userConfig.user)!.push(contractConfig.contractAddress);
+      }
+    }
+
+    for (const [user, contractAddresses] of usersToCheck) {
+      let userBalance: bigint;
+      try {
+        userBalance = BigInt((await escrowContract.depositsOf(user)) as string);
+      } catch {
+        this.logger.warn(`Failed to fetch escrow balance for user ${user}`);
+        continue;
+      }
+
+      for (const contractAddress of contractAddresses) {
+        const dbContract = eligibleMap.get(contractAddress.toLowerCase());
+        if (!dbContract) continue;
+
+        const maxCost = BigInt(dbContract.maxActivationCost ?? '0');
+        if (userBalance < maxCost) {
+          this.logger.debug(
+            `User ${user} insufficient escrow (${userBalance}) for ${contractAddress} (needs ${maxCost})`,
+          );
+          continue;
+        }
+
+        const expired = await this.isProgramExpired(
+          contractAddress,
+          arbWasmContract,
+        );
+        if (!expired) continue;
+
+        selected.push({ user, address: contractAddress });
+        userBalance -= maxCost;
+      }
+    }
+
+    return selected;
+  }
+
   private async isProgramExpired(
     contractAddress: string,
     arbWasmContract: ArbWasm,

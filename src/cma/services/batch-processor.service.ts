@@ -152,10 +152,10 @@ export class BatchProcessorService {
   async processActivationBatches(
     blockchain: Blockchain,
     selectedContracts: SelectedContract[],
+    maxActivationsPerIteration = 5,
   ): Promise<BatchProcessingResult> {
-    const MAX_ACTIVATIONS_PER_ITERATION = 5;
     const startTime = new Date();
-    const batchSize = MAX_ACTIVATIONS_PER_ITERATION;
+    const batchSize = maxActivationsPerIteration;
 
     if (selectedContracts.length === 0) {
       return {

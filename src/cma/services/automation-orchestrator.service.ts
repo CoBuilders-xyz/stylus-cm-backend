@@ -166,12 +166,10 @@ export class AutomationOrchestratorService {
   private async processActivation(
     blockchain: Blockchain,
   ): Promise<BatchProcessingResult> {
-    const selectedContracts =
-      await this.activationSelectionService.selectOptimalActivations(
-        blockchain,
-      );
+    const result =
+      await this.activationSelectionService.selectOptimalActivations(blockchain);
 
-    if (selectedContracts.length === 0) {
+    if (result.selectedContracts.length === 0) {
       this.logger.log(
         `No contracts selected for activation on ${blockchain.name}`,
       );
@@ -180,7 +178,8 @@ export class AutomationOrchestratorService {
 
     return this.batchProcessorService.processActivationBatches(
       blockchain,
-      selectedContracts,
+      result.selectedContracts,
+      result.maxActivationsPerIteration,
     );
   }
 

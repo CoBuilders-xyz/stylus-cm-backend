@@ -63,4 +63,7 @@ export class Contract {
 
   @Column({ type: 'varchar', nullable: true, default: 'unknown' })
   activationStatus: string;
+
+  @Column({ type: 'int', default: 0 })
+  activationRetryCount: number;
 }

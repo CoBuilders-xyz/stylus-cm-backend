@@ -8,7 +8,7 @@ import { createModuleLogger } from 'src/common/utils/logger.util';
 import { CacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 import { CacheManager } from 'src/common/types/contracts/CacheManager';
 import { ArbWasmCache } from 'src/common/types/contracts/ArbWasmCache';
-import { ICacheManagerAutomationV2 } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
+import { ICacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 
 import { CmaConfig } from '../cma.config';
 import { SelectedContract } from '../interfaces';
@@ -57,7 +57,7 @@ export class ContractSelectionService {
       this.logger.log(`Smart contract constants - Cache threshold: ${cacheThreshold}, Horizon seconds: ${horizonSeconds}, Bid increment: ${bidIncrement}`);
 
       // Fetch all contracts in batches until hasMore is false
-      let automatedUserConfigs: ICacheManagerAutomationV2.UserContractsDataStructOutput[] =
+      let automatedUserConfigs: ICacheManagerAutomation.UserContractsDataStructOutput[] =
         [];
       let offset = 0n;
       const limit = BigInt(config?.paginationLimit || 30);

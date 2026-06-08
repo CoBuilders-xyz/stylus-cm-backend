@@ -217,9 +217,10 @@ describe('AutomationOrchestratorService', () => {
         activationAutomationEnabled: true,
       });
       mockBlockchainRepository.find.mockResolvedValue([blockchain]);
-      mockActivationSelectionService.selectOptimalActivations.mockResolvedValue(
+      mockActivationSelectionService.selectOptimalActivations.mockResolvedValue({
         selectedContracts,
-      );
+        maxActivationsPerIteration: 5,
+      });
       mockBatchProcessorService.processActivationBatches.mockResolvedValue(
         batchResult,
       );
@@ -234,7 +235,7 @@ describe('AutomationOrchestratorService', () => {
       ).toHaveBeenCalledWith(blockchain);
       expect(
         mockBatchProcessorService.processActivationBatches,
-      ).toHaveBeenCalledWith(blockchain, selectedContracts);
+      ).toHaveBeenCalledWith(blockchain, selectedContracts, 5);
     });
   });
 });

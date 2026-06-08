@@ -57,6 +57,7 @@ export class ActivationService {
       contract.activationStatus = 'active';
       contract.lastActivationBlockNumber = event.blockNumber;
       contract.lastActivationTimestamp = event.blockTimestamp;
+      contract.activationRetryCount = 0;
       await this.contractRepository.save(contract);
 
       this.logger.log(
@@ -109,6 +110,7 @@ export class ActivationService {
 
       if (contract) {
         contract.activationStatus = 'error';
+        contract.activationRetryCount = (contract.activationRetryCount || 0) + 1;
         await this.contractRepository.save(contract);
       }
     } catch (error) {
