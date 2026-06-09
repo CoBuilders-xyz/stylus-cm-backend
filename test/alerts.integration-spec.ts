@@ -20,11 +20,18 @@ const L2_OWNER_PK = process.env.L2_OWNER_PK!;
 const CMA_ADDRESS = process.env.CMA_ADDRESS!;
 const CACHE_MANAGER_ADDRESS = process.env.CACHE_MANAGER_ADDRESS!;
 const MULTIPASS_VM_NAME = process.env.MULTIPASS_VM_NAME!;
+const WEBHOOK_URL = process.env.WEBHOOK_URL;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 const EVENT_WAIT_TIMEOUT = 60_000;
 const EVENT_POLL_INTERVAL = 2_000;
 const AUTOMATION_TIMEOUT = 180_000;
 const ALERT_TRIGGER_TIMEOUT = 90_000;
+
+const channelFlags = {
+  webhookChannelEnabled: !!WEBHOOK_URL,
+  telegramChannelEnabled: !!TELEGRAM_CHAT_ID,
+};
 
 describe('Alerts Integration Tests', () => {
   let api: TestClient;
@@ -63,6 +70,22 @@ describe('Alerts Integration Tests', () => {
 
     await api.authenticate(FUNDED_ADDRESS, FUNDED_PK);
     console.log('Authenticated with backend');
+
+    // Configure notification channels if env vars are set
+    if (WEBHOOK_URL) {
+      await api.patch('/users/alerts-settings/webhook', {
+        enabled: true,
+        destination: WEBHOOK_URL,
+      });
+      console.log(`Webhook notifications enabled: ${WEBHOOK_URL}`);
+    }
+    if (TELEGRAM_CHAT_ID) {
+      await api.patch('/users/alerts-settings/telegram', {
+        enabled: true,
+        destination: TELEGRAM_CHAT_ID,
+      });
+      console.log(`Telegram notifications enabled: chatId=${TELEGRAM_CHAT_ID}`);
+    }
 
     blockchainId = await api.getLocalBlockchainId();
     console.log(`Local blockchain ID: ${blockchainId}`);
@@ -146,6 +169,7 @@ describe('Alerts Integration Tests', () => {
       type: 'eviction',
       isActive: true,
       userContractId: userContractId1,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -177,6 +201,7 @@ describe('Alerts Integration Tests', () => {
       value: 50,
       isActive: true,
       userContractId: userContractId1,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -196,6 +221,7 @@ describe('Alerts Integration Tests', () => {
       value: 30,
       isActive: true,
       userContractId: userContractId1,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -241,12 +267,14 @@ describe('Alerts Integration Tests', () => {
       type: 'eviction',
       isActive: false,
       userContractId: userContractId1,
+      ...channelFlags,
     });
     await api.post('/alerts', {
       type: 'bidSafety',
       value: 30,
       isActive: false,
       userContractId: userContractId1,
+      ...channelFlags,
     });
 
     const alert1 = await db.getAlertById(evictionAlertId1);
@@ -288,6 +316,7 @@ describe('Alerts Integration Tests', () => {
       value: 50,
       isActive: true,
       userContractId: userContractId2,
+      ...channelFlags,
     });
 
     expect(data.id).toBeDefined();
@@ -330,6 +359,7 @@ describe('Alerts Integration Tests', () => {
       value: 50,
       isActive: false,
       userContractId: userContractId2,
+      ...channelFlags,
     });
 
     const deactivated = await db.getAlertById(bidSafetyAlertId2);
@@ -356,6 +386,7 @@ describe('Alerts Integration Tests', () => {
       type: 'eviction',
       isActive: true,
       userContractId: userContractId2,
+      ...channelFlags,
     });
 
     expect(data.id).toBeDefined();
@@ -454,6 +485,7 @@ describe('Alerts Integration Tests', () => {
       type: 'noGas',
       isActive: true,
       userContractId: userContractId1,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -472,6 +504,7 @@ describe('Alerts Integration Tests', () => {
       value: 10,
       isActive: true,
       userContractId: userContractId1,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -519,6 +552,7 @@ describe('Alerts Integration Tests', () => {
       value: 10,
       isActive: false,
       userContractId: userContractId1,
+      ...channelFlags,
     });
 
     const alert = await db.getAlertById(lowGasAlertId);
@@ -572,6 +606,7 @@ describe('Alerts Integration Tests', () => {
       type: 'noGas',
       isActive: false,
       userContractId: userContractId1,
+      ...channelFlags,
     });
 
     const deactivated = await db.getAlertById(noGasAlertId);
@@ -665,6 +700,7 @@ describe('Alerts Integration Tests', () => {
       value: 1, // 1 day threshold
       isActive: true,
       userContractId: activationUserContractId,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -681,6 +717,7 @@ describe('Alerts Integration Tests', () => {
       type: 'expired',
       isActive: true,
       userContractId: activationUserContractId,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -694,6 +731,7 @@ describe('Alerts Integration Tests', () => {
       type: 'reactivationSucceeded',
       isActive: true,
       userContractId: activationUserContractId,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -709,6 +747,7 @@ describe('Alerts Integration Tests', () => {
       type: 'reactivationFailed',
       isActive: true,
       userContractId: activationUserContractId,
+      ...channelFlags,
     });
 
     expect(status).toBe(201);
@@ -752,6 +791,7 @@ describe('Alerts Integration Tests', () => {
       value: 1,
       isActive: false,
       userContractId: activationUserContractId,
+      ...channelFlags,
     });
     const alert = await db.getAlertById(approachingExpirationAlertId);
     expect(alert.isActive).toBe(false);
@@ -836,6 +876,7 @@ describe('Alerts Integration Tests', () => {
       type: 'expired',
       isActive: false,
       userContractId: activationUserContractId,
+      ...channelFlags,
     });
     const alert = await db.getAlertById(expiredAlertId);
     expect(alert.isActive).toBe(false);

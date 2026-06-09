@@ -134,6 +134,14 @@ export class TelegramNotificationService {
         return '🔋';
       case AlertType.BID_SAFETY:
         return '🔒';
+      case AlertType.APPROACHING_EXPIRATION:
+        return '⏳';
+      case AlertType.EXPIRED:
+        return '💀';
+      case AlertType.REACTIVATION_SUCCEEDED:
+        return '✅';
+      case AlertType.REACTIVATION_FAILED:
+        return '❌';
       default:
         return '🚨';
     }
@@ -169,6 +177,18 @@ export class TelegramNotificationService {
           message += `Details: ${value}\n`;
         }
         break;
+      case AlertType.APPROACHING_EXPIRATION:
+        message += `Your contract *${contractName}* is approaching its activation expiry (${value} day threshold). Consider re-activating soon.\n`;
+        break;
+      case AlertType.EXPIRED:
+        message += `Your contract *${contractName}* activation has expired. The program must be re-activated to continue running.\n`;
+        break;
+      case AlertType.REACTIVATION_SUCCEEDED:
+        message += `Your contract *${contractName}* has been successfully re-activated.\n`;
+        break;
+      case AlertType.REACTIVATION_FAILED:
+        message += `Re-activation failed for contract *${contractName}*. Manual intervention may be required.\n`;
+        break;
       default:
         message += `System alert for contract *${contractName}*.\n`;
         if (value) {
@@ -195,6 +215,14 @@ export class TelegramNotificationService {
         return 'Low Gas';
       case AlertType.BID_SAFETY:
         return 'Bid Safety Issue';
+      case AlertType.APPROACHING_EXPIRATION:
+        return 'Approaching Expiration';
+      case AlertType.EXPIRED:
+        return 'Program Expired';
+      case AlertType.REACTIVATION_SUCCEEDED:
+        return 'Re-activation Succeeded';
+      case AlertType.REACTIVATION_FAILED:
+        return 'Re-activation Failed';
       default:
         return 'System Alert';
     }

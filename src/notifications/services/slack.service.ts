@@ -124,6 +124,14 @@ export class SlackNotificationService {
         return 'Low Gas';
       case AlertType.BID_SAFETY:
         return 'Bid Safety Issue';
+      case AlertType.APPROACHING_EXPIRATION:
+        return 'Approaching Expiration';
+      case AlertType.EXPIRED:
+        return 'Program Expired';
+      case AlertType.REACTIVATION_SUCCEEDED:
+        return 'Re-activation Succeeded';
+      case AlertType.REACTIVATION_FAILED:
+        return 'Re-activation Failed';
       default:
         return 'System Alert';
     }
@@ -153,6 +161,18 @@ export class SlackNotificationService {
 
       case AlertType.BID_SAFETY:
         return `Bid safety issue detected for contract *${contractName}* (${shortAddress}). ${value ? `Details: ${value}` : ''}`;
+
+      case AlertType.APPROACHING_EXPIRATION:
+        return `Your contract *${contractName}* (${shortAddress}) is approaching its activation expiry (${value} day threshold). Consider re-activating soon.`;
+
+      case AlertType.EXPIRED:
+        return `Your contract *${contractName}* (${shortAddress}) activation has expired. The program must be re-activated to continue running.`;
+
+      case AlertType.REACTIVATION_SUCCEEDED:
+        return `Your contract *${contractName}* (${shortAddress}) has been successfully re-activated.`;
+
+      case AlertType.REACTIVATION_FAILED:
+        return `Re-activation failed for contract *${contractName}* (${shortAddress}). Manual intervention may be required.`;
 
       default:
         return `System alert for contract *${contractName}* (${shortAddress}). ${value ? `Details: ${value}` : ''}`;
