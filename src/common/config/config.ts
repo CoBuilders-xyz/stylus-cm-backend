@@ -36,7 +36,9 @@ export default () => ({
       rpcWssUrl: process.env.ARB_LOCAL_RPC_WSS,
       fastSyncRpcUrl: process.env.ARB_LOCAL_FAST_SYNC_RPC,
       chainId: 412346,
-      cacheManagerAddress: '0x0f1f89aaf1c6fdb7ff9d361e4388f5f3997f12a8',
+      cacheManagerAddress:
+        process.env.ARB_LOCAL_CACHE_MANAGER_ADDRESS ||
+        '0x0f1f89aaf1c6fdb7ff9d361e4388f5f3997f12a8',
       arbWasmCacheAddress: '0x0000000000000000000000000000000000000072',
       arbWasmAddress: '0x0000000000000000000000000000000000000071',
       cacheManagerAutomationAddress:

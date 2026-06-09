@@ -2,10 +2,9 @@ import { execSync } from 'child_process';
 import * as path from 'path';
 import { ChainClient } from './chain-client';
 
-const SCRIPT_PATH = path.resolve(
-  __dirname,
-  '../../../../scripts/multipass-testnode.sh',
-);
+const SCRIPT_PATH = process.env.TESTNODE_SCRIPT
+  ? path.resolve(process.env.TESTNODE_SCRIPT)
+  : path.resolve(__dirname, '../../../../scripts/devnode.sh');
 
 /**
  * Check if the multipass VM is reachable.
