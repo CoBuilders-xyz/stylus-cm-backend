@@ -131,4 +131,64 @@ export class AlertConditionEvaluatorService {
       throw error;
     }
   }
+
+  /**
+   * Evaluate expiration condition for approachingExpiration / expired alerts.
+   * Reads programTimeLeft from ArbWasm precompile.
+   * Returns true if the alert should be triggered.
+   */
+  async evaluateExpirationCondition(
+    alert: Alert,
+    blockchain: Blockchain,
+  ): Promise<boolean> {
+    try {
+      const arbWasm = this.providerManager.getContract(
+        blockchain,
+        ContractType.ARB_WASM,
+      );
+
+      let timeLeft: bigint;
+      try {
+        timeLeft = await arbWasm.programTimeLeft(alert.userContract.address);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.includes('ProgramExpired') || msg.includes('0xc9b12e52')) {
+          timeLeft = 0n;
+        } else if (msg.includes('ProgramNotActivated')) {
+          this.logger.debug(
+            `Program ${alert.userContract.address} not activated, skipping alert ${alert.id}`,
+          );
+          return false;
+        } else {
+          throw error;
+        }
+      }
+
+      let shouldTrigger: boolean;
+
+      if (alert.type === AlertType.APPROACHING_EXPIRATION) {
+        const thresholdSeconds = BigInt(alert.value) * 86400n;
+        shouldTrigger = timeLeft > 0n && timeLeft < thresholdSeconds;
+        this.logger.debug(
+          `approachingExpiration evaluation for alert ${alert.id}: timeLeft=${timeLeft}s, threshold=${thresholdSeconds}s, shouldTrigger=${shouldTrigger}`,
+        );
+      } else {
+        // expired
+        shouldTrigger = timeLeft <= 0n;
+        this.logger.debug(
+          `expired evaluation for alert ${alert.id}: timeLeft=${timeLeft}s, shouldTrigger=${shouldTrigger}`,
+        );
+      }
+
+      return shouldTrigger;
+    } catch (error) {
+      this.logger.error(
+        `Error evaluating expiration condition for alert ${alert.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
+    }
+  }
 }

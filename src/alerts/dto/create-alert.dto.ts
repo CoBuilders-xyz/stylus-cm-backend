@@ -18,14 +18,20 @@ export class CreateAlertDto {
 
   @ValidateIf(
     (o: CreateAlertDto) =>
-      o.type === AlertType.BID_SAFETY || o.type === AlertType.LOW_GAS,
+      o.type === AlertType.BID_SAFETY ||
+      o.type === AlertType.LOW_GAS ||
+      o.type === AlertType.APPROACHING_EXPIRATION,
   )
   @IsNotEmpty({
-    message: 'Value is required when alert type is bidSafety or lowGas',
+    message:
+      'Value is required when alert type is bidSafety, lowGas, or approachingExpiration',
   })
   @IsNumber(
     {},
-    { message: 'Value must be a number when alert type is bidSafety or lowGas' },
+    {
+      message:
+        'Value must be a number when alert type is bidSafety, lowGas, or approachingExpiration',
+    },
   )
   @IsPositive({ message: 'Value must be positive' })
   value: string; // validated as number saved as string for more generic values

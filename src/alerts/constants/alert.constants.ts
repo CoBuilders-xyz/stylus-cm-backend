@@ -7,6 +7,10 @@ export enum AlertType {
   NO_GAS = 'noGas',
   LOW_GAS = 'lowGas',
   BID_SAFETY = 'bidSafety',
+  APPROACHING_EXPIRATION = 'approachingExpiration',
+  EXPIRED = 'expired',
+  REACTIVATION_SUCCEEDED = 'reactivationSucceeded',
+  REACTIVATION_FAILED = 'reactivationFailed',
 }
 
 /**
@@ -27,6 +31,8 @@ export const ALERT_THRESHOLDS = {
   MAX_BID_SAFETY_VALUE: 100, // 100% maximum safety margin
   MIN_LOW_GAS_VALUE: 0.0001, // minimum threshold in ETH
   MAX_LOW_GAS_VALUE: 100, // maximum threshold in ETH
+  MIN_APPROACHING_EXPIRATION_VALUE: 1, // 1 day minimum
+  MAX_APPROACHING_EXPIRATION_VALUE: 365, // 1 year maximum
   ALERT_COOLDOWN_MINUTES: 5, // Minimum time between alerts for same condition
   MAX_TRIGGERED_COUNT: 1000, // Maximum times an alert can be triggered
 } as const;
@@ -69,6 +75,10 @@ export const ALERT_TYPE_PRIORITY: Record<AlertType, AlertPriority> = {
   [AlertType.NO_GAS]: AlertPriority.HIGH,
   [AlertType.LOW_GAS]: AlertPriority.MEDIUM,
   [AlertType.BID_SAFETY]: AlertPriority.HIGH,
+  [AlertType.APPROACHING_EXPIRATION]: AlertPriority.MEDIUM,
+  [AlertType.EXPIRED]: AlertPriority.CRITICAL,
+  [AlertType.REACTIVATION_SUCCEEDED]: AlertPriority.LOW,
+  [AlertType.REACTIVATION_FAILED]: AlertPriority.HIGH,
 } as const;
 
 /**

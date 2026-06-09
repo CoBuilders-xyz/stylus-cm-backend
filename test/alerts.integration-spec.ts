@@ -4,7 +4,13 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '.env.integration') });
 
 import { ethers } from 'ethers';
-import { TestClient, waitForCondition, ChainClient, DbClient } from './utils';
+import {
+  TestClient,
+  waitForCondition,
+  ChainClient,
+  DbClient,
+  advanceVmTime,
+} from './utils';
 
 const BACKEND_URL = process.env.BACKEND_URL!;
 const RPC_URL = process.env.RPC_URL!;
@@ -13,6 +19,7 @@ const FUNDED_ADDRESS = process.env.FUNDED_ADDRESS!;
 const L2_OWNER_PK = process.env.L2_OWNER_PK!;
 const CMA_ADDRESS = process.env.CMA_ADDRESS!;
 const CACHE_MANAGER_ADDRESS = process.env.CACHE_MANAGER_ADDRESS!;
+const MULTIPASS_VM_NAME = process.env.MULTIPASS_VM_NAME!;
 
 const EVENT_WAIT_TIMEOUT = 60_000;
 const EVENT_POLL_INTERVAL = 2_000;
@@ -579,4 +586,270 @@ describe('Alerts Integration Tests', () => {
       `Deactivated noGas alert not re-triggered (count stayed at ${countBefore})`,
     );
   }, 100_000);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Part 5: Activation Lifecycle Alerts
+  // ═══════════════════════════════════════════════════════════════════════
+
+  let activationContract: string;
+  let activationUserContractId: string;
+  let approachingExpirationAlertId: string;
+  let expiredAlertId: string;
+  let reactivationSucceededAlertId: string;
+  let reactivationFailedAlertId: string;
+
+  it(
+    'should setup activation test: deploy, activate, register with autoActivate',
+    async () => {
+      // Set short expiry: 1 day, no keepalive protection
+      console.log('Setting WasmExpiryDays=1, WasmKeepaliveDays=0...');
+      await chain.setWasmExpiryDays(1);
+      await chain.setWasmKeepaliveDays(0);
+
+      // Deploy and activate a fresh WASM contract
+      console.log('Deploying 1 WASM contract for activation alerts...');
+      const addresses = chain.deployDummyWASM(1);
+      activationContract = addresses[0];
+      console.log(`Deployed activationContract=${activationContract}`);
+
+      console.log('Activating program via ArbWasm...');
+      await chain.activateProgram(activationContract);
+
+      const timeLeft = await chain.programTimeLeft(activationContract);
+      console.log(`programTimeLeft = ${timeLeft}s`);
+      expect(timeLeft).toBeGreaterThan(0n);
+
+      // Register in backend
+      const resp = await api.post('/user-contracts', {
+        address: activationContract,
+        blockchainId,
+      });
+      activationUserContractId = resp.data.id;
+      console.log(
+        `Registered activationContract userContractId=${activationUserContractId}`,
+      );
+
+      // Register in CMA with autoActivate=true and fund escrow for re-activation
+      await chain.insertContract(CMA_ADDRESS, activationContract, {
+        maxBid: ethers.parseEther('0.001'),
+        enabled: true,
+        autoActivate: true,
+        maxActivationCost: ethers.parseEther('0.1'),
+        funding: ethers.parseEther('0.2'),
+      });
+      console.log(
+        'Registered in CMA with autoActivate=true, funded escrow',
+      );
+    },
+    120_000,
+  );
+
+  // --- CRUD ---
+
+  it('should reject approachingExpiration alert without value', async () => {
+    try {
+      await api.post('/alerts', {
+        type: 'approachingExpiration',
+        isActive: true,
+        userContractId: activationUserContractId,
+      });
+      fail('Expected 400 error for approachingExpiration without value');
+    } catch (error: any) {
+      expect(error.response?.status).toBe(400);
+    }
+  });
+
+  it('should create approachingExpiration alert', async () => {
+    const { data, status } = await api.post('/alerts', {
+      type: 'approachingExpiration',
+      value: 1, // 1 day threshold
+      isActive: true,
+      userContractId: activationUserContractId,
+    });
+
+    expect(status).toBe(201);
+    expect(data.type).toBe('approachingExpiration');
+    expect(Number(data.value)).toBe(1);
+    approachingExpirationAlertId = data.id;
+    console.log(
+      `Created approachingExpiration alert: ${approachingExpirationAlertId}`,
+    );
+  });
+
+  it('should create expired alert', async () => {
+    const { data, status } = await api.post('/alerts', {
+      type: 'expired',
+      isActive: true,
+      userContractId: activationUserContractId,
+    });
+
+    expect(status).toBe(201);
+    expect(data.type).toBe('expired');
+    expiredAlertId = data.id;
+    console.log(`Created expired alert: ${expiredAlertId}`);
+  });
+
+  it('should create reactivationSucceeded alert', async () => {
+    const { data, status } = await api.post('/alerts', {
+      type: 'reactivationSucceeded',
+      isActive: true,
+      userContractId: activationUserContractId,
+    });
+
+    expect(status).toBe(201);
+    expect(data.type).toBe('reactivationSucceeded');
+    reactivationSucceededAlertId = data.id;
+    console.log(
+      `Created reactivationSucceeded alert: ${reactivationSucceededAlertId}`,
+    );
+  });
+
+  it('should create reactivationFailed alert', async () => {
+    const { data, status } = await api.post('/alerts', {
+      type: 'reactivationFailed',
+      isActive: true,
+      userContractId: activationUserContractId,
+    });
+
+    expect(status).toBe(201);
+    expect(data.type).toBe('reactivationFailed');
+    reactivationFailedAlertId = data.id;
+    console.log(
+      `Created reactivationFailed alert: ${reactivationFailedAlertId}`,
+    );
+  });
+
+  // --- Trigger: approachingExpiration ---
+  // Program was activated with 1-day expiry, threshold is 1 day.
+  // As soon as any seconds tick, timeLeft < 86400 → triggers.
+
+  it(
+    'should trigger approachingExpiration alert via cron',
+    async () => {
+      await waitForCondition(
+        async () => {
+          const alert = await db.getAlertById(approachingExpirationAlertId);
+          return alert && alert.triggeredCount > 0;
+        },
+        ALERT_TRIGGER_TIMEOUT,
+        5_000,
+        'approachingExpiration triggeredCount > 0',
+      );
+
+      const alert = await db.getAlertById(approachingExpirationAlertId);
+      expect(alert.triggeredCount).toBeGreaterThan(0);
+      expect(alert.lastTriggered).toBeDefined();
+      console.log(
+        `approachingExpiration alert triggered: count=${alert.triggeredCount}`,
+      );
+    },
+    ALERT_TRIGGER_TIMEOUT + 10_000,
+  );
+
+  it('should deactivate approachingExpiration alert before time advance', async () => {
+    await api.post('/alerts', {
+      type: 'approachingExpiration',
+      value: 1,
+      isActive: false,
+      userContractId: activationUserContractId,
+    });
+    const alert = await db.getAlertById(approachingExpirationAlertId);
+    expect(alert.isActive).toBe(false);
+    console.log('approachingExpiration alert deactivated');
+  });
+
+  // --- Time advance to expire the program ---
+
+  it(
+    'should advance VM time by 25 hours to expire the program',
+    async () => {
+      console.log('Advancing VM time by 25 hours...');
+      await advanceVmTime(MULTIPASS_VM_NAME, 25, chain);
+      console.log('VM time advanced');
+
+      const timeLeft = await chain.programTimeLeft(activationContract);
+      console.log(`programTimeLeft after advance = ${timeLeft}s`);
+      expect(timeLeft).toBeLessThanOrEqual(0n);
+    },
+    60_000,
+  );
+
+  // --- Trigger: expired ---
+
+  it(
+    'should trigger expired alert after program expiry',
+    async () => {
+      await waitForCondition(
+        async () => {
+          const alert = await db.getAlertById(expiredAlertId);
+          return alert && alert.triggeredCount > 0;
+        },
+        ALERT_TRIGGER_TIMEOUT,
+        5_000,
+        'expired alert triggeredCount > 0',
+      );
+
+      const alert = await db.getAlertById(expiredAlertId);
+      expect(alert.triggeredCount).toBeGreaterThan(0);
+      expect(alert.lastTriggered).toBeDefined();
+      console.log(`expired alert triggered: count=${alert.triggeredCount}`);
+    },
+    ALERT_TRIGGER_TIMEOUT + 10_000,
+  );
+
+  // --- Trigger: reactivationSucceeded ---
+  // CMA automation should detect expired autoActivate=true contract and re-activate.
+  // This emits ActivationPerformed which triggers the alert.
+
+  it(
+    'should trigger reactivationSucceeded after CMA re-activates',
+    async () => {
+      await waitForCondition(
+        async () => {
+          const alert = await db.getAlertById(reactivationSucceededAlertId);
+          return alert && alert.triggeredCount > 0;
+        },
+        AUTOMATION_TIMEOUT,
+        5_000,
+        'reactivationSucceeded triggeredCount > 0',
+      );
+
+      const alert = await db.getAlertById(reactivationSucceededAlertId);
+      expect(alert.triggeredCount).toBeGreaterThan(0);
+      expect(alert.lastTriggered).toBeDefined();
+      console.log(
+        `reactivationSucceeded alert triggered: count=${alert.triggeredCount}`,
+      );
+
+      // Verify program is active again
+      const timeLeft = await chain.programTimeLeft(activationContract);
+      console.log(`programTimeLeft after re-activation = ${timeLeft}s`);
+      expect(timeLeft).toBeGreaterThan(0n);
+    },
+    AUTOMATION_TIMEOUT + 30_000,
+  );
+
+  // --- Negative: deactivated expired alert should not re-trigger ---
+
+  it('should deactivate expired alert', async () => {
+    await api.post('/alerts', {
+      type: 'expired',
+      isActive: false,
+      userContractId: activationUserContractId,
+    });
+    const alert = await db.getAlertById(expiredAlertId);
+    expect(alert.isActive).toBe(false);
+    console.log('expired alert deactivated');
+  });
+
+  it('should verify reactivationFailed alert exists but was not triggered', async () => {
+    const alert = await db.getAlertById(reactivationFailedAlertId);
+    expect(alert).toBeDefined();
+    expect(alert.type).toBe('reactivationFailed');
+    expect(alert.isActive).toBe(true);
+    expect(alert.triggeredCount).toBe(0);
+    console.log(
+      'reactivationFailed alert exists, not triggered (no ActivationError occurred)',
+    );
+  });
 });

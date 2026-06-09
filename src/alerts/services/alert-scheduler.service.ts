@@ -122,6 +122,9 @@ export class AlertSchedulerService {
 
       // Process noGas and lowGas alerts
       await this.processGasAlerts(blockchain);
+
+      // Process approachingExpiration and expired alerts
+      await this.processExpirationAlerts(blockchain);
     } catch (error) {
       this.logger.error(
         `Error checking real-time alerts for blockchain ${blockchain.id}: ${
@@ -186,6 +189,66 @@ export class AlertSchedulerService {
     if (triggeredCount > 0) {
       this.logger.log(
         `Triggered ${triggeredCount}/${gasAlerts.length} gas alerts for blockchain ${blockchain.id}`,
+      );
+    }
+  }
+
+  /**
+   * Process approachingExpiration and expired alerts for a blockchain.
+   * Reads programTimeLeft from ArbWasm for each alert's contract.
+   */
+  private async processExpirationAlerts(
+    blockchain: Blockchain,
+  ): Promise<void> {
+    const expirationAlerts = await this.alertsRepository.find({
+      where: {
+        type: In([AlertType.APPROACHING_EXPIRATION, AlertType.EXPIRED]),
+        isActive: true,
+        userContract: {
+          blockchain: { id: blockchain.id },
+        },
+      },
+      relations: ['userContract', 'userContract.blockchain'],
+    });
+
+    if (expirationAlerts.length === 0) {
+      return;
+    }
+
+    this.logger.log(
+      `Found ${expirationAlerts.length} active expiration alerts for blockchain ${blockchain.id}`,
+    );
+
+    let triggeredCount = 0;
+
+    for (const alert of expirationAlerts) {
+      try {
+        const shouldTrigger =
+          await this.alertConditionEvaluator.evaluateExpirationCondition(
+            alert,
+            blockchain,
+          );
+
+        if (shouldTrigger) {
+          await this.alertsQueue.add('alert-triggered', {
+            alertId: alert.id,
+          });
+          triggeredCount++;
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error processing expiration alert ${alert.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        continue;
+      }
+    }
+
+    if (triggeredCount > 0) {
+      this.logger.log(
+        `Triggered ${triggeredCount}/${expirationAlerts.length} expiration alerts for blockchain ${blockchain.id}`,
       );
     }
   }

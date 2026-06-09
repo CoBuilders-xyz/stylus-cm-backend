@@ -7,6 +7,10 @@ export enum AlertType {
   NO_GAS = 'noGas',
   LOW_GAS = 'lowGas',
   BID_SAFETY = 'bidSafety',
+  APPROACHING_EXPIRATION = 'approachingExpiration',
+  EXPIRED = 'expired',
+  REACTIVATION_SUCCEEDED = 'reactivationSucceeded',
+  REACTIVATION_FAILED = 'reactivationFailed',
 }
 
 @Entity()

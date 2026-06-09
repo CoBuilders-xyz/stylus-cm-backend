@@ -284,4 +284,165 @@ describe('AlertConditionEvaluatorService', () => {
       ).rejects.toThrow('RPC error');
     });
   });
+
+  describe('evaluateExpirationCondition', () => {
+    const createExpirationAlert = (
+      type: AlertType.APPROACHING_EXPIRATION | AlertType.EXPIRED,
+      value?: string,
+    ): Alert =>
+      ({
+        id: 'exp-alert-1',
+        type,
+        value,
+        userContract: {
+          address: '0xProgram0000000000000000000000000000000000',
+        },
+      }) as unknown as Alert;
+
+    it('should trigger approachingExpiration when 0 < timeLeft < threshold', async () => {
+      const alert = createExpirationAlert(
+        AlertType.APPROACHING_EXPIRATION,
+        '7',
+      ); // 7 days
+      const blockchain = createMockBlockchain();
+      // 3 days left = 259200 seconds (< 7 days = 604800 seconds)
+      const mockArbWasm = {
+        programTimeLeft: jest.fn().mockResolvedValue(259200n),
+      };
+
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should NOT trigger approachingExpiration when timeLeft >= threshold', async () => {
+      const alert = createExpirationAlert(
+        AlertType.APPROACHING_EXPIRATION,
+        '7',
+      );
+      const blockchain = createMockBlockchain();
+      // 10 days left = 864000 seconds (> 7 days)
+      const mockArbWasm = {
+        programTimeLeft: jest.fn().mockResolvedValue(864000n),
+      };
+
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should NOT trigger approachingExpiration when program is expired', async () => {
+      const alert = createExpirationAlert(
+        AlertType.APPROACHING_EXPIRATION,
+        '7',
+      );
+      const blockchain = createMockBlockchain();
+      const mockArbWasm = {
+        programTimeLeft: jest
+          .fn()
+          .mockRejectedValue(new Error('ProgramExpired')),
+      };
+
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      // timeLeft=0, condition is timeLeft > 0 && timeLeft < threshold → false
+      expect(result).toBe(false);
+    });
+
+    it('should trigger expired when timeLeft is zero', async () => {
+      const alert = createExpirationAlert(AlertType.EXPIRED);
+      const blockchain = createMockBlockchain();
+      const mockArbWasm = {
+        programTimeLeft: jest.fn().mockResolvedValue(0n),
+      };
+
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should trigger expired on ProgramExpired revert', async () => {
+      const alert = createExpirationAlert(AlertType.EXPIRED);
+      const blockchain = createMockBlockchain();
+      const mockArbWasm = {
+        programTimeLeft: jest
+          .fn()
+          .mockRejectedValue(new Error('ProgramExpired')),
+      };
+
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should NOT trigger expired when timeLeft > 0', async () => {
+      const alert = createExpirationAlert(AlertType.EXPIRED);
+      const blockchain = createMockBlockchain();
+      const mockArbWasm = {
+        programTimeLeft: jest.fn().mockResolvedValue(86400n),
+      };
+
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return false for ProgramNotActivated', async () => {
+      const alert = createExpirationAlert(AlertType.EXPIRED);
+      const blockchain = createMockBlockchain();
+      const mockArbWasm = {
+        programTimeLeft: jest
+          .fn()
+          .mockRejectedValue(new Error('ProgramNotActivated')),
+      };
+
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should propagate unexpected errors', async () => {
+      const alert = createExpirationAlert(AlertType.EXPIRED);
+      const blockchain = createMockBlockchain();
+      const mockArbWasm = {
+        programTimeLeft: jest
+          .fn()
+          .mockRejectedValue(new Error('Network timeout')),
+      };
+
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+
+      await expect(
+        service.evaluateExpirationCondition(alert, blockchain),
+      ).rejects.toThrow('Network timeout');
+    });
+  });
 });
