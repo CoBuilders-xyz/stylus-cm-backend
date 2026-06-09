@@ -32,10 +32,14 @@ export class AlertConditionEvaluatorService {
         ContractType.CACHE_MANAGER,
       );
 
-      // Get minimum bid for the contract
-      const minBid = (await cacheManagerInstance['getMinBid(address program)'](
-        alert.userContract.address,
-      )) as bigint;
+      // getMinBid(address) returns 0 for already-cached programs, so instead
+      // use getSmallestEntries(1) to fetch only the single lowest-bid entry.
+      // This is O(n) on-chain but returns minimal data, unlike getEntries()
+      // which can OOM on large caches.
+      const smallest: Array<{ code: string; size: bigint; bid: bigint }> =
+        await cacheManagerInstance.getSmallestEntries(1);
+
+      const minBid = smallest.length > 0 ? BigInt(smallest[0].bid) : 0n;
 
       // Calculate current effective bid
       const effectiveBid = BigInt(
