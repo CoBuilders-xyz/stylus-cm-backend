@@ -25,6 +25,8 @@ export const ALERT_THRESHOLDS = {
   BID_SAFETY_BASE_PERCENTAGE: 10000, // 100% in basis points (for BigInt precision)
   MIN_BID_SAFETY_VALUE: 1, // 1% minimum safety margin
   MAX_BID_SAFETY_VALUE: 100, // 100% maximum safety margin
+  MIN_LOW_GAS_VALUE: 0.0001, // minimum threshold in ETH
+  MAX_LOW_GAS_VALUE: 100, // maximum threshold in ETH
   ALERT_COOLDOWN_MINUTES: 5, // Minimum time between alerts for same condition
   MAX_TRIGGERED_COUNT: 1000, // Maximum times an alert can be triggered
 } as const;

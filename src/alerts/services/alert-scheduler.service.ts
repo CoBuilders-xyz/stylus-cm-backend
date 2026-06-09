@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Alert } from '../entities/alert.entity';
@@ -119,12 +119,73 @@ export class AlertSchedulerService {
           `Triggered ${triggeredCount}/${bidSafetyAlerts.length} bid safety alerts for blockchain ${blockchain.id}`,
         );
       }
+
+      // Process noGas and lowGas alerts
+      await this.processGasAlerts(blockchain);
     } catch (error) {
       this.logger.error(
         `Error checking real-time alerts for blockchain ${blockchain.id}: ${
           error instanceof Error ? error.message : String(error)
         }`,
         error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  /**
+   * Process noGas and lowGas alerts for a blockchain.
+   * Groups alerts by user to minimize on-chain reads.
+   */
+  private async processGasAlerts(blockchain: Blockchain): Promise<void> {
+    const gasAlerts = await this.alertsRepository.find({
+      where: {
+        type: In([AlertType.NO_GAS, AlertType.LOW_GAS]),
+        isActive: true,
+        userContract: {
+          blockchain: { id: blockchain.id },
+        },
+      },
+      relations: ['user', 'userContract', 'userContract.blockchain'],
+    });
+
+    if (gasAlerts.length === 0) {
+      return;
+    }
+
+    this.logger.log(
+      `Found ${gasAlerts.length} active gas alerts for blockchain ${blockchain.id}`,
+    );
+
+    let triggeredCount = 0;
+
+    for (const alert of gasAlerts) {
+      try {
+        const shouldTrigger =
+          await this.alertConditionEvaluator.evaluateGasCondition(
+            alert,
+            blockchain,
+          );
+
+        if (shouldTrigger) {
+          await this.alertsQueue.add('alert-triggered', {
+            alertId: alert.id,
+          });
+          triggeredCount++;
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error processing gas alert ${alert.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        continue;
+      }
+    }
+
+    if (triggeredCount > 0) {
+      this.logger.log(
+        `Triggered ${triggeredCount}/${gasAlerts.length} gas alerts for blockchain ${blockchain.id}`,
       );
     }
   }

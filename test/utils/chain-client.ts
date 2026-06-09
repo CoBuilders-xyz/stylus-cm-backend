@@ -307,6 +307,32 @@ export class ChainClient {
   }
 
   /**
+   * Get the user's CMA escrow balance.
+   * Uses a static call to depositsOf(walletAddress) on the BiddingEscrow contract.
+   */
+  async getUserBalance(cmaAddress: string): Promise<bigint> {
+    const cma = this.getCMAContract(cmaAddress);
+    const escrowAddress: string = await cma.escrow();
+    const escrow = new Contract(
+      escrowAddress,
+      ['function depositsOf(address) view returns (uint256)'],
+      this.provider,
+    );
+    return BigInt((await escrow.depositsOf(this.wallet.address)) as string);
+  }
+
+  /**
+   * Withdraw all CMA escrow balance, draining it to zero.
+   */
+  async withdrawBalance(
+    cmaAddress: string,
+  ): Promise<ethers.TransactionReceipt> {
+    const cma = this.getCMAContract(cmaAddress, this.freshFundedWallet());
+    const tx = await cma.withdrawBalance();
+    return (await tx.wait())!;
+  }
+
+  /**
    * Deploy dummy WASM contracts by calling the deployment script
    * in the contracts repo.
    */

@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { ethers } from 'ethers';
 import { ContractBidCalculatorService } from 'src/contracts/services/contract-bid-calculator.service';
 import { ContractType, ProviderManager } from 'src/common/utils/provider.util';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { Alert } from '../entities/alert.entity';
 import { createModuleLogger } from 'src/common/utils/logger.util';
-import { MODULE_NAME, ALERT_THRESHOLDS } from '../constants';
+import { MODULE_NAME, ALERT_THRESHOLDS, AlertType } from '../constants';
+
+const ESCROW_ABI = ['function depositsOf(address) view returns (uint256)'];
 
 @Injectable()
 export class AlertConditionEvaluatorService {
@@ -66,6 +69,61 @@ export class AlertConditionEvaluatorService {
     } catch (error) {
       this.logger.error(
         `Error evaluating bid safety condition for alert ${alert.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Evaluate gas condition for noGas / lowGas alerts.
+   * Reads the user's CMA escrow balance via depositsOf(userAddress).
+   * Returns true if the alert should be triggered.
+   */
+  async evaluateGasCondition(
+    alert: Alert,
+    blockchain: Blockchain,
+  ): Promise<boolean> {
+    try {
+      const cmaContract = this.providerManager.getContract(
+        blockchain,
+        ContractType.CACHE_MANAGER_AUTOMATION,
+      );
+
+      const escrowAddress: string = await cmaContract.escrow();
+      const provider = (cmaContract as unknown as ethers.BaseContract).runner;
+      const escrowContract = new ethers.Contract(
+        escrowAddress,
+        ESCROW_ABI,
+        provider,
+      );
+
+      const balance = BigInt(
+        (await escrowContract.depositsOf(alert.user.address)) as string,
+      );
+
+      let shouldTrigger: boolean;
+
+      if (alert.type === AlertType.NO_GAS) {
+        shouldTrigger = balance === 0n;
+        this.logger.debug(
+          `noGas evaluation for alert ${alert.id}: balance=${balance}, shouldTrigger=${shouldTrigger}`,
+        );
+      } else {
+        // lowGas: value is the threshold in ETH
+        const threshold = ethers.parseEther(String(alert.value));
+        shouldTrigger = balance < threshold;
+        this.logger.debug(
+          `lowGas evaluation for alert ${alert.id}: balance=${balance}, threshold=${threshold}, shouldTrigger=${shouldTrigger}`,
+        );
+      }
+
+      return shouldTrigger;
+    } catch (error) {
+      this.logger.error(
+        `Error evaluating gas condition for alert ${alert.id}: ${
           error instanceof Error ? error.message : String(error)
         }`,
         error instanceof Error ? error.stack : undefined,

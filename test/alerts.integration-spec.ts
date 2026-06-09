@@ -421,4 +421,162 @@ describe('Alerts Integration Tests', () => {
     expect(alert.lastTriggered).toBeNull();
     console.log('Inactive eviction alert correctly not triggered');
   });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Part 4: Gas Alerts (noGas / lowGas)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  let noGasAlertId: string;
+  let lowGasAlertId: string;
+
+  it('should reject lowGas alert without value', async () => {
+    try {
+      await api.post('/alerts', {
+        type: 'lowGas',
+        isActive: true,
+        userContractId: userContractId1,
+      });
+      fail('Expected 400 error for lowGas without value');
+    } catch (error: any) {
+      expect(error.response?.status).toBe(400);
+    }
+  });
+
+  it('should create a noGas alert (no value needed)', async () => {
+    const { data, status } = await api.post('/alerts', {
+      type: 'noGas',
+      isActive: true,
+      userContractId: userContractId1,
+    });
+
+    expect(status).toBe(201);
+    expect(data.id).toBeDefined();
+    expect(data.type).toBe('noGas');
+    expect(data.isActive).toBe(true);
+    expect(data.triggeredCount).toBe(0);
+
+    noGasAlertId = data.id;
+    console.log(`Created noGas alert: ${noGasAlertId}`);
+  });
+
+  it('should create a lowGas alert with ETH threshold', async () => {
+    const { data, status } = await api.post('/alerts', {
+      type: 'lowGas',
+      value: 10,
+      isActive: true,
+      userContractId: userContractId1,
+    });
+
+    expect(status).toBe(201);
+    expect(data.id).toBeDefined();
+    expect(data.type).toBe('lowGas');
+    expect(Number(data.value)).toBe(10);
+    expect(data.isActive).toBe(true);
+    expect(data.triggeredCount).toBe(0);
+
+    lowGasAlertId = data.id;
+    console.log(`Created lowGas alert (threshold=10 ETH): ${lowGasAlertId}`);
+  });
+
+  it(
+    'should trigger lowGas alert when balance is below threshold',
+    async () => {
+      // The lowGas threshold is 10 ETH — escrow balance is well below that
+      const balance = await chain.getUserBalance(CMA_ADDRESS);
+      console.log(`Current escrow balance: ${ethers.formatEther(balance)} ETH`);
+      expect(balance).toBeLessThan(ethers.parseEther('10'));
+
+      await waitForCondition(
+        async () => {
+          const alert = await db.getAlertById(lowGasAlertId);
+          return alert && alert.triggeredCount > 0;
+        },
+        ALERT_TRIGGER_TIMEOUT,
+        5_000,
+        'lowGas alert triggeredCount > 0',
+      );
+
+      const alert = await db.getAlertById(lowGasAlertId);
+      expect(alert.triggeredCount).toBeGreaterThan(0);
+      expect(alert.lastTriggered).toBeDefined();
+      console.log(
+        `lowGas alert triggered: count=${alert.triggeredCount}, lastTriggered=${alert.lastTriggered}`,
+      );
+    },
+    ALERT_TRIGGER_TIMEOUT + 10_000,
+  );
+
+  it('should deactivate lowGas alert', async () => {
+    await api.post('/alerts', {
+      type: 'lowGas',
+      value: 10,
+      isActive: false,
+      userContractId: userContractId1,
+    });
+
+    const alert = await db.getAlertById(lowGasAlertId);
+    expect(alert.isActive).toBe(false);
+    console.log('lowGas alert deactivated');
+  });
+
+  it('should trigger noGas alert after withdrawing all balance', async () => {
+    const balanceBefore = await chain.getUserBalance(CMA_ADDRESS);
+    console.log(
+      `Escrow balance before withdraw: ${ethers.formatEther(balanceBefore)} ETH`,
+    );
+
+    await chain.withdrawBalance(CMA_ADDRESS);
+
+    const balanceAfter = await chain.getUserBalance(CMA_ADDRESS);
+    console.log(
+      `Escrow balance after withdraw: ${ethers.formatEther(balanceAfter)} ETH`,
+    );
+    expect(balanceAfter).toBe(0n);
+  });
+
+  it(
+    'should verify noGas alert triggered after cron evaluation',
+    async () => {
+      await waitForCondition(
+        async () => {
+          const alert = await db.getAlertById(noGasAlertId);
+          return alert && alert.triggeredCount > 0;
+        },
+        ALERT_TRIGGER_TIMEOUT,
+        5_000,
+        'noGas alert triggeredCount > 0',
+      );
+
+      const alert = await db.getAlertById(noGasAlertId);
+      expect(alert.triggeredCount).toBeGreaterThan(0);
+      expect(alert.lastTriggered).toBeDefined();
+      console.log(
+        `noGas alert triggered: count=${alert.triggeredCount}, lastTriggered=${alert.lastTriggered}`,
+      );
+    },
+    ALERT_TRIGGER_TIMEOUT + 10_000,
+  );
+
+  it('should not re-trigger deactivated noGas alert', async () => {
+    const alertBefore = await db.getAlertById(noGasAlertId);
+    const countBefore = alertBefore.triggeredCount;
+
+    await api.post('/alerts', {
+      type: 'noGas',
+      isActive: false,
+      userContractId: userContractId1,
+    });
+
+    const deactivated = await db.getAlertById(noGasAlertId);
+    expect(deactivated.isActive).toBe(false);
+
+    // Wait 70s for at least one cron cycle
+    await new Promise((r) => setTimeout(r, 70_000));
+
+    const alertAfter = await db.getAlertById(noGasAlertId);
+    expect(alertAfter.triggeredCount).toBe(countBefore);
+    console.log(
+      `Deactivated noGas alert not re-triggered (count stayed at ${countBefore})`,
+    );
+  }, 100_000);
 });
