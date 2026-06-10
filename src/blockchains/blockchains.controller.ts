@@ -6,12 +6,21 @@ import {
   ParseUUIDPipe,
   ValidationPipe,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+} from '@nestjs/swagger';
 import { BlockchainsService } from './blockchains.service';
 import { Public } from '../auth/auth.guard';
 import { GetBlockchainDto, BidTrendsQueryDto, BidAverageQueryDto } from './dto';
 import { createControllerLogger } from '../common/utils/logger.util';
 import { MODULE_NAME } from './constants';
 
+@ApiTags('Blockchains')
+@ApiBearerAuth()
 @Controller('blockchains')
 export class BlockchainsController {
   private readonly logger = createControllerLogger(
@@ -23,6 +32,8 @@ export class BlockchainsController {
 
   @Public()
   @Get()
+  @ApiOperation({ summary: 'List all enabled blockchains' })
+  @ApiResponse({ status: 200, description: 'Array of blockchain configurations' })
   async findAll() {
     this.logger.log('GET /blockchains - Fetching all enabled blockchains');
     const result = await this.blockchainsService.findAll();
@@ -31,6 +42,9 @@ export class BlockchainsController {
   }
 
   @Get(':blockchainId')
+  @ApiOperation({ summary: 'Get comprehensive blockchain data including bytecode counts' })
+  @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
+  @ApiResponse({ status: 200, description: 'Blockchain data with statistics' })
   async getBlockchainData(
     @Param(new ValidationPipe()) params: GetBlockchainDto,
   ) {
@@ -48,6 +62,9 @@ export class BlockchainsController {
 
   @Public()
   @Get(':blockchainId/total-bytecodes')
+  @ApiOperation({ summary: 'Get total bytecode statistics for a blockchain' })
+  @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
+  @ApiResponse({ status: 200, description: 'Bytecode count statistics' })
   async getTotalBytecodes(
     @Param(new ValidationPipe()) params: GetBlockchainDto,
   ) {
@@ -65,6 +82,9 @@ export class BlockchainsController {
 
   @Public()
   @Get(':blockchainId/cache-stats')
+  @ApiOperation({ summary: 'Get cache statistics (size, utilization, minimum bid)' })
+  @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
+  @ApiResponse({ status: 200, description: 'Cache statistics' })
   async getCacheStats(@Param(new ValidationPipe()) params: GetBlockchainDto) {
     this.logger.log(
       `GET /blockchains/${params.blockchainId}/cache-stats - Fetching cache statistics`,
@@ -80,6 +100,9 @@ export class BlockchainsController {
 
   @Public()
   @Get(':blockchainId/bid-trends')
+  @ApiOperation({ summary: 'Get bid placement trends over a time period' })
+  @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
+  @ApiResponse({ status: 200, description: 'Bid trend data with insert/delete counts' })
   async getBidTrends(
     @Param('blockchainId', ParseUUIDPipe) blockchainId: string,
     @Query(new ValidationPipe({ transform: true })) query: BidTrendsQueryDto,
@@ -99,6 +122,9 @@ export class BlockchainsController {
 
   @Public()
   @Get(':blockchainId/bid-average')
+  @ApiOperation({ summary: 'Get average bid amount over a time period with optional size filter' })
+  @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
+  @ApiResponse({ status: 200, description: 'Average bid data' })
   async getBidAverage(
     @Param('blockchainId', ParseUUIDPipe) blockchainId: string,
     @Query(new ValidationPipe({ transform: true })) query: BidAverageQueryDto,

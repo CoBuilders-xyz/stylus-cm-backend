@@ -77,18 +77,26 @@ export function shouldAllowOrigin(
   origin: string | undefined,
   config: AppConfig,
 ): boolean {
-  // Allow requests with no origin (like Postman, curl, etc.) for development
-  if (!origin && config.environment === 'local') {
+  // Allow requests with no Origin header (same-origin, curl, Postman, Swagger UI)
+  if (!origin) {
     return true;
   }
 
-  // Allow origins that start with the configured prefix in non-production
+  // Allow any origin in local environment
+  if (config.environment === 'local') {
+    return true;
+  }
+
+  // Allow origins that start with any configured prefix (comma-separated) in non-production
   if (
     config.environment !== 'production' &&
     config.allowedOriginPrefix &&
-    origin?.startsWith(config.allowedOriginPrefix)
+    origin
   ) {
-    return true;
+    const prefixes = config.allowedOriginPrefix.split(',').map((p) => p.trim());
+    if (prefixes.some((prefix) => origin.startsWith(prefix))) {
+      return true;
+    }
   }
 
   // Allow the main frontend URL if specified in config

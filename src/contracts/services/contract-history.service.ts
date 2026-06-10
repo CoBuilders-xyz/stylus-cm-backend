@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
 import { ContractBidCalculatorService } from './contract-bid-calculator.service';
-import { BidHistoryItem } from '../interfaces/contract.interfaces';
+import {
+  BidHistoryItem,
+  ActivationHistoryItem,
+} from '../interfaces/contract.interfaces';
 
 /**
  * Service responsible for retrieving and processing contract bidding history.
@@ -172,6 +175,74 @@ export class ContractHistoryService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Error fetching bidding history: ${err.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Get the activation history for a contract from blockchain events
+   * (ActivationPerformed and ActivationError from CMA)
+   */
+  async getActivationHistory(
+    contractAddress: string,
+  ): Promise<ActivationHistoryItem[]> {
+    try {
+      const normalizedAddress = contractAddress.toLowerCase();
+
+      const events = await this.blockchainEventRepository
+        .createQueryBuilder('event')
+        .select([
+          'event.id',
+          'event.eventName',
+          'event.blockTimestamp',
+          'event.blockNumber',
+          'event.transactionHash',
+          'event.eventData',
+        ])
+        .where('event.eventName IN (:...eventNames)', {
+          eventNames: ['ActivationPerformed', 'ActivationError'],
+        })
+        .andWhere(
+          'LOWER(CAST(event."eventData"->>1 AS TEXT)) = :contractAddress',
+          { contractAddress: normalizedAddress },
+        )
+        .orderBy('event.blockTimestamp', 'DESC')
+        .getMany();
+
+      return events.map((event) => {
+        const data = event.eventData as unknown as string[];
+        const eventType = event.eventName as
+          | 'ActivationPerformed'
+          | 'ActivationError';
+
+        const item: ActivationHistoryItem = {
+          contractAddress: data[1],
+          eventType,
+          timestamp: event.blockTimestamp,
+          blockNumber: event.blockNumber,
+          transactionHash: event.transactionHash,
+          user: data[0],
+        };
+
+        if (eventType === 'ActivationPerformed') {
+          // [user, contractAddress, version, dataFee, spent, refund, userBalance]
+          item.version = data[2];
+          item.dataFee = data[3];
+          item.spent = data[4];
+          item.refund = data[5];
+          item.userBalance = data[6];
+        } else {
+          // [user, contractAddress, value, reason]
+          item.reason = data[3];
+        }
+
+        return item;
+      });
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Error fetching activation history: ${err.message}`,
+      );
       return [];
     }
   }

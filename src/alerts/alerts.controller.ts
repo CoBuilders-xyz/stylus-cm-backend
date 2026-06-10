@@ -7,6 +7,13 @@ import {
   Body,
   ValidationPipe,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AlertsService } from './alerts.service';
 import { AuthenticatedRequest } from 'src/common/types/custom-types';
 import { CreateAlertDto } from './dto/create-alert.dto';
@@ -14,6 +21,8 @@ import { createControllerLogger } from 'src/common/utils/logger.util';
 import { MODULE_NAME } from './constants';
 import { Alert } from './entities/alert.entity';
 
+@ApiTags('Alerts')
+@ApiBearerAuth()
 @Controller('alerts')
 export class AlertsController {
   private readonly logger = createControllerLogger(
@@ -27,6 +36,9 @@ export class AlertsController {
    * Get all alerts for a user
    */
   @Get()
+  @ApiOperation({ summary: 'List all alerts for the authenticated user' })
+  @ApiQuery({ name: 'blockchainId', description: 'Filter by blockchain UUID', required: true })
+  @ApiResponse({ status: 200, description: 'Array of user alerts' })
   async findAll(
     @Req() req: AuthenticatedRequest,
     @Query('blockchainId') blockchainId: string,
@@ -58,6 +70,9 @@ export class AlertsController {
    * Create or update an alert
    */
   @Post()
+  @ApiOperation({ summary: 'Create or update an alert on a user contract' })
+  @ApiResponse({ status: 201, description: 'Alert created or updated' })
+  @ApiResponse({ status: 400, description: 'Invalid alert parameters' })
   async createOrUpdateAlert(
     @Req() req: AuthenticatedRequest,
     @Body(new ValidationPipe({ transform: true })) body: CreateAlertDto,

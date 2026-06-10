@@ -1,7 +1,9 @@
 import { IsString, IsNotEmpty, Matches } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsEthereumSignature, IsChecksumAddress } from 'src/common/validators';
 
 export class VerifySignatureDto {
+  @ApiProperty({ description: 'Ethereum wallet address', example: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' })
   @IsString()
   @IsNotEmpty()
   @Matches(/^0x[a-fA-F0-9]{40}$/, {
@@ -13,10 +15,9 @@ export class VerifySignatureDto {
   })
   address: string;
 
+  @ApiProperty({ description: 'Signed nonce message' })
   @IsString()
   @IsNotEmpty()
   @IsEthereumSignature()
   signature: string;
 }
-
-//TODO Maybe add checksum address validation
