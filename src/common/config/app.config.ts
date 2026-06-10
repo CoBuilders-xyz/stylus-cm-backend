@@ -82,13 +82,16 @@ export function shouldAllowOrigin(
     return true;
   }
 
-  // Allow origins that start with the configured prefix in non-production
+  // Allow origins that start with any configured prefix (comma-separated) in non-production
   if (
     config.environment !== 'production' &&
     config.allowedOriginPrefix &&
-    origin?.startsWith(config.allowedOriginPrefix)
+    origin
   ) {
-    return true;
+    const prefixes = config.allowedOriginPrefix.split(',').map((p) => p.trim());
+    if (prefixes.some((prefix) => origin.startsWith(prefix))) {
+      return true;
+    }
   }
 
   // Allow the main frontend URL if specified in config
