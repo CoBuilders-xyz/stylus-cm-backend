@@ -55,6 +55,13 @@ ${crypto.randomUUID()}`;
     return { signature };
   }
 
+  async testLogin(address: string, pk: string) {
+    const nonce = await this.generateNonce(address);
+    const wallet = new ethers.Wallet(pk);
+    const signature = await wallet.signMessage(nonce);
+    return this.verifySignature(address, signature);
+  }
+
   async verifySignature(address: string, signature: string) {
     // Get the stored nonce message from redis with proper type safety
     const nonceMessage = await this.getNonce(address);

@@ -1,6 +1,11 @@
 import { Controller, Get, Param, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { GenerateNonceDto, VerifySignatureDto, SignMessageDto } from './dto';
+import {
+  GenerateNonceDto,
+  VerifySignatureDto,
+  SignMessageDto,
+  TestLoginDto,
+} from './dto';
 import { AuthService } from './auth.service';
 import { Public } from './auth.guard';
 import { DevelopmentOnlyGuard } from './development-only.guard';
@@ -36,5 +41,20 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid signature' })
   verifySignature(@Body() body: VerifySignatureDto) {
     return this.authService.verifySignature(body.address, body.signature);
+  }
+
+  @Public()
+  @UseGuards(DevelopmentOnlyGuard)
+  @Post('test-login')
+  @ApiOperation({
+    summary: 'One-step login with private key (dev/staging only)',
+    description:
+      'Generates nonce, signs it, and returns a JWT in a single call. ' +
+      'Only available in local/develop/staging environments.',
+  })
+  @ApiResponse({ status: 201, description: 'JWT access token' })
+  @ApiResponse({ status: 403, description: 'Not available in production' })
+  testLogin(@Body() body: TestLoginDto) {
+    return this.authService.testLogin(body.address, body.pk);
   }
 }

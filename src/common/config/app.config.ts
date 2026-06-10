@@ -77,8 +77,8 @@ export function shouldAllowOrigin(
   origin: string | undefined,
   config: AppConfig,
 ): boolean {
-  // Allow requests with no origin (like Postman, curl, etc.) for development
-  if (!origin && config.environment === 'local') {
+  // Allow any origin in local environment (Swagger UI, Postman, curl, etc.)
+  if (config.environment === 'local') {
     return true;
   }
 
