@@ -8,6 +8,7 @@ import {
 import { AppModule } from './app.module';
 import { HttpAdapterHost } from '@nestjs/core';
 import { INestApplication } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import {
   AllExceptionsFilter,
   HttpExceptionFilter,
@@ -103,6 +104,16 @@ async function bootstrap() {
 
   setupGlobalExceptionHandlers(logger);
   setupAppMiddleware(app);
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Stylus Cache Manager API')
+    .setDescription('REST API for the Stylus Cache Manager backend')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api', app, document);
+
   await startServer(app, config, logger);
 }
 

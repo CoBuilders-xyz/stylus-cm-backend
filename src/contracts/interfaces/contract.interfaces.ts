@@ -77,6 +77,21 @@ export interface SuggestedBidsResult {
   cacheStats: CacheStats;
 }
 
+export type ActivationHistoryItem = {
+  contractAddress: string;
+  eventType: 'ActivationPerformed' | 'ActivationError';
+  timestamp: Date;
+  blockNumber: number;
+  transactionHash: string;
+  user: string;
+  version?: string;
+  dataFee?: string;
+  spent?: string;
+  refund?: string;
+  userBalance?: string;
+  reason?: string;
+};
+
 // API Response interfaces (moved from controller)
 /**
  * Response interface for contract API endpoints that includes calculated fields
@@ -87,6 +102,8 @@ export interface ContractResponse extends Contract {
   evictionRisk?: EvictionRiskResult;
   suggestedBids?: SuggestedBidsResult;
   biddingHistory?: BidHistoryItem[];
+  activationHistory?: ActivationHistoryItem[];
+  programTimeLeft?: string | null;
   isSavedByUser?: boolean;
   savedContractName?: string | null;
 }

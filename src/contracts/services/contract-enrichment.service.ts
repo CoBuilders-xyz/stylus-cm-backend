@@ -4,6 +4,7 @@ import { ContractBidCalculatorService } from './contract-bid-calculator.service'
 import { ContractBidAssessmentService } from './contract-bid-assessment.service';
 import { ContractHistoryService } from './contract-history.service';
 import { ContractResponse } from '../interfaces/contract.interfaces';
+import { ContractType, ProviderManager } from '../../common/utils/provider.util';
 
 /**
  * Service responsible for enriching contracts with calculated fields and processing.
@@ -17,6 +18,7 @@ export class ContractEnrichmentService {
     private readonly bidCalculatorService: ContractBidCalculatorService,
     private readonly bidAssessmentService: ContractBidAssessmentService,
     private readonly historyService: ContractHistoryService,
+    private readonly providerManager: ProviderManager,
   ) {}
 
   /**
@@ -65,13 +67,19 @@ export class ContractEnrichmentService {
       };
     }
 
-    // Optionally include bidding history if requested
     if (includeBiddingHistory) {
+      const [biddingHistory, activationHistory, programTimeLeft] =
+        await Promise.all([
+          this.historyService.getBiddingHistory(contract.address),
+          this.historyService.getActivationHistory(contract.address),
+          this.readProgramTimeLeft(contract),
+        ]);
+
       return {
         ...processedContract,
-        biddingHistory: await this.historyService.getBiddingHistory(
-          contract.address,
-        ),
+        biddingHistory,
+        activationHistory,
+        programTimeLeft,
       };
     }
 
@@ -100,5 +108,34 @@ export class ContractEnrichmentService {
     );
 
     return processedContracts;
+  }
+
+  /**
+   * Read programTimeLeft from ArbWasm precompile.
+   * Returns seconds as string, "0" if expired, or null if not activated.
+   */
+  private async readProgramTimeLeft(
+    contract: Contract,
+  ): Promise<string | null> {
+    try {
+      const arbWasm = this.providerManager.getContract(
+        contract.blockchain,
+        ContractType.ARB_WASM,
+      );
+      const timeLeft: bigint = await arbWasm.programTimeLeft(contract.address);
+      return timeLeft.toString();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('ProgramExpired') || msg.includes('0xc9b12e52')) {
+        return '0';
+      }
+      if (msg.includes('ProgramNotActivated')) {
+        return null;
+      }
+      this.logger.warn(
+        `Failed to read programTimeLeft for ${contract.address}: ${msg}`,
+      );
+      return null;
+    }
   }
 }

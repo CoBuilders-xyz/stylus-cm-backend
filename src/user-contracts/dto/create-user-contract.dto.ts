@@ -7,16 +7,11 @@ import {
   Length,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { USER_CONTRACT_DEFAULTS } from '../constants';
 
-/**
- * DTO for creating a new user contract
- */
 export class CreateUserContractDto {
-  /**
-   * Ethereum contract address (must be a valid hex address starting with 0x)
-   * @example "0x1234567890abcdef1234567890abcdef12345678"
-   */
+  @ApiProperty({ description: 'Ethereum contract address', example: '0x1234567890abcdef1234567890abcdef12345678' })
   @IsString({ message: 'Address must be a string' })
   @IsNotEmpty({ message: 'Address cannot be empty' })
   @Matches(USER_CONTRACT_DEFAULTS.VALIDATION.ADDRESS_REGEX, {
@@ -28,19 +23,13 @@ export class CreateUserContractDto {
   )
   address: string;
 
-  /**
-   * ID of the blockchain where the contract is deployed
-   * @example "123e4567-e89b-12d3-a456-426614174000"
-   */
+  @ApiProperty({ description: 'Blockchain UUID where the contract is deployed' })
   @IsString({ message: 'BlockchainId must be a string' })
   @IsNotEmpty({ message: 'BlockchainId cannot be empty' })
   @IsUUID(4, { message: 'BlockchainId must be a valid UUID v4' })
   blockchainId: string;
 
-  /**
-   * Optional custom name for the contract (defaults to address if not provided)
-   * @example "My DeFi Contract"
-   */
+  @ApiPropertyOptional({ description: 'Custom display name for the contract' })
   @IsOptional()
   @IsString({ message: 'Name must be a string' })
   @Length(

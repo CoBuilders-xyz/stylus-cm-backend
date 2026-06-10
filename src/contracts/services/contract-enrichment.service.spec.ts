@@ -3,6 +3,7 @@ import { ContractEnrichmentService } from './contract-enrichment.service';
 import { ContractBidCalculatorService } from './contract-bid-calculator.service';
 import { ContractBidAssessmentService } from './contract-bid-assessment.service';
 import { ContractHistoryService } from './contract-history.service';
+import { ProviderManager } from '../../common/utils/provider.util';
 import { Contract } from '../entities/contract.entity';
 
 describe('ContractEnrichmentService', () => {
@@ -16,10 +17,13 @@ describe('ContractEnrichmentService', () => {
   };
   let mockContractHistoryService: {
     getBiddingHistory: jest.Mock;
+    getActivationHistory: jest.Mock;
+  };
+  let mockProviderManager: {
+    getContract: jest.Mock;
   };
 
   beforeEach(async () => {
-    // Create service mocks
     mockContractBidCalculatorService = {
       calculateCurrentContractEffectiveBid: jest.fn(),
     };
@@ -31,6 +35,11 @@ describe('ContractEnrichmentService', () => {
 
     mockContractHistoryService = {
       getBiddingHistory: jest.fn(),
+      getActivationHistory: jest.fn(),
+    };
+
+    mockProviderManager = {
+      getContract: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +56,10 @@ describe('ContractEnrichmentService', () => {
         {
           provide: ContractHistoryService,
           useValue: mockContractHistoryService,
+        },
+        {
+          provide: ProviderManager,
+          useValue: mockProviderManager,
         },
       ],
     }).compile();
@@ -202,8 +215,7 @@ describe('ContractEnrichmentService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should include bidding history when requested', async () => {
-      // Arrange
+    it('should include bidding history, activation history, and programTimeLeft when requested', async () => {
       const mockContract = {
         id: 'test-contract-id-3',
         address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef',
@@ -250,14 +262,22 @@ describe('ContractEnrichmentService', () => {
           transactionHash: '0x123',
           isAutomated: false,
         },
+      ];
+
+      const mockActivationHistory = [
         {
-          id: 'bid-2',
-          bidAmount: '800000',
-          timestamp: new Date('2022-12-15T00:00:00Z'),
-          transactionHash: '0x456',
-          isAutomated: true,
+          contractAddress: mockContract.address,
+          eventType: 'ActivationPerformed',
+          timestamp: new Date('2023-01-02T00:00:00Z'),
+          blockNumber: 100,
+          transactionHash: '0x789',
+          user: '0xuser',
         },
       ];
+
+      const mockArbWasm = {
+        programTimeLeft: jest.fn().mockResolvedValue(86400n),
+      };
 
       mockContractBidCalculatorService.calculateCurrentContractEffectiveBid.mockResolvedValue(
         mockEffectiveBid,
@@ -268,21 +288,27 @@ describe('ContractEnrichmentService', () => {
       mockContractHistoryService.getBiddingHistory.mockResolvedValue(
         mockBiddingHistory,
       );
+      mockContractHistoryService.getActivationHistory.mockResolvedValue(
+        mockActivationHistory,
+      );
+      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
 
-      // Act
       const result = await service.processContract(mockContract, true);
 
-      // Assert
       expect(result).toBeDefined();
       expect(result.id).toBe(mockContract.id);
       expect(result.effectiveBid).toBe(mockEffectiveBid);
       expect(result.evictionRisk).toEqual(mockEvictionRisk);
       expect(result.biddingHistory).toEqual(mockBiddingHistory);
+      expect(result.activationHistory).toEqual(mockActivationHistory);
+      expect(result.programTimeLeft).toBe('86400');
 
-      // Verify method calls
       expect(mockContractHistoryService.getBiddingHistory).toHaveBeenCalledWith(
         mockContract.address,
       );
+      expect(
+        mockContractHistoryService.getActivationHistory,
+      ).toHaveBeenCalledWith(mockContract.address);
     });
   });
 });
