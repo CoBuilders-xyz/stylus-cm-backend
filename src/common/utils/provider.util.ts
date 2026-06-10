@@ -29,6 +29,7 @@ export type ReconnectionCallback = (blockchainId: string) => Promise<void>;
 export class ProviderManager {
   private providers: Map<string, ethers.JsonRpcProvider> = new Map();
   private fastSyncProviders: Map<string, ethers.JsonRpcProvider> = new Map();
+  private fastSyncAccessTokens: Map<number, string> = new Map();
   private wssProviders: Map<string, ethers.WebSocketProvider> = new Map();
   private contracts: Map<string, Map<ContractType, ethers.Contract>> =
     new Map();
@@ -175,20 +176,37 @@ export class ProviderManager {
   }
 
   /**
+   * Registers an access token for a blockchain's fast sync RPC.
+   * Tokens are stored in memory only (not persisted to DB).
+   */
+  setFastSyncAccessToken(chainId: number, token: string): void {
+    this.fastSyncAccessTokens.set(chainId, token);
+    logger.debug(`Registered fast sync access token for chainId ${chainId}`);
+  }
+
+  /**
    * Gets a fast sync provider for a blockchain using the fastSyncRpcUrl if available,
    * otherwise falls back to the regular rpcUrl. Used for historical syncing operations.
+   * When an access token is registered for the chain, it is sent as a Bearer header.
    */
   getFastSyncProvider(blockchain: Blockchain): ethers.JsonRpcProvider {
-    // Check for existing provider in the fast sync cache
     let provider = this.fastSyncProviders.get(blockchain.id);
     if (!provider) {
-      // Use fastSyncRpcUrl if available, otherwise fall back to rpcUrl
       const rpcUrl = blockchain.fastSyncRpcUrl || blockchain.rpcUrl;
       if (!rpcUrl) {
         throw new Error(`Blockchain ${blockchain.id} has no RPC URL`);
       }
 
-      provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+      const accessToken = this.fastSyncAccessTokens.get(blockchain.chainId);
+
+      let connection: string | ethers.FetchRequest = rpcUrl;
+      if (accessToken) {
+        const fetchRequest = new ethers.FetchRequest(rpcUrl);
+        fetchRequest.setHeader('Authorization', `Bearer ${accessToken}`);
+        connection = fetchRequest;
+      }
+
+      provider = new ethers.JsonRpcProvider(connection, undefined, {
         polling: true,
         pollingInterval: 10000,
       });
@@ -196,7 +214,7 @@ export class ProviderManager {
       logger.debug(
         `Created new fast sync provider for blockchain ${blockchain.id} using ${
           blockchain.fastSyncRpcUrl ? 'fastSyncRpcUrl' : 'rpcUrl'
-        }`,
+        }${accessToken ? ' (with auth)' : ''}`,
       );
     }
 
