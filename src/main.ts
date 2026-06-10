@@ -9,6 +9,7 @@ import { AppModule } from './app.module';
 import { HttpAdapterHost } from '@nestjs/core';
 import { INestApplication } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { SwaggerTheme, SwaggerThemeNameEnum } from 'swagger-themes';
 import {
   AllExceptionsFilter,
   HttpExceptionFilter,
@@ -106,13 +107,31 @@ async function bootstrap() {
   setupAppMiddleware(app);
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Stylus Cache Manager API')
-    .setDescription('REST API for the Stylus Cache Manager backend')
+    .setTitle('Stylus Manager')
+    .setDescription(
+      'REST API for **Stylus Manager** — an Arbitrum Stylus contract lifecycle platform ' +
+        'covering WASM program caching, activation, and automation.\n\n' +
+        '**Quick start:** Use `POST /auth/test-login` with a funded wallet to get a JWT, ' +
+        'then click **Authorize** and paste the token.',
+    )
     .setVersion('1.0')
     .addBearerAuth()
+    .setContact('CoBuilders', 'https://cobuilders.xyz', '')
+    .setExternalDoc('Documentation', 'https://cobuilders-xyz.github.io/stylus-cm-deploy')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api', app, document);
+  const theme = new SwaggerTheme();
+  SwaggerModule.setup('api', app, document, {
+    customSiteTitle: 'Stylus Manager — API',
+    customCss: theme.getBuffer(SwaggerThemeNameEnum.DARK),
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'list',
+      filter: true,
+      displayRequestDuration: true,
+      tryItOutEnabled: true,
+    },
+  });
 
   await startServer(app, config, logger);
 }

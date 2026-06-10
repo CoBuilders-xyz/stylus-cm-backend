@@ -13,6 +13,7 @@ export class TestLoginDto {
 
   @ApiProperty({
     description: 'Private key for the wallet (hex, with or without 0x prefix)',
+    example: '0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659',
   })
   @IsString()
   @IsNotEmpty()
