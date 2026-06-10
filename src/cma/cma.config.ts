@@ -6,7 +6,8 @@ export interface CmaConfig {
   maxRetries: number;
   retryDelay: number;
   processingTimeout: number;
-  automationEnabled: boolean;
+  cachingAutomationEnabled: boolean;
+  activationAutomationEnabled: boolean;
 }
 
 export default registerAs('cma', (): CmaConfig => {
@@ -86,8 +87,12 @@ export default registerAs('cma', (): CmaConfig => {
   const processingTimeout = validateProcessingTimeout(
     process.env.CMA_PROCESSING_TIMEOUT || '30000',
   );
-  const automationEnabled = validateAutomationEnabled(
+  const cachingAutomationEnabled = validateAutomationEnabled(
     process.env.CMA_AUTOMATION_ENABLED || 'true',
+  );
+
+  const activationAutomationEnabled = validateAutomationEnabled(
+    process.env.CMA_ACTIVATION_AUTOMATION_ENABLED || 'false',
   );
 
   return {
@@ -96,6 +101,7 @@ export default registerAs('cma', (): CmaConfig => {
     maxRetries,
     retryDelay,
     processingTimeout,
-    automationEnabled,
+    cachingAutomationEnabled,
+    activationAutomationEnabled,
   };
 });

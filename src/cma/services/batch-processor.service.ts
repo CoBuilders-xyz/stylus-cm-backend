@@ -148,4 +148,130 @@ export class BatchProcessorService {
       errors,
     };
   }
+
+  async processActivationBatches(
+    blockchain: Blockchain,
+    selectedContracts: SelectedContract[],
+    maxActivationsPerIteration = 5,
+  ): Promise<BatchProcessingResult> {
+    const startTime = new Date();
+    const batchSize = maxActivationsPerIteration;
+
+    if (selectedContracts.length === 0) {
+      return {
+        totalBatches: 0,
+        successfulBatches: 0,
+        failedBatches: 0,
+        totalContracts: 0,
+        processedContracts: 0,
+        results: [],
+        startTime,
+        endTime: new Date(),
+        totalDuration: 0,
+        errors: [],
+      };
+    }
+
+    const batches: SelectedContract[][] = [];
+    for (let i = 0; i < selectedContracts.length; i += batchSize) {
+      batches.push(selectedContracts.slice(i, i + batchSize));
+    }
+
+    this.logger.log(
+      `Processing ${selectedContracts.length} contracts for activation in ${batches.length} batches for ${blockchain.name}`,
+    );
+
+    let successfulBatches = 0;
+    let failedBatches = 0;
+    let processedContracts = 0;
+    const results: BatchResult[] = [];
+    const errors: string[] = [];
+
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      const batchStartTime = new Date();
+
+      try {
+        const contractArgs = batch.map((contract) => [
+          contract.user,
+          contract.address,
+        ]);
+
+        this.logger.log(
+          `Attempting to call placeActivations for batch ${batchIndex + 1}/${batches.length} with ${contractArgs.length} contracts`,
+        );
+
+        const result = await this.engineUtil.writeContract(
+          blockchain.chainId,
+          blockchain.cacheManagerAutomationAddress,
+          {
+            functionName: 'function placeActivations((address,address)[])',
+            args: [contractArgs],
+            txOverrides: {
+              gas: '15000000',
+            },
+          },
+        );
+
+        const batchEndTime = new Date();
+        const processingTime =
+          batchEndTime.getTime() - batchStartTime.getTime();
+
+        this.logger.log(
+          `Batch ${batchIndex + 1}/${batches.length} placeActivations result: ${JSON.stringify(result)}`,
+        );
+
+        results.push({
+          batchIndex,
+          success: true,
+          processedContracts: batch.length,
+          retryCount: 0,
+          processingTime,
+          queueId: result.queueId,
+        });
+
+        successfulBatches++;
+        processedContracts += batch.length;
+      } catch (error) {
+        const batchEndTime = new Date();
+        const processingTime =
+          batchEndTime.getTime() - batchStartTime.getTime();
+        const errorMessage = `Activation batch ${batchIndex + 1}/${batches.length} failed: ${error instanceof Error ? error.message : String(error)}`;
+
+        this.logger.error(errorMessage);
+        errors.push(errorMessage);
+
+        results.push({
+          batchIndex,
+          success: false,
+          processedContracts: 0,
+          retryCount: 0,
+          processingTime,
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        failedBatches++;
+      }
+    }
+
+    const endTime = new Date();
+    const totalDuration = endTime.getTime() - startTime.getTime();
+
+    this.logger.log(
+      `Activation batch processing completed for ${blockchain.name}: ${successfulBatches}/${batches.length} batches successful, ${processedContracts} contracts processed`,
+    );
+
+    return {
+      totalBatches: batches.length,
+      successfulBatches,
+      failedBatches,
+      totalContracts: selectedContracts.length,
+      processedContracts,
+      results,
+      startTime,
+      endTime,
+      totalDuration,
+      errors,
+    };
+  }
 }

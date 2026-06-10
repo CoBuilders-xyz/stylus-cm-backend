@@ -8,7 +8,7 @@ import { createModuleLogger } from 'src/common/utils/logger.util';
 import { CacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 import { CacheManager } from 'src/common/types/contracts/CacheManager';
 import { ArbWasmCache } from 'src/common/types/contracts/ArbWasmCache';
-import { ICacheManagerAutomationV2 } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
+import { ICacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 
 import { CmaConfig } from '../cma.config';
 import { SelectedContract } from '../interfaces';
@@ -57,7 +57,7 @@ export class ContractSelectionService {
       this.logger.log(`Smart contract constants - Cache threshold: ${cacheThreshold}, Horizon seconds: ${horizonSeconds}, Bid increment: ${bidIncrement}`);
 
       // Fetch all contracts in batches until hasMore is false
-      let automatedUserConfigs: ICacheManagerAutomationV2.UserContractsDataStructOutput[] =
+      let automatedUserConfigs: ICacheManagerAutomation.UserContractsDataStructOutput[] =
         [];
       let offset = 0n;
       const limit = BigInt(config?.paginationLimit || 30);
@@ -202,9 +202,16 @@ export class ContractSelectionService {
 
       return true;
     } catch (error) {
-      this.logger.warn(
-        `Error checking if should bid for contract ${contractAddress}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('0xc9b12e52') || msg.includes('ProgramExpired')) {
+        this.logger.debug(
+          `Skipping bid for ${contractAddress}: program expired`,
+        );
+      } else {
+        this.logger.warn(
+          `Error checking if should bid for contract ${contractAddress}: ${msg}`,
+        );
+      }
       return false;
     }
   }

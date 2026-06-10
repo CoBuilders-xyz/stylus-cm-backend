@@ -48,4 +48,22 @@ export class Contract {
 
   @Column('varchar', { length: 78, default: '0' })
   maxBid: string;
+
+  @Column({ default: false })
+  autoActivate: boolean;
+
+  @Column('varchar', { length: 78, nullable: true })
+  maxActivationCost: string;
+
+  @Column({ type: 'bigint', nullable: true })
+  lastActivationBlockNumber: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastActivationTimestamp: Date;
+
+  @Column({ type: 'varchar', nullable: true, default: 'unknown' })
+  activationStatus: string;
+
+  @Column({ type: 'int', default: 0 })
+  activationRetryCount: number;
 }

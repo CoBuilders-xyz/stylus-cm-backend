@@ -7,6 +7,7 @@ import { DeleteBidService } from './delete-bid.service';
 import { DecayRateService } from './decay-rate.service';
 import { ContractBytecodeService } from './contract-bytecode.service';
 import { AutomationService } from './automation.service';
+import { ActivationService } from './activation.service';
 import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { BlockchainEvent } from '../../blockchains/entities/blockchain-event.entity';
 
@@ -59,6 +60,10 @@ describe('EventProcessorService', () => {
         },
         {
           provide: AutomationService,
+          useValue: mockServices,
+        },
+        {
+          provide: ActivationService,
           useValue: mockServices,
         },
         {

@@ -4,6 +4,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
+import { Contract } from 'src/contracts/entities/contract.entity';
 import { ProviderManager } from 'src/common/utils/provider.util';
 import { EngineUtil } from 'src/cma/utils/engine.util';
 import { CmaService } from './cma.service';
@@ -11,18 +12,20 @@ import {
   ContractSelectionService,
   BatchProcessorService,
   AutomationOrchestratorService,
+  ActivationSelectionService,
 } from './services';
 import cmaConfig from './cma.config';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Blockchain]),
+    TypeOrmModule.forFeature([Blockchain, Contract]),
     HttpModule,
     ConfigModule.forFeature(cmaConfig),
   ],
   providers: [
     CmaService,
     ContractSelectionService,
+    ActivationSelectionService,
     BatchProcessorService,
     AutomationOrchestratorService,
     ProviderManager,
@@ -31,5 +34,3 @@ import cmaConfig from './cma.config';
   exports: [CmaService],
 })
 export class CmaModule {}
-
-//TEst

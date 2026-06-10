@@ -110,12 +110,12 @@ export class AutomationService {
         return;
       }
 
-      const [address, maxBid] = eventDataArray;
+      const [user, address, maxBid] = eventDataArray;
       const bidBlockNumber = event.blockNumber;
       const bidBlockTimestamp = event.blockTimestamp;
 
       this.logger.debug(
-        `Processing Automation ContractUpdated for address ${address} with maxBid ${maxBid}`,
+        `Processing Automation ContractUpdated for user ${user}, address ${address} with maxBid ${maxBid}`,
       );
 
       await this.updateContractForAutomation(
@@ -138,6 +138,70 @@ export class AutomationService {
       DataProcessingErrorHelpers.throwEventProcessingFailed(
         event.id,
         'ContractUpdated',
+      );
+    }
+  }
+
+  /**
+   * Process a ContractRemoved event for automation
+   *
+   * @param blockchain The blockchain context
+   * @param event The ContractRemoved event to process
+   */
+  async processContractRemovedEvent(
+    blockchain: Blockchain,
+    event: BlockchainEvent,
+  ): Promise<void> {
+    this.logger.debug(
+      `Processing Automation ContractRemoved event for blockchain ${blockchain.name}`,
+    );
+
+    try {
+      const eventDataArray = event.eventData as unknown[];
+
+      if (!EventDataGuards.isContractRemovedEventData(eventDataArray)) {
+        this.logger.warn(
+          `ContractRemoved event data is not in the expected format: ${JSON.stringify(event.eventData)}`,
+        );
+        DataProcessingErrorHelpers.throwInvalidEventData(
+          event.id,
+          'ContractRemoved',
+          event.eventData,
+        );
+        return;
+      }
+
+      const [user, address] = eventDataArray;
+
+      this.logger.debug(
+        `Processing Automation ContractRemoved for user ${user}, address ${address}`,
+      );
+
+      const existingContract = await this.contractRepository.findOne({
+        where: { blockchain: { id: blockchain.id }, address },
+      });
+
+      if (!existingContract) {
+        this.logger.warn(
+          `No contract found for ${address} during ContractRemoved processing`,
+        );
+        return;
+      }
+
+      existingContract.isAutomated = false;
+      await this.contractRepository.save(existingContract);
+
+      this.logger.log(
+        `Successfully processed ContractRemoved event for address ${address}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error processing ContractRemoved event: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwEventProcessingFailed(
+        event.id,
+        'ContractRemoved',
       );
     }
   }

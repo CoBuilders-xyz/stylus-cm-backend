@@ -38,11 +38,74 @@ export interface ContractAddedEventData extends BaseEventData {
 
 /**
  * ContractUpdated event data structure
+ * Solidity: ContractUpdated(address indexed user, address indexed contractAddress, uint256 maxBid)
  */
 export interface ContractUpdatedEventData extends BaseEventData {
   eventName: 'ContractUpdated';
+  user: string;
   address: string;
-  bytecodeHash: string;
+  maxBid: string;
+}
+
+/**
+ * ContractRemoved event data structure
+ * Solidity: ContractRemoved(address indexed user, address indexed contractAddress)
+ */
+export interface ContractRemovedEventData extends BaseEventData {
+  eventName: 'ContractRemoved';
+  user: string;
+  address: string;
+}
+
+/**
+ * ActivationPerformed event data structure
+ * Solidity: ActivationPerformed(address indexed user, address indexed contractAddress,
+ *           uint16 version, uint256 dataFee, uint256 spent, uint256 refund, uint256 userBalance)
+ */
+export interface ActivationPerformedEventData extends BaseEventData {
+  eventName: 'ActivationPerformed';
+  user: string;
+  contractAddress: string;
+  version: string;
+  dataFee: string;
+  spent: string;
+  refund: string;
+  userBalance: string;
+}
+
+/**
+ * ActivationError event data structure
+ * Solidity: ActivationError(address indexed user, address indexed contractAddress, uint256 value, string reason)
+ */
+export interface ActivationErrorEventData extends BaseEventData {
+  eventName: 'ActivationError';
+  user: string;
+  contractAddress: string;
+  value: string;
+  reason: string;
+}
+
+/**
+ * ContractAutoActivateUpdated event data structure
+ * Solidity: ContractAutoActivateUpdated(address indexed user, address indexed contractAddress, bool autoActivate)
+ */
+export interface ContractAutoActivateUpdatedEventData extends BaseEventData {
+  eventName: 'ContractAutoActivateUpdated';
+  user: string;
+  contractAddress: string;
+  autoActivate: boolean;
+}
+
+/**
+ * ContractMaxActivationCostUpdated event data structure
+ * Solidity: ContractMaxActivationCostUpdated(address indexed user, address indexed contractAddress, uint256 maxActivationCost)
+ */
+export interface ContractMaxActivationCostUpdatedEventData
+  extends BaseEventData {
+  eventName: 'ContractMaxActivationCostUpdated';
+  user: string;
+  contractAddress: string;
+  maxActivationCost: string;
 }
 
 /**
@@ -69,6 +132,11 @@ export type EventData =
   | DeleteBidEventData
   | ContractAddedEventData
   | ContractUpdatedEventData
+  | ContractRemovedEventData
+  | ActivationPerformedEventData
+  | ActivationErrorEventData
+  | ContractAutoActivateUpdatedEventData
+  | ContractMaxActivationCostUpdatedEventData
   | SetDecayRateEventData
   | SetCacheSizeEventData;
 
@@ -140,13 +208,89 @@ export const EventDataGuards = {
     );
   },
 
-  isContractUpdatedEventData: (data: unknown[]): data is [string, string] => {
+  isContractUpdatedEventData: (
+    data: unknown[],
+  ): data is [string, string, string] => {
+    return (
+      Array.isArray(data) &&
+      data.length === 3 &&
+      data.every((item) => typeof item === 'string') &&
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) && // contractAddress
+      isValidPositiveNumber(data[2]) // maxBid
+    );
+  },
+
+  isContractRemovedEventData: (
+    data: unknown[],
+  ): data is [string, string] => {
     return (
       Array.isArray(data) &&
       data.length === 2 &&
       data.every((item) => typeof item === 'string') &&
-      isValidEthereumAddress(data[0]) && // address
-      isValidBytecodeHash(data[1]) // bytecodeHash
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) // contractAddress
+    );
+  },
+
+  isActivationPerformedEventData: (
+    data: unknown[],
+  ): data is [string, string, string, string, string, string, string] => {
+    return (
+      Array.isArray(data) &&
+      data.length === 7 &&
+      data.every((item) => typeof item === 'string') &&
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) && // contractAddress
+      isValidPositiveNumber(data[2]) && // version
+      isValidPositiveNumber(data[3]) && // dataFee
+      isValidPositiveNumber(data[4]) && // spent
+      isValidPositiveNumber(data[5]) && // refund
+      isValidPositiveNumber(data[6]) // userBalance
+    );
+  },
+
+  isActivationErrorEventData: (
+    data: unknown[],
+  ): data is [string, string, string, string] => {
+    return (
+      Array.isArray(data) &&
+      data.length === 4 &&
+      typeof data[0] === 'string' &&
+      typeof data[1] === 'string' &&
+      typeof data[2] === 'string' &&
+      typeof data[3] === 'string' &&
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) // contractAddress
+    );
+  },
+
+  isContractAutoActivateUpdatedEventData: (
+    data: unknown[],
+  ): data is [string, string, boolean] => {
+    return (
+      Array.isArray(data) &&
+      data.length === 3 &&
+      typeof data[0] === 'string' &&
+      typeof data[1] === 'string' &&
+      typeof data[2] === 'boolean' &&
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) // contractAddress
+    );
+  },
+
+  isContractMaxActivationCostUpdatedEventData: (
+    data: unknown[],
+  ): data is [string, string, string] => {
+    return (
+      Array.isArray(data) &&
+      data.length === 3 &&
+      typeof data[0] === 'string' &&
+      typeof data[1] === 'string' &&
+      typeof data[2] === 'string' &&
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) && // contractAddress
+      isValidPositiveNumber(data[2]) // maxActivationCost
     );
   },
 
