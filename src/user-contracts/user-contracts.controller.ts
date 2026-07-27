@@ -33,7 +33,11 @@ export class UserContractsController {
 
   @Get()
   @ApiOperation({ summary: 'List saved contracts for the authenticated user' })
-  @ApiResponse({ status: 200, description: 'Paginated list of user contracts' })
+  @ApiResponse({
+    status: 200,
+    description:
+      "Paginated list of user contracts. Each item includes `programTimeLeft` (seconds as string, or null when the ArbWasm precompile reverts) and `programTimeLeftReason` ('never_activated' | 'expired' | 'needs_upgrade' | null).",
+  })
   async findAll(
     @Request() req: AuthenticatedRequest,
     @Query() getUserContractsDto: GetUserContractsDto,
@@ -66,7 +70,11 @@ export class UserContractsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a single saved contract by ID' })
   @ApiParam({ name: 'id', description: 'User contract UUID' })
-  @ApiResponse({ status: 200, description: 'User contract with enriched data' })
+  @ApiResponse({
+    status: 200,
+    description:
+      "User contract with enriched data. Includes `programTimeLeft` (seconds as string, or null when the ArbWasm precompile reverts) and `programTimeLeftReason` ('never_activated' | 'expired' | 'needs_upgrade' | null).",
+  })
   @ApiResponse({ status: 404, description: 'User contract not found' })
   findOne(
     @Request() req: AuthenticatedRequest,
@@ -79,7 +87,7 @@ export class UserContractsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Save a contract to the user\'s watchlist' })
+  @ApiOperation({ summary: "Save a contract to the user's watchlist" })
   @ApiResponse({ status: 201, description: 'Contract saved successfully' })
   @ApiResponse({ status: 409, description: 'Contract already saved' })
   async create(
@@ -112,7 +120,7 @@ export class UserContractsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove a contract from the user\'s watchlist' })
+  @ApiOperation({ summary: "Remove a contract from the user's watchlist" })
   @ApiParam({ name: 'id', description: 'User contract UUID' })
   @ApiResponse({ status: 204, description: 'Contract removed successfully' })
   async remove(

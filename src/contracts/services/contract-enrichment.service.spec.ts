@@ -1,10 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ContractEnrichmentService } from './contract-enrichment.service';
 import { ContractBidCalculatorService } from './contract-bid-calculator.service';
 import { ContractBidAssessmentService } from './contract-bid-assessment.service';
 import { ContractHistoryService } from './contract-history.service';
 import { ProviderManager } from '../../common/utils/provider.util';
 import { Contract } from '../entities/contract.entity';
+
+// Fake selectors matching the ABI error names — only used to exercise the
+// selector-matching branch of decodeProgramTimeLeftRevert.
+const SELECTORS = {
+  ProgramNotActivated: '0xaaaaaaaa',
+  ProgramExpired: '0xbbbbbbbb',
+  ProgramNeedsUpgrade: '0xcccccccc',
+} as const;
+
+function makeMockArbWasm(programTimeLeftImpl: jest.Mock) {
+  return {
+    programTimeLeft: programTimeLeftImpl,
+    interface: {
+      getError: jest.fn((name: keyof typeof SELECTORS) => ({
+        selector: SELECTORS[name],
+      })),
+    },
+  };
+}
 
 describe('ContractEnrichmentService', () => {
   let service: ContractEnrichmentService;
@@ -21,6 +41,10 @@ describe('ContractEnrichmentService', () => {
   };
   let mockProviderManager: {
     getContract: jest.Mock;
+  };
+  let mockCacheManager: {
+    get: jest.Mock;
+    set: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -42,6 +66,11 @@ describe('ContractEnrichmentService', () => {
       getContract: jest.fn(),
     };
 
+    mockCacheManager = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ContractEnrichmentService,
@@ -61,6 +90,10 @@ describe('ContractEnrichmentService', () => {
           provide: ProviderManager,
           useValue: mockProviderManager,
         },
+        {
+          provide: CACHE_MANAGER,
+          useValue: mockCacheManager,
+        },
       ],
     }).compile();
 
@@ -76,8 +109,7 @@ describe('ContractEnrichmentService', () => {
   });
 
   describe('processContract', () => {
-    it('should process cached contract with effective bid and eviction risk', async () => {
-      // Arrange
+    it('should process cached contract with effective bid, eviction risk, and programTimeLeft', async () => {
       const mockContract = {
         id: 'test-contract-id',
         address: '0x1234567890123456789012345678901234567890',
@@ -122,19 +154,21 @@ describe('ContractEnrichmentService', () => {
       mockContractBidAssessmentService.calculateEvictionRisk.mockResolvedValue(
         mockEvictionRisk,
       );
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockResolvedValue(3600n)),
+      );
 
-      // Act
       const result = await service.processContract(mockContract);
 
-      // Assert
       expect(result).toBeDefined();
       expect(result.id).toBe(mockContract.id);
       expect(result.address).toBe(mockContract.address);
       expect(result.effectiveBid).toBe(mockEffectiveBid);
       expect(result.evictionRisk).toEqual(mockEvictionRisk);
       expect(result.minBid).toBe(mockEvictionRisk.cacheStats.minBid);
+      expect(result.programTimeLeft).toBe('3600');
+      expect(result.programTimeLeftReason).toBeNull();
 
-      // Verify method calls
       expect(
         mockContractBidCalculatorService.calculateCurrentContractEffectiveBid,
       ).toHaveBeenCalledWith(mockContract);
@@ -146,10 +180,12 @@ describe('ContractEnrichmentService', () => {
       expect(
         mockContractHistoryService.getBiddingHistory,
       ).not.toHaveBeenCalled();
+      expect(
+        mockContractHistoryService.getActivationHistory,
+      ).not.toHaveBeenCalled();
     });
 
-    it('should process non-cached contract with suggested bids only', async () => {
-      // Arrange
+    it('should process non-cached contract with suggested bids and programTimeLeft', async () => {
       const mockContract = {
         id: 'test-contract-id-2',
         address: '0x9876543210987654321098765432109876543210',
@@ -183,11 +219,12 @@ describe('ContractEnrichmentService', () => {
       mockContractBidAssessmentService.getSuggestedBids.mockResolvedValue(
         mockSuggestedBidsResult,
       );
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockResolvedValue(7200n)),
+      );
 
-      // Act
       const result = await service.processContract(mockContract);
 
-      // Assert
       expect(result).toBeDefined();
       expect(result.id).toBe(mockContract.id);
       expect(result.address).toBe(mockContract.address);
@@ -196,17 +233,16 @@ describe('ContractEnrichmentService', () => {
         cacheStats: mockSuggestedBidsResult.cacheStats,
       });
       expect(result.minBid).toBe(mockSuggestedBidsResult.cacheStats.minBid);
+      expect(result.programTimeLeft).toBe('7200');
+      expect(result.programTimeLeftReason).toBeNull();
 
-      // Should not have effective bid or eviction risk for non-cached contracts
       expect(result.effectiveBid).toBeUndefined();
       expect(result.evictionRisk).toBeUndefined();
 
-      // Verify method calls
       expect(
         mockContractBidAssessmentService.getSuggestedBids,
       ).toHaveBeenCalledWith(2048, 'test-blockchain-id');
 
-      // Should not call cached contract methods
       expect(
         mockContractBidCalculatorService.calculateCurrentContractEffectiveBid,
       ).not.toHaveBeenCalled();
@@ -215,7 +251,7 @@ describe('ContractEnrichmentService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should include bidding history, activation history, and programTimeLeft when requested', async () => {
+    it('should include bidding history and activation history when requested', async () => {
       const mockContract = {
         id: 'test-contract-id-3',
         address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef',
@@ -275,10 +311,6 @@ describe('ContractEnrichmentService', () => {
         },
       ];
 
-      const mockArbWasm = {
-        programTimeLeft: jest.fn().mockResolvedValue(86400n),
-      };
-
       mockContractBidCalculatorService.calculateCurrentContractEffectiveBid.mockResolvedValue(
         mockEffectiveBid,
       );
@@ -291,7 +323,9 @@ describe('ContractEnrichmentService', () => {
       mockContractHistoryService.getActivationHistory.mockResolvedValue(
         mockActivationHistory,
       );
-      mockProviderManager.getContract.mockReturnValue(mockArbWasm);
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockResolvedValue(86400n)),
+      );
 
       const result = await service.processContract(mockContract, true);
 
@@ -302,6 +336,7 @@ describe('ContractEnrichmentService', () => {
       expect(result.biddingHistory).toEqual(mockBiddingHistory);
       expect(result.activationHistory).toEqual(mockActivationHistory);
       expect(result.programTimeLeft).toBe('86400');
+      expect(result.programTimeLeftReason).toBeNull();
 
       expect(mockContractHistoryService.getBiddingHistory).toHaveBeenCalledWith(
         mockContract.address,
@@ -309,6 +344,153 @@ describe('ContractEnrichmentService', () => {
       expect(
         mockContractHistoryService.getActivationHistory,
       ).toHaveBeenCalledWith(mockContract.address);
+    });
+  });
+
+  describe('readProgramTimeLeft revert decoding', () => {
+    const baseContract = {
+      id: 'revert-test',
+      address: '0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa',
+      blockchain: { id: 'test-blockchain-id' },
+      bytecode: {
+        id: 'bytecode-revert',
+        size: '1024',
+        lastBid: '0',
+        bidBlockTimestamp: new Date('2023-01-01T00:00:00Z'),
+        isCached: false,
+      },
+    } as unknown as Contract;
+
+    beforeEach(() => {
+      mockContractBidAssessmentService.getSuggestedBids.mockResolvedValue({
+        suggestedBids: { highRisk: '0', midRisk: '0', lowRisk: '0' },
+        cacheStats: {
+          utilization: 0,
+          evictionRate: 0,
+          medianBidPerByte: '0',
+          competitiveness: 0,
+          cacheSizeBytes: '0',
+          usedCacheSizeBytes: '0',
+          minBid: '0',
+        },
+      });
+    });
+
+    it.each([
+      ['ProgramNotActivated', 'never_activated', SELECTORS.ProgramNotActivated],
+      ['ProgramExpired', 'expired', SELECTORS.ProgramExpired],
+      ['ProgramNeedsUpgrade', 'needs_upgrade', SELECTORS.ProgramNeedsUpgrade],
+    ])(
+      'maps %s revert (via selector) to reason %s',
+      async (errorName, expectedReason, selector) => {
+        const revertError = Object.assign(
+          new Error(`execution reverted: ${errorName}`),
+          { data: `${selector}00000000` },
+        );
+
+        mockProviderManager.getContract.mockReturnValue(
+          makeMockArbWasm(jest.fn().mockRejectedValue(revertError)),
+        );
+
+        const result = await service.processContract(baseContract);
+
+        expect(result.programTimeLeft).toBeNull();
+        expect(result.programTimeLeftReason).toBe(expectedReason);
+      },
+    );
+
+    it('falls back to error message matching when error data is not present', async () => {
+      const revertError = new Error(
+        'execution reverted (unknown custom error, unable to decode) ProgramNeedsUpgrade',
+      );
+
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockRejectedValue(revertError)),
+      );
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeft).toBeNull();
+      expect(result.programTimeLeftReason).toBe('needs_upgrade');
+    });
+
+    it('returns null reason and warns for unknown reverts', async () => {
+      const revertError = Object.assign(new Error('unknown revert'), {
+        data: '0xdeadbeef',
+      });
+
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockRejectedValue(revertError)),
+      );
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeft).toBeNull();
+      expect(result.programTimeLeftReason).toBeNull();
+    });
+  });
+
+  describe('readProgramTimeLeft caching', () => {
+    const baseContract = {
+      id: 'cache-test',
+      address: '0xCCcCCCcCcCCcCCCCcCCCcccccccccCcCcCCCCCCC',
+      blockchain: { id: 'chain-1' },
+      bytecode: {
+        id: 'bytecode-cache',
+        size: '1024',
+        lastBid: '0',
+        bidBlockTimestamp: new Date('2023-01-01T00:00:00Z'),
+        isCached: false,
+      },
+    } as unknown as Contract;
+
+    beforeEach(() => {
+      mockContractBidAssessmentService.getSuggestedBids.mockResolvedValue({
+        suggestedBids: { highRisk: '0', midRisk: '0', lowRisk: '0' },
+        cacheStats: {
+          utilization: 0,
+          evictionRate: 0,
+          medianBidPerByte: '0',
+          competitiveness: 0,
+          cacheSizeBytes: '0',
+          usedCacheSizeBytes: '0',
+          minBid: '0',
+        },
+      });
+    });
+
+    it('returns the cached result and does not call the contract on cache hit', async () => {
+      mockCacheManager.get.mockResolvedValueOnce({
+        seconds: '4242',
+        reason: null,
+      });
+      const programTimeLeftFn = jest.fn();
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(programTimeLeftFn),
+      );
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeft).toBe('4242');
+      expect(result.programTimeLeftReason).toBeNull();
+      expect(programTimeLeftFn).not.toHaveBeenCalled();
+      expect(mockCacheManager.set).not.toHaveBeenCalled();
+    });
+
+    it('writes the on-chain result to the cache on cache miss', async () => {
+      const programTimeLeftFn = jest.fn().mockResolvedValue(1234n);
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(programTimeLeftFn),
+      );
+
+      await service.processContract(baseContract);
+
+      expect(programTimeLeftFn).toHaveBeenCalledWith(baseContract.address);
+      expect(mockCacheManager.set).toHaveBeenCalledWith(
+        `programTimeLeft:chain-1:${baseContract.address.toLowerCase()}`,
+        { seconds: '1234', reason: null },
+        expect.any(Number),
+      );
     });
   });
 });
