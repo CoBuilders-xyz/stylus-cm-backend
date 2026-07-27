@@ -25,10 +25,8 @@ const PROGRAM_TIME_LEFT_RPC_TIMEOUT_MS = 2_000;
 // Shared sentinel for transient failures (RPC timeout, unexpected reader
 // throw). Frozen so a downstream consumer that mutates the response cannot
 // corrupt subsequent callers or cache entries.
-const PROGRAM_TIME_LEFT_TIMEOUT_RESULT: ProgramTimeLeftResult = Object.freeze({
-  seconds: null,
-  reason: null,
-}) as ProgramTimeLeftResult;
+const PROGRAM_TIME_LEFT_TIMEOUT_RESULT: Readonly<ProgramTimeLeftResult> =
+  Object.freeze({ seconds: null, reason: null });
 
 const REVERT_REASON_BY_ERROR_NAME: Record<string, ProgramTimeLeftReason> = {
   ProgramNotActivated: 'never_activated',

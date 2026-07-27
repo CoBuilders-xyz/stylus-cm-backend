@@ -541,7 +541,9 @@ describe('ContractEnrichmentService', () => {
     it('resolves with null fields and warns when the RPC exceeds the timeout budget', async () => {
       jest.useFakeTimers();
       try {
-        jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+        const warnSpy = jest
+          .spyOn(Logger.prototype, 'warn')
+          .mockImplementation(() => {});
 
         // RPC that never resolves — forces the race to hit the timeout branch.
         const programTimeLeftFn = jest
@@ -559,6 +561,11 @@ describe('ContractEnrichmentService', () => {
 
         expect(result.programTimeLeft).toBeNull();
         expect(result.programTimeLeftReason).toBeNull();
+        // Lock the observable contract: someone silently deleting the warn
+        // would otherwise turn a real regression into a green test.
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('timed out'),
+        );
       } finally {
         jest.useRealTimers();
       }
@@ -587,13 +594,21 @@ describe('ContractEnrichmentService', () => {
     });
 
     it('does not surface unhandled rejections when the reader throws unexpectedly', async () => {
-      jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => {});
       mockCacheManager.get.mockRejectedValueOnce(new Error('cache down'));
 
       const result = await service.processContract(baseContract);
 
       expect(result.programTimeLeft).toBeNull();
       expect(result.programTimeLeftReason).toBeNull();
+      // Escalation to error-level + stack is the whole point of the fix;
+      // lock it so a silent downgrade to warn is caught by CI.
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('cache down'),
+        expect.any(String),
+      );
     });
   });
 });
