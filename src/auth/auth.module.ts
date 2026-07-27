@@ -24,6 +24,9 @@ import { DevelopmentOnlyGuard } from './development-only.guard';
   exports: [OptionalAuthGuard],
   imports: [
     UsersModule,
+    // AppModule now registers CacheModule globally, so this local registration
+    // gives AuthService its own isolated store (nonce keys stay separate from
+    // other consumers). Drop this line to fall back to the global store.
     CacheModule.register(),
     JwtModule.registerAsync({
       global: true,

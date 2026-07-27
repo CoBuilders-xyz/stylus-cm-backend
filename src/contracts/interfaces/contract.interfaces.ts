@@ -77,6 +77,11 @@ export interface SuggestedBidsResult {
   cacheStats: CacheStats;
 }
 
+export type ProgramTimeLeftReason =
+  | 'never_activated'
+  | 'expired'
+  | 'needs_upgrade';
+
 export type ActivationHistoryItem = {
   contractAddress: string;
   eventType: 'ActivationPerformed' | 'ActivationError';
@@ -97,13 +102,14 @@ export type ActivationHistoryItem = {
  * Response interface for contract API endpoints that includes calculated fields
  */
 export interface ContractResponse extends Contract {
+  programTimeLeft: string | null;
+  programTimeLeftReason: ProgramTimeLeftReason | null;
   minBid?: string;
   effectiveBid?: string;
   evictionRisk?: EvictionRiskResult;
   suggestedBids?: SuggestedBidsResult;
   biddingHistory?: BidHistoryItem[];
   activationHistory?: ActivationHistoryItem[];
-  programTimeLeft?: string | null;
   isSavedByUser?: boolean;
   savedContractName?: string | null;
 }

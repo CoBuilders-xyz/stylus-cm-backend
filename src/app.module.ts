@@ -56,7 +56,7 @@ const appModules = [
       useFactory: (configService: ConfigService) => configService.get('redis')!,
     }),
     ScheduleModule.forRoot(),
-    CacheModule.register(),
+    CacheModule.register({ isGlobal: true }),
     EventEmitterModule.forRoot(),
     ...appModules,
   ],

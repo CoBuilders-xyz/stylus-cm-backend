@@ -52,8 +52,14 @@ export class ContractsController {
   @OptionalAuth()
   @UseGuards(OptionalAuthGuard)
   @Get('')
-  @ApiOperation({ summary: 'List all contracts with pagination, sorting, and filtering' })
-  @ApiResponse({ status: 200, description: 'Paginated list of contracts with calculated fields' })
+  @ApiOperation({
+    summary: 'List all contracts with pagination, sorting, and filtering',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      "Paginated list of contracts with calculated fields. Each item includes `programTimeLeft` (seconds as string, or null when the ArbWasm precompile reverts) and `programTimeLeftReason` ('never_activated' | 'expired' | 'needs_upgrade' | null).",
+  })
   async findAll(
     @Request() req: OptionalAuthenticatedRequest,
     @Query() contractQuery: ContractQueryDto,
@@ -90,9 +96,14 @@ export class ContractsController {
   }
 
   @Get('suggest-bids/by-address/:address')
-  @ApiOperation({ summary: 'Get suggested bid amounts for a contract by address' })
+  @ApiOperation({
+    summary: 'Get suggested bid amounts for a contract by address',
+  })
   @ApiParam({ name: 'address', description: 'Ethereum contract address' })
-  @ApiResponse({ status: 200, description: 'Suggested bids at different risk levels' })
+  @ApiResponse({
+    status: 200,
+    description: 'Suggested bids at different risk levels',
+  })
   async getSuggestedBidsByAddress(
     @Param() params: SuggestedBidsByAddressParamsDto,
     @Query() query: SuggestedBidsQueryDto,
@@ -122,9 +133,14 @@ export class ContractsController {
   }
 
   @Get('suggest-bids/by-size/:size')
-  @ApiOperation({ summary: 'Get suggested bid amounts for a given bytecode size' })
+  @ApiOperation({
+    summary: 'Get suggested bid amounts for a given bytecode size',
+  })
   @ApiParam({ name: 'size', description: 'Bytecode size in bytes' })
-  @ApiResponse({ status: 200, description: 'Suggested bids at different risk levels' })
+  @ApiResponse({
+    status: 200,
+    description: 'Suggested bids at different risk levels',
+  })
   async getSuggestedBidsBySize(
     @Param('size') sizeParam: string,
     @Query() query: SuggestedBidsQueryDto,
@@ -167,9 +183,16 @@ export class ContractsController {
    * whether the contract is saved by the authenticated user.
    */
   @Get(':id')
-  @ApiOperation({ summary: 'Get contract detail with bidding history, activation history, and program time left' })
+  @ApiOperation({
+    summary:
+      'Get contract detail with bidding history, activation history, and program time left',
+  })
   @ApiParam({ name: 'id', description: 'Contract UUID' })
-  @ApiResponse({ status: 200, description: 'Contract with enriched data' })
+  @ApiResponse({
+    status: 200,
+    description:
+      "Contract with enriched data. Includes `programTimeLeft` (seconds as string, or null when the ArbWasm precompile reverts) and `programTimeLeftReason` ('never_activated' | 'expired' | 'needs_upgrade' | null).",
+  })
   @ApiResponse({ status: 404, description: 'Contract not found' })
   async findOne(
     @Request() req: AuthenticatedRequest,
