@@ -102,7 +102,7 @@ describe('ContractEnrichmentService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
@@ -526,9 +526,9 @@ describe('ContractEnrichmentService', () => {
       const p1 = service.processContract(baseContract);
       const p2 = service.processContract(baseContract);
 
-      // Let both callers advance through cache.get() and hit the in-flight map.
-      await Promise.resolve();
-      await Promise.resolve();
+      // Flush the microtask queue so both callers advance past cache.get()
+      // and the second one observes the in-flight entry from the first.
+      await new Promise<void>((resolve) => setImmediate(resolve));
 
       resolveRpc(9999n);
       const [r1, r2] = await Promise.all([p1, p2]);
@@ -541,7 +541,6 @@ describe('ContractEnrichmentService', () => {
     it('resolves with null fields and warns when the RPC exceeds the timeout budget', async () => {
       jest.useFakeTimers();
       try {
-        // Suppress the warn spam from bubbling to the jest output.
         jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
 
         // RPC that never resolves — forces the race to hit the timeout branch.
@@ -553,7 +552,9 @@ describe('ContractEnrichmentService', () => {
         );
 
         const resultPromise = service.processContract(baseContract);
-        await jest.advanceTimersByTimeAsync(2_000);
+        // Advance past the exact 2s boundary to avoid depending on race
+        // ordering between the timer callback and the awaited microtask.
+        await jest.advanceTimersByTimeAsync(2_001);
         const result = await resultPromise;
 
         expect(result.programTimeLeft).toBeNull();
@@ -563,8 +564,30 @@ describe('ContractEnrichmentService', () => {
       }
     });
 
+    it('does not cache the timeout sentinel so a transient hiccup does not pin the contract for a full TTL', async () => {
+      jest.useFakeTimers();
+      try {
+        jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+        const programTimeLeftFn = jest
+          .fn()
+          .mockImplementation(() => new Promise<bigint>(() => {}));
+        mockProviderManager.getContract.mockReturnValue(
+          makeMockArbWasm(programTimeLeftFn),
+        );
+
+        const resultPromise = service.processContract(baseContract);
+        await jest.advanceTimersByTimeAsync(2_001);
+        await resultPromise;
+
+        expect(mockCacheManager.set).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('does not surface unhandled rejections when the reader throws unexpectedly', async () => {
-      jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+      jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
       mockCacheManager.get.mockRejectedValueOnce(new Error('cache down'));
 
       const result = await service.processContract(baseContract);

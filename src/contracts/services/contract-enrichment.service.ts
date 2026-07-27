@@ -22,10 +22,13 @@ type ProgramTimeLeftResult = {
 
 const PROGRAM_TIME_LEFT_CACHE_TTL_MS = 30_000;
 const PROGRAM_TIME_LEFT_RPC_TIMEOUT_MS = 2_000;
-const PROGRAM_TIME_LEFT_TIMEOUT_RESULT: ProgramTimeLeftResult = {
+// Shared sentinel for transient failures (RPC timeout, unexpected reader
+// throw). Frozen so a downstream consumer that mutates the response cannot
+// corrupt subsequent callers or cache entries.
+const PROGRAM_TIME_LEFT_TIMEOUT_RESULT: ProgramTimeLeftResult = Object.freeze({
   seconds: null,
   reason: null,
-};
+}) as ProgramTimeLeftResult;
 
 const REVERT_REASON_BY_ERROR_NAME: Record<string, ProgramTimeLeftReason> = {
   ProgramNotActivated: 'never_activated',
@@ -69,10 +72,14 @@ export class ContractEnrichmentService {
     // and the await below cannot surface as an unhandled rejection.
     const programTimeLeftPromise = this.readProgramTimeLeft(contract).catch(
       (error) => {
-        this.logger.warn(
+        // Escalated to error-level: reaching this catch means the reader
+        // itself blew up (cache down, DI misconfig, TypeError, ...), not a
+        // known revert or timeout. Anything reported here should page.
+        this.logger.error(
           `programTimeLeft read threw unexpectedly for ${contract.address}: ${
             error instanceof Error ? error.message : String(error)
           }`,
+          error instanceof Error ? error.stack : undefined,
         );
         return PROGRAM_TIME_LEFT_TIMEOUT_RESULT;
       },
@@ -205,11 +212,16 @@ export class ContractEnrichmentService {
         contract,
       );
 
-      await this.cacheManager.set(
-        cacheKey,
-        result,
-        PROGRAM_TIME_LEFT_CACHE_TTL_MS,
-      );
+      // Never cache the transient-failure sentinel: a 2s hiccup would
+      // otherwise pin the contract to null for the full TTL, converting a
+      // one-off blip into a self-inflicted 30s outage.
+      if (result !== PROGRAM_TIME_LEFT_TIMEOUT_RESULT) {
+        await this.cacheManager.set(
+          cacheKey,
+          result,
+          PROGRAM_TIME_LEFT_CACHE_TTL_MS,
+        );
+      }
       return result;
     } finally {
       this.inFlightReads.delete(cacheKey);
