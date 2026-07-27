@@ -21,6 +21,11 @@ type ProgramTimeLeftResult = {
 };
 
 const PROGRAM_TIME_LEFT_CACHE_TTL_MS = 30_000;
+const PROGRAM_TIME_LEFT_RPC_TIMEOUT_MS = 2_000;
+const PROGRAM_TIME_LEFT_TIMEOUT_RESULT: ProgramTimeLeftResult = {
+  seconds: null,
+  reason: null,
+};
 
 const REVERT_REASON_BY_ERROR_NAME: Record<string, ProgramTimeLeftReason> = {
   ProgramNotActivated: 'never_activated',
@@ -37,6 +42,10 @@ export class ContractEnrichmentService {
   private readonly logger = new Logger(ContractEnrichmentService.name);
 
   private revertSelectors: Record<ProgramTimeLeftReason, string> | null = null;
+  private readonly inFlightReads = new Map<
+    string,
+    Promise<ProgramTimeLeftResult>
+  >();
 
   constructor(
     private readonly bidCalculatorService: ContractBidCalculatorService,
@@ -56,7 +65,18 @@ export class ContractEnrichmentService {
     contract: Contract,
     includeBiddingHistory = false,
   ): Promise<ContractResponse> {
-    const programTimeLeftPromise = this.readProgramTimeLeft(contract);
+    // Attach the catch immediately so an unexpected rejection between here
+    // and the await below cannot surface as an unhandled rejection.
+    const programTimeLeftPromise = this.readProgramTimeLeft(contract).catch(
+      (error) => {
+        this.logger.warn(
+          `programTimeLeft read threw unexpectedly for ${contract.address}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        return PROGRAM_TIME_LEFT_TIMEOUT_RESULT;
+      },
+    );
 
     let processedContract: ContractResponse = {
       ...contract,
@@ -159,27 +179,75 @@ export class ContractEnrichmentService {
       return cached;
     }
 
-    const arbWasm = this.providerManager.getContract(
-      contract.blockchain,
-      ContractType.ARB_WASM,
-    );
-
-    let result: ProgramTimeLeftResult;
-    try {
-      const timeLeft = (await arbWasm.programTimeLeft(
-        contract.address,
-      )) as bigint;
-      result = { seconds: timeLeft.toString(), reason: null };
-    } catch (error) {
-      result = this.decodeProgramTimeLeftRevert(arbWasm, error, contract);
+    // Single-flight: concurrent misses on the same key share one RPC round-trip.
+    const existing = this.inFlightReads.get(cacheKey);
+    if (existing) {
+      return existing;
     }
 
-    await this.cacheManager.set(
-      cacheKey,
-      result,
-      PROGRAM_TIME_LEFT_CACHE_TTL_MS,
-    );
-    return result;
+    const promise = this.fetchProgramTimeLeftFromChain(contract, cacheKey);
+    this.inFlightReads.set(cacheKey, promise);
+    return promise;
+  }
+
+  private async fetchProgramTimeLeftFromChain(
+    contract: Contract,
+    cacheKey: string,
+  ): Promise<ProgramTimeLeftResult> {
+    try {
+      const arbWasm = this.providerManager.getContract(
+        contract.blockchain,
+        ContractType.ARB_WASM,
+      );
+
+      const result = await this.callProgramTimeLeftWithTimeout(
+        arbWasm,
+        contract,
+      );
+
+      await this.cacheManager.set(
+        cacheKey,
+        result,
+        PROGRAM_TIME_LEFT_CACHE_TTL_MS,
+      );
+      return result;
+    } finally {
+      this.inFlightReads.delete(cacheKey);
+    }
+  }
+
+  private async callProgramTimeLeftWithTimeout(
+    arbWasm: ethers.Contract,
+    contract: Contract,
+  ): Promise<ProgramTimeLeftResult> {
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<ProgramTimeLeftResult>((resolve) => {
+      timeoutHandle = setTimeout(() => {
+        this.logger.warn(
+          `programTimeLeft RPC timed out after ${PROGRAM_TIME_LEFT_RPC_TIMEOUT_MS}ms for ${contract.address}`,
+        );
+        resolve(PROGRAM_TIME_LEFT_TIMEOUT_RESULT);
+      }, PROGRAM_TIME_LEFT_RPC_TIMEOUT_MS);
+    });
+
+    const rpcPromise = (async (): Promise<ProgramTimeLeftResult> => {
+      try {
+        const timeLeft = (await arbWasm.programTimeLeft(
+          contract.address,
+        )) as bigint;
+        return { seconds: timeLeft.toString(), reason: null };
+      } catch (error) {
+        return this.decodeProgramTimeLeftRevert(arbWasm, error, contract);
+      }
+    })();
+
+    try {
+      return await Promise.race([rpcPromise, timeoutPromise]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 
   /**

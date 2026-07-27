@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ContractEnrichmentService } from './contract-enrichment.service';
@@ -428,6 +429,23 @@ describe('ContractEnrichmentService', () => {
       expect(result.programTimeLeft).toBeNull();
       expect(result.programTimeLeftReason).toBeNull();
     });
+
+    it('matches revert data even when the hex body is uppercased', async () => {
+      // Some RPC wrappers return the selector bytes as uppercase hex. Selector
+      // matching normalizes case on both sides so the reason still resolves.
+      const upperBody = SELECTORS.ProgramExpired.slice(2).toUpperCase();
+      const revertError = Object.assign(new Error('execution reverted'), {
+        data: `0x${upperBody}00000000`,
+      });
+
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockRejectedValue(revertError)),
+      );
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeftReason).toBe('expired');
+    });
   });
 
   describe('readProgramTimeLeft caching', () => {
@@ -491,6 +509,68 @@ describe('ContractEnrichmentService', () => {
         { seconds: '1234', reason: null },
         expect.any(Number),
       );
+    });
+
+    it('deduplicates concurrent reads for the same contract (single-flight)', async () => {
+      let resolveRpc: (value: bigint) => void = () => {};
+      const programTimeLeftFn = jest.fn().mockImplementation(
+        () =>
+          new Promise<bigint>((resolve) => {
+            resolveRpc = resolve;
+          }),
+      );
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(programTimeLeftFn),
+      );
+
+      const p1 = service.processContract(baseContract);
+      const p2 = service.processContract(baseContract);
+
+      // Let both callers advance through cache.get() and hit the in-flight map.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      resolveRpc(9999n);
+      const [r1, r2] = await Promise.all([p1, p2]);
+
+      expect(programTimeLeftFn).toHaveBeenCalledTimes(1);
+      expect(r1.programTimeLeft).toBe('9999');
+      expect(r2.programTimeLeft).toBe('9999');
+    });
+
+    it('resolves with null fields and warns when the RPC exceeds the timeout budget', async () => {
+      jest.useFakeTimers();
+      try {
+        // Suppress the warn spam from bubbling to the jest output.
+        jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+        // RPC that never resolves — forces the race to hit the timeout branch.
+        const programTimeLeftFn = jest
+          .fn()
+          .mockImplementation(() => new Promise<bigint>(() => {}));
+        mockProviderManager.getContract.mockReturnValue(
+          makeMockArbWasm(programTimeLeftFn),
+        );
+
+        const resultPromise = service.processContract(baseContract);
+        await jest.advanceTimersByTimeAsync(2_000);
+        const result = await resultPromise;
+
+        expect(result.programTimeLeft).toBeNull();
+        expect(result.programTimeLeftReason).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not surface unhandled rejections when the reader throws unexpectedly', async () => {
+      jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+      mockCacheManager.get.mockRejectedValueOnce(new Error('cache down'));
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeft).toBeNull();
+      expect(result.programTimeLeftReason).toBeNull();
     });
   });
 });
