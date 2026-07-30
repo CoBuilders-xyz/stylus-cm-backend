@@ -16,7 +16,7 @@ export interface AppConfig {
   environment: 'local' | 'develop' | 'staging' | 'production';
   loggerLevels: LogLevel[];
   port: number;
-  allowedOriginPrefix?: string;
+  allowedOriginPrefixes: string[];
   frontendUrl?: string;
 }
 
@@ -53,7 +53,10 @@ export default registerAs('app', (): AppConfig => {
     ? validatePort(process.env.PORT, 'PORT')
     : DEFAULT_PORT;
   const frontendUrl = process.env.FRONTEND_URL;
-  const allowedOriginPrefix = process.env.ALLOWED_ORIGIN_PREFIX;
+  const allowedOriginPrefixes = (process.env.ALLOWED_ORIGIN_PREFIX || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
   // Parse logger levels from environment variable
   const loggerLevels = process.env.LOGGER_LEVELS
@@ -64,7 +67,7 @@ export default registerAs('app', (): AppConfig => {
     environment,
     port,
     frontendUrl,
-    allowedOriginPrefix,
+    allowedOriginPrefixes,
     loggerLevels,
     cors: {
       allowedHttpMethods: ALLOWED_HTTP_METHODS,
@@ -82,11 +85,16 @@ export function shouldAllowOrigin(
     return true;
   }
 
+  // Allow local frontends to use non-production backends.
+  if (config.environment !== 'production' && isLocalHttpOrigin(origin)) {
+    return true;
+  }
+
   // Allow origins that start with the configured prefix in non-production
   if (
     config.environment !== 'production' &&
-    config.allowedOriginPrefix &&
-    origin?.startsWith(config.allowedOriginPrefix)
+    origin &&
+    config.allowedOriginPrefixes.some((prefix) => origin.startsWith(prefix))
   ) {
     return true;
   }
@@ -97,4 +105,20 @@ export function shouldAllowOrigin(
   }
 
   return false;
+}
+
+function isLocalHttpOrigin(origin: string | undefined): boolean {
+  if (!origin) {
+    return false;
+  }
+
+  try {
+    const url = new URL(origin);
+    return (
+      url.protocol === 'http:' &&
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+    );
+  } catch {
+    return false;
+  }
 }
