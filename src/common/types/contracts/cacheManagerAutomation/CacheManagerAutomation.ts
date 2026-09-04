@@ -26,23 +26,23 @@ import type {
 export declare namespace ICacheManagerAutomation {
   export type ContractConfigStruct = {
     contractAddress: AddressLike;
-    maxBid: BigNumberish;
-    enabled: boolean;
+    biddingEnabled: boolean;
     autoActivate: boolean;
+    maxBid: BigNumberish;
     maxActivationCost: BigNumberish;
   };
 
   export type ContractConfigStructOutput = [
     contractAddress: string,
-    maxBid: bigint,
-    enabled: boolean,
+    biddingEnabled: boolean,
     autoActivate: boolean,
+    maxBid: bigint,
     maxActivationCost: bigint
   ] & {
     contractAddress: string;
-    maxBid: bigint;
-    enabled: boolean;
+    biddingEnabled: boolean;
     autoActivate: boolean;
+    maxBid: bigint;
     maxActivationCost: bigint;
   };
 
@@ -83,6 +83,7 @@ export declare namespace ICacheManagerAutomation {
 export interface CacheManagerAutomationInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "acceptOwnership"
       | "arbWasm"
       | "arbWasmCache"
       | "bidIncrement"
@@ -106,6 +107,7 @@ export interface CacheManagerAutomationInterface extends Interface {
       | "minFundAmount"
       | "minMaxBidAmount"
       | "owner"
+      | "pendingOwner"
       | "placeActivations"
       | "placeBids"
       | "removeAllContracts"
@@ -133,36 +135,32 @@ export interface CacheManagerAutomationInterface extends Interface {
       | "ActivationPerformed"
       | "ActivationRevertData"
       | "BalanceUpdated"
-      | "BidAttempted"
-      | "BidDetails"
       | "BidError"
       | "BidIncrementUpdated"
       | "BidPlaced"
       | "CacheThresholdUpdated"
       | "ContractAdded"
       | "ContractAutoActivateUpdated"
+      | "ContractBiddingEnabledUpdated"
       | "ContractMaxActivationCostUpdated"
-      | "ContractOperationPerformed"
       | "ContractRemoved"
       | "ContractUpdated"
-      | "DebugBidCheck"
-      | "DebugMinBidFetch"
       | "HorizonSecondsUpdated"
       | "MaxActivationsPerIterationUpdated"
       | "MaxBidsPerIterationUpdated"
       | "MaxContractsPerUserUpdated"
       | "MaxUserFundsUpdated"
       | "MaxUsersPerPageUpdated"
-      | "MinBidCheck"
       | "MinFundAmountUpdated"
       | "MinMaxBidAmountUpdated"
+      | "OwnershipTransferStarted"
       | "OwnershipTransferred"
-      | "Paused"
-      | "Unpaused"
-      | "UpkeepPerformed"
-      | "UserBalanceOperation"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "acceptOwnership",
+    values?: undefined
+  ): string;
   encodeFunctionData(functionFragment: "arbWasm", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "arbWasmCache",
@@ -247,6 +245,10 @@ export interface CacheManagerAutomationInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "pendingOwner",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "placeActivations",
     values: [ICacheManagerAutomation.ActivationRequestStruct[]]
   ): string;
@@ -323,6 +325,10 @@ export interface CacheManagerAutomationInterface extends Interface {
     values?: undefined
   ): string;
 
+  decodeFunctionResult(
+    functionFragment: "acceptOwnership",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "arbWasm", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "arbWasmCache",
@@ -406,6 +412,10 @@ export interface CacheManagerAutomationInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "pendingOwner",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "placeActivations",
     data: BytesLike
@@ -575,65 +585,6 @@ export namespace BalanceUpdatedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace BidAttemptedEvent {
-  export type InputTuple = [
-    user: AddressLike,
-    contractAddress: AddressLike,
-    bid: BigNumberish,
-    success: boolean
-  ];
-  export type OutputTuple = [
-    user: string,
-    contractAddress: string,
-    bid: bigint,
-    success: boolean
-  ];
-  export interface OutputObject {
-    user: string;
-    contractAddress: string;
-    bid: bigint;
-    success: boolean;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace BidDetailsEvent {
-  export type InputTuple = [
-    user: AddressLike,
-    contractAddress: AddressLike,
-    bidAmount: BigNumberish,
-    minBid: BigNumberish,
-    maxBid: BigNumberish,
-    userBalance: BigNumberish,
-    success: boolean
-  ];
-  export type OutputTuple = [
-    user: string,
-    contractAddress: string,
-    bidAmount: bigint,
-    minBid: bigint,
-    maxBid: bigint,
-    userBalance: bigint,
-    success: boolean
-  ];
-  export interface OutputObject {
-    user: string;
-    contractAddress: string;
-    bidAmount: bigint;
-    minBid: bigint;
-    maxBid: bigint;
-    userBalance: bigint;
-    success: boolean;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
 export namespace BidErrorEvent {
   export type InputTuple = [
     user: AddressLike,
@@ -757,6 +708,28 @@ export namespace ContractAutoActivateUpdatedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace ContractBiddingEnabledUpdatedEvent {
+  export type InputTuple = [
+    user: AddressLike,
+    contractAddress: AddressLike,
+    biddingEnabled: boolean
+  ];
+  export type OutputTuple = [
+    user: string,
+    contractAddress: string,
+    biddingEnabled: boolean
+  ];
+  export interface OutputObject {
+    user: string;
+    contractAddress: string;
+    biddingEnabled: boolean;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace ContractMaxActivationCostUpdatedEvent {
   export type InputTuple = [
     user: AddressLike,
@@ -772,31 +745,6 @@ export namespace ContractMaxActivationCostUpdatedEvent {
     user: string;
     contractAddress: string;
     maxActivationCost: bigint;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace ContractOperationPerformedEvent {
-  export type InputTuple = [
-    user: AddressLike,
-    contractAddress: AddressLike,
-    operation: string,
-    timestamp: BigNumberish
-  ];
-  export type OutputTuple = [
-    user: string,
-    contractAddress: string,
-    operation: string,
-    timestamp: bigint
-  ];
-  export interface OutputObject {
-    user: string;
-    contractAddress: string;
-    operation: string;
-    timestamp: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -832,50 +780,6 @@ export namespace ContractUpdatedEvent {
     user: string;
     contractAddress: string;
     maxBid: bigint;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace DebugBidCheckEvent {
-  export type InputTuple = [
-    user: AddressLike,
-    contractAddress: AddressLike,
-    step: string
-  ];
-  export type OutputTuple = [
-    user: string,
-    contractAddress: string,
-    step: string
-  ];
-  export interface OutputObject {
-    user: string;
-    contractAddress: string;
-    step: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace DebugMinBidFetchEvent {
-  export type InputTuple = [
-    contractAddress: AddressLike,
-    minBid: BigNumberish,
-    success: boolean
-  ];
-  export type OutputTuple = [
-    contractAddress: string,
-    minBid: bigint,
-    success: boolean
-  ];
-  export interface OutputObject {
-    contractAddress: string;
-    minBid: bigint;
-    success: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -961,19 +865,6 @@ export namespace MaxUsersPerPageUpdatedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace MinBidCheckEvent {
-  export type InputTuple = [contractAddress: AddressLike, minBid: BigNumberish];
-  export type OutputTuple = [contractAddress: string, minBid: bigint];
-  export interface OutputObject {
-    contractAddress: string;
-    minBid: bigint;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
 export namespace MinFundAmountUpdatedEvent {
   export type InputTuple = [oldValue: BigNumberish, newValue: BigNumberish];
   export type OutputTuple = [oldValue: bigint, newValue: bigint];
@@ -1000,7 +891,7 @@ export namespace MinMaxBidAmountUpdatedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace OwnershipTransferredEvent {
+export namespace OwnershipTransferStartedEvent {
   export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
   export type OutputTuple = [previousOwner: string, newOwner: string];
   export interface OutputObject {
@@ -1013,76 +904,12 @@ export namespace OwnershipTransferredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace PausedEvent {
-  export type InputTuple = [account: AddressLike];
-  export type OutputTuple = [account: string];
+export namespace OwnershipTransferredEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
   export interface OutputObject {
-    account: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace UnpausedEvent {
-  export type InputTuple = [account: AddressLike];
-  export type OutputTuple = [account: string];
-  export interface OutputObject {
-    account: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace UpkeepPerformedEvent {
-  export type InputTuple = [
-    totalContracts: BigNumberish,
-    successfulBids: BigNumberish,
-    failedBids: BigNumberish,
-    timestamp: BigNumberish
-  ];
-  export type OutputTuple = [
-    totalContracts: bigint,
-    successfulBids: bigint,
-    failedBids: bigint,
-    timestamp: bigint
-  ];
-  export interface OutputObject {
-    totalContracts: bigint;
-    successfulBids: bigint;
-    failedBids: bigint;
-    timestamp: bigint;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace UserBalanceOperationEvent {
-  export type InputTuple = [
-    user: AddressLike,
-    operation: string,
-    amount: BigNumberish,
-    newBalance: BigNumberish,
-    timestamp: BigNumberish
-  ];
-  export type OutputTuple = [
-    user: string,
-    operation: string,
-    amount: bigint,
-    newBalance: bigint,
-    timestamp: bigint
-  ];
-  export interface OutputObject {
-    user: string;
-    operation: string;
-    amount: bigint;
-    newBalance: bigint;
-    timestamp: bigint;
+    previousOwner: string;
+    newOwner: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -1133,6 +960,8 @@ export interface CacheManagerAutomation extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
   arbWasm: TypedContractMethod<[], [string], "view">;
 
   arbWasmCache: TypedContractMethod<[], [string], "view">;
@@ -1182,7 +1011,7 @@ export interface CacheManagerAutomation extends BaseContract {
     [
       _contract: AddressLike,
       _maxBid: BigNumberish,
-      _enabled: boolean,
+      _biddingEnabled: boolean,
       _autoActivate: boolean,
       _maxActivationCost: BigNumberish
     ],
@@ -1206,6 +1035,8 @@ export interface CacheManagerAutomation extends BaseContract {
 
   owner: TypedContractMethod<[], [string], "view">;
 
+  pendingOwner: TypedContractMethod<[], [string], "view">;
+
   placeActivations: TypedContractMethod<
     [_activationRequests: ICacheManagerAutomation.ActivationRequestStruct[]],
     [void],
@@ -1226,7 +1057,7 @@ export interface CacheManagerAutomation extends BaseContract {
     "nonpayable"
   >;
 
-  renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+  renounceOwnership: TypedContractMethod<[], [void], "view">;
 
   setBidIncrement: TypedContractMethod<
     [_bidIncrement: BigNumberish],
@@ -1298,7 +1129,7 @@ export interface CacheManagerAutomation extends BaseContract {
     [
       _contract: AddressLike,
       _maxBid: BigNumberish,
-      _enabled: boolean,
+      _biddingEnabled: boolean,
       _autoActivate: boolean,
       _maxActivationCost: BigNumberish
     ],
@@ -1307,13 +1138,13 @@ export interface CacheManagerAutomation extends BaseContract {
   >;
 
   userContracts: TypedContractMethod<
-    [arg0: AddressLike, arg1: BigNumberish],
+    [user: AddressLike, arg1: BigNumberish],
     [
-      [string, bigint, boolean, boolean, bigint] & {
+      [string, boolean, boolean, bigint, bigint] & {
         contractAddress: string;
-        maxBid: bigint;
-        enabled: boolean;
+        biddingEnabled: boolean;
         autoActivate: boolean;
+        maxBid: bigint;
         maxActivationCost: bigint;
       }
     ],
@@ -1326,6 +1157,9 @@ export interface CacheManagerAutomation extends BaseContract {
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "acceptOwnership"
+  ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "arbWasm"
   ): TypedContractMethod<[], [string], "view">;
@@ -1391,7 +1225,7 @@ export interface CacheManagerAutomation extends BaseContract {
     [
       _contract: AddressLike,
       _maxBid: BigNumberish,
-      _enabled: boolean,
+      _biddingEnabled: boolean,
       _autoActivate: boolean,
       _maxActivationCost: BigNumberish
     ],
@@ -1423,6 +1257,9 @@ export interface CacheManagerAutomation extends BaseContract {
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "pendingOwner"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "placeActivations"
   ): TypedContractMethod<
     [_activationRequests: ICacheManagerAutomation.ActivationRequestStruct[]],
@@ -1444,7 +1281,7 @@ export interface CacheManagerAutomation extends BaseContract {
   ): TypedContractMethod<[_contract: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "renounceOwnership"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+  ): TypedContractMethod<[], [void], "view">;
   getFunction(
     nameOrSignature: "setBidIncrement"
   ): TypedContractMethod<[_bidIncrement: BigNumberish], [void], "nonpayable">;
@@ -1504,7 +1341,7 @@ export interface CacheManagerAutomation extends BaseContract {
     [
       _contract: AddressLike,
       _maxBid: BigNumberish,
-      _enabled: boolean,
+      _biddingEnabled: boolean,
       _autoActivate: boolean,
       _maxActivationCost: BigNumberish
     ],
@@ -1514,13 +1351,13 @@ export interface CacheManagerAutomation extends BaseContract {
   getFunction(
     nameOrSignature: "userContracts"
   ): TypedContractMethod<
-    [arg0: AddressLike, arg1: BigNumberish],
+    [user: AddressLike, arg1: BigNumberish],
     [
-      [string, bigint, boolean, boolean, bigint] & {
+      [string, boolean, boolean, bigint, bigint] & {
         contractAddress: string;
-        maxBid: bigint;
-        enabled: boolean;
+        biddingEnabled: boolean;
         autoActivate: boolean;
+        maxBid: bigint;
         maxActivationCost: bigint;
       }
     ],
@@ -1557,20 +1394,6 @@ export interface CacheManagerAutomation extends BaseContract {
     BalanceUpdatedEvent.InputTuple,
     BalanceUpdatedEvent.OutputTuple,
     BalanceUpdatedEvent.OutputObject
-  >;
-  getEvent(
-    key: "BidAttempted"
-  ): TypedContractEvent<
-    BidAttemptedEvent.InputTuple,
-    BidAttemptedEvent.OutputTuple,
-    BidAttemptedEvent.OutputObject
-  >;
-  getEvent(
-    key: "BidDetails"
-  ): TypedContractEvent<
-    BidDetailsEvent.InputTuple,
-    BidDetailsEvent.OutputTuple,
-    BidDetailsEvent.OutputObject
   >;
   getEvent(
     key: "BidError"
@@ -1615,18 +1438,18 @@ export interface CacheManagerAutomation extends BaseContract {
     ContractAutoActivateUpdatedEvent.OutputObject
   >;
   getEvent(
+    key: "ContractBiddingEnabledUpdated"
+  ): TypedContractEvent<
+    ContractBiddingEnabledUpdatedEvent.InputTuple,
+    ContractBiddingEnabledUpdatedEvent.OutputTuple,
+    ContractBiddingEnabledUpdatedEvent.OutputObject
+  >;
+  getEvent(
     key: "ContractMaxActivationCostUpdated"
   ): TypedContractEvent<
     ContractMaxActivationCostUpdatedEvent.InputTuple,
     ContractMaxActivationCostUpdatedEvent.OutputTuple,
     ContractMaxActivationCostUpdatedEvent.OutputObject
-  >;
-  getEvent(
-    key: "ContractOperationPerformed"
-  ): TypedContractEvent<
-    ContractOperationPerformedEvent.InputTuple,
-    ContractOperationPerformedEvent.OutputTuple,
-    ContractOperationPerformedEvent.OutputObject
   >;
   getEvent(
     key: "ContractRemoved"
@@ -1641,20 +1464,6 @@ export interface CacheManagerAutomation extends BaseContract {
     ContractUpdatedEvent.InputTuple,
     ContractUpdatedEvent.OutputTuple,
     ContractUpdatedEvent.OutputObject
-  >;
-  getEvent(
-    key: "DebugBidCheck"
-  ): TypedContractEvent<
-    DebugBidCheckEvent.InputTuple,
-    DebugBidCheckEvent.OutputTuple,
-    DebugBidCheckEvent.OutputObject
-  >;
-  getEvent(
-    key: "DebugMinBidFetch"
-  ): TypedContractEvent<
-    DebugMinBidFetchEvent.InputTuple,
-    DebugMinBidFetchEvent.OutputTuple,
-    DebugMinBidFetchEvent.OutputObject
   >;
   getEvent(
     key: "HorizonSecondsUpdated"
@@ -1699,13 +1508,6 @@ export interface CacheManagerAutomation extends BaseContract {
     MaxUsersPerPageUpdatedEvent.OutputObject
   >;
   getEvent(
-    key: "MinBidCheck"
-  ): TypedContractEvent<
-    MinBidCheckEvent.InputTuple,
-    MinBidCheckEvent.OutputTuple,
-    MinBidCheckEvent.OutputObject
-  >;
-  getEvent(
     key: "MinFundAmountUpdated"
   ): TypedContractEvent<
     MinFundAmountUpdatedEvent.InputTuple,
@@ -1720,39 +1522,18 @@ export interface CacheManagerAutomation extends BaseContract {
     MinMaxBidAmountUpdatedEvent.OutputObject
   >;
   getEvent(
+    key: "OwnershipTransferStarted"
+  ): TypedContractEvent<
+    OwnershipTransferStartedEvent.InputTuple,
+    OwnershipTransferStartedEvent.OutputTuple,
+    OwnershipTransferStartedEvent.OutputObject
+  >;
+  getEvent(
     key: "OwnershipTransferred"
   ): TypedContractEvent<
     OwnershipTransferredEvent.InputTuple,
     OwnershipTransferredEvent.OutputTuple,
     OwnershipTransferredEvent.OutputObject
-  >;
-  getEvent(
-    key: "Paused"
-  ): TypedContractEvent<
-    PausedEvent.InputTuple,
-    PausedEvent.OutputTuple,
-    PausedEvent.OutputObject
-  >;
-  getEvent(
-    key: "Unpaused"
-  ): TypedContractEvent<
-    UnpausedEvent.InputTuple,
-    UnpausedEvent.OutputTuple,
-    UnpausedEvent.OutputObject
-  >;
-  getEvent(
-    key: "UpkeepPerformed"
-  ): TypedContractEvent<
-    UpkeepPerformedEvent.InputTuple,
-    UpkeepPerformedEvent.OutputTuple,
-    UpkeepPerformedEvent.OutputObject
-  >;
-  getEvent(
-    key: "UserBalanceOperation"
-  ): TypedContractEvent<
-    UserBalanceOperationEvent.InputTuple,
-    UserBalanceOperationEvent.OutputTuple,
-    UserBalanceOperationEvent.OutputObject
   >;
 
   filters: {
@@ -1798,28 +1579,6 @@ export interface CacheManagerAutomation extends BaseContract {
       BalanceUpdatedEvent.InputTuple,
       BalanceUpdatedEvent.OutputTuple,
       BalanceUpdatedEvent.OutputObject
-    >;
-
-    "BidAttempted(address,address,uint256,bool)": TypedContractEvent<
-      BidAttemptedEvent.InputTuple,
-      BidAttemptedEvent.OutputTuple,
-      BidAttemptedEvent.OutputObject
-    >;
-    BidAttempted: TypedContractEvent<
-      BidAttemptedEvent.InputTuple,
-      BidAttemptedEvent.OutputTuple,
-      BidAttemptedEvent.OutputObject
-    >;
-
-    "BidDetails(address,address,uint256,uint256,uint256,uint256,bool)": TypedContractEvent<
-      BidDetailsEvent.InputTuple,
-      BidDetailsEvent.OutputTuple,
-      BidDetailsEvent.OutputObject
-    >;
-    BidDetails: TypedContractEvent<
-      BidDetailsEvent.InputTuple,
-      BidDetailsEvent.OutputTuple,
-      BidDetailsEvent.OutputObject
     >;
 
     "BidError(address,address,uint256,string)": TypedContractEvent<
@@ -1888,6 +1647,17 @@ export interface CacheManagerAutomation extends BaseContract {
       ContractAutoActivateUpdatedEvent.OutputObject
     >;
 
+    "ContractBiddingEnabledUpdated(address,address,bool)": TypedContractEvent<
+      ContractBiddingEnabledUpdatedEvent.InputTuple,
+      ContractBiddingEnabledUpdatedEvent.OutputTuple,
+      ContractBiddingEnabledUpdatedEvent.OutputObject
+    >;
+    ContractBiddingEnabledUpdated: TypedContractEvent<
+      ContractBiddingEnabledUpdatedEvent.InputTuple,
+      ContractBiddingEnabledUpdatedEvent.OutputTuple,
+      ContractBiddingEnabledUpdatedEvent.OutputObject
+    >;
+
     "ContractMaxActivationCostUpdated(address,address,uint256)": TypedContractEvent<
       ContractMaxActivationCostUpdatedEvent.InputTuple,
       ContractMaxActivationCostUpdatedEvent.OutputTuple,
@@ -1897,17 +1667,6 @@ export interface CacheManagerAutomation extends BaseContract {
       ContractMaxActivationCostUpdatedEvent.InputTuple,
       ContractMaxActivationCostUpdatedEvent.OutputTuple,
       ContractMaxActivationCostUpdatedEvent.OutputObject
-    >;
-
-    "ContractOperationPerformed(address,address,string,uint256)": TypedContractEvent<
-      ContractOperationPerformedEvent.InputTuple,
-      ContractOperationPerformedEvent.OutputTuple,
-      ContractOperationPerformedEvent.OutputObject
-    >;
-    ContractOperationPerformed: TypedContractEvent<
-      ContractOperationPerformedEvent.InputTuple,
-      ContractOperationPerformedEvent.OutputTuple,
-      ContractOperationPerformedEvent.OutputObject
     >;
 
     "ContractRemoved(address,address)": TypedContractEvent<
@@ -1930,28 +1689,6 @@ export interface CacheManagerAutomation extends BaseContract {
       ContractUpdatedEvent.InputTuple,
       ContractUpdatedEvent.OutputTuple,
       ContractUpdatedEvent.OutputObject
-    >;
-
-    "DebugBidCheck(address,address,string)": TypedContractEvent<
-      DebugBidCheckEvent.InputTuple,
-      DebugBidCheckEvent.OutputTuple,
-      DebugBidCheckEvent.OutputObject
-    >;
-    DebugBidCheck: TypedContractEvent<
-      DebugBidCheckEvent.InputTuple,
-      DebugBidCheckEvent.OutputTuple,
-      DebugBidCheckEvent.OutputObject
-    >;
-
-    "DebugMinBidFetch(address,uint192,bool)": TypedContractEvent<
-      DebugMinBidFetchEvent.InputTuple,
-      DebugMinBidFetchEvent.OutputTuple,
-      DebugMinBidFetchEvent.OutputObject
-    >;
-    DebugMinBidFetch: TypedContractEvent<
-      DebugMinBidFetchEvent.InputTuple,
-      DebugMinBidFetchEvent.OutputTuple,
-      DebugMinBidFetchEvent.OutputObject
     >;
 
     "HorizonSecondsUpdated(uint256,uint256)": TypedContractEvent<
@@ -2020,17 +1757,6 @@ export interface CacheManagerAutomation extends BaseContract {
       MaxUsersPerPageUpdatedEvent.OutputObject
     >;
 
-    "MinBidCheck(address,uint256)": TypedContractEvent<
-      MinBidCheckEvent.InputTuple,
-      MinBidCheckEvent.OutputTuple,
-      MinBidCheckEvent.OutputObject
-    >;
-    MinBidCheck: TypedContractEvent<
-      MinBidCheckEvent.InputTuple,
-      MinBidCheckEvent.OutputTuple,
-      MinBidCheckEvent.OutputObject
-    >;
-
     "MinFundAmountUpdated(uint256,uint256)": TypedContractEvent<
       MinFundAmountUpdatedEvent.InputTuple,
       MinFundAmountUpdatedEvent.OutputTuple,
@@ -2053,6 +1779,17 @@ export interface CacheManagerAutomation extends BaseContract {
       MinMaxBidAmountUpdatedEvent.OutputObject
     >;
 
+    "OwnershipTransferStarted(address,address)": TypedContractEvent<
+      OwnershipTransferStartedEvent.InputTuple,
+      OwnershipTransferStartedEvent.OutputTuple,
+      OwnershipTransferStartedEvent.OutputObject
+    >;
+    OwnershipTransferStarted: TypedContractEvent<
+      OwnershipTransferStartedEvent.InputTuple,
+      OwnershipTransferStartedEvent.OutputTuple,
+      OwnershipTransferStartedEvent.OutputObject
+    >;
+
     "OwnershipTransferred(address,address)": TypedContractEvent<
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
@@ -2062,50 +1799,6 @@ export interface CacheManagerAutomation extends BaseContract {
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
       OwnershipTransferredEvent.OutputObject
-    >;
-
-    "Paused(address)": TypedContractEvent<
-      PausedEvent.InputTuple,
-      PausedEvent.OutputTuple,
-      PausedEvent.OutputObject
-    >;
-    Paused: TypedContractEvent<
-      PausedEvent.InputTuple,
-      PausedEvent.OutputTuple,
-      PausedEvent.OutputObject
-    >;
-
-    "Unpaused(address)": TypedContractEvent<
-      UnpausedEvent.InputTuple,
-      UnpausedEvent.OutputTuple,
-      UnpausedEvent.OutputObject
-    >;
-    Unpaused: TypedContractEvent<
-      UnpausedEvent.InputTuple,
-      UnpausedEvent.OutputTuple,
-      UnpausedEvent.OutputObject
-    >;
-
-    "UpkeepPerformed(uint256,uint256,uint256,uint256)": TypedContractEvent<
-      UpkeepPerformedEvent.InputTuple,
-      UpkeepPerformedEvent.OutputTuple,
-      UpkeepPerformedEvent.OutputObject
-    >;
-    UpkeepPerformed: TypedContractEvent<
-      UpkeepPerformedEvent.InputTuple,
-      UpkeepPerformedEvent.OutputTuple,
-      UpkeepPerformedEvent.OutputObject
-    >;
-
-    "UserBalanceOperation(address,string,uint256,uint256,uint256)": TypedContractEvent<
-      UserBalanceOperationEvent.InputTuple,
-      UserBalanceOperationEvent.OutputTuple,
-      UserBalanceOperationEvent.OutputObject
-    >;
-    UserBalanceOperation: TypedContractEvent<
-      UserBalanceOperationEvent.InputTuple,
-      UserBalanceOperationEvent.OutputTuple,
-      UserBalanceOperationEvent.OutputObject
     >;
   };
 }

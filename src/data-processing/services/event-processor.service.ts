@@ -66,6 +66,14 @@ export class EventProcessorService {
           this.automationService.processContractRemovedEvent(blockchain, event),
       ],
       [
+        EVENT_TYPES.CONTRACT_BIDDING_ENABLED_UPDATED,
+        (blockchain: Blockchain, event: BlockchainEvent) =>
+          this.automationService.processContractBiddingEnabledUpdatedEvent(
+            blockchain,
+            event,
+          ),
+      ],
+      [
         EVENT_TYPES.ACTIVATION_PERFORMED,
         (blockchain: Blockchain, event: BlockchainEvent) =>
           this.activationService.processActivationPerformedEvent(

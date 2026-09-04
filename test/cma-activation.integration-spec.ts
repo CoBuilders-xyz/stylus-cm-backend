@@ -106,7 +106,7 @@ describe('CMA Activation - Auto-Reactivation Flow', () => {
   it('should register autoActivate=true contract in CMA', async () => {
     await chain.insertContract(CMA_ADDRESS, autoActivateContract, {
       maxBid: ethers.parseEther('0.001'),
-      enabled: true,
+      biddingEnabled: true,
       autoActivate: true,
       maxActivationCost: ethers.parseEther('0.01'),
       funding: ethers.parseEther('0.02'),
@@ -145,7 +145,7 @@ describe('CMA Activation - Auto-Reactivation Flow', () => {
   it('should register control contract with autoActivate=false', async () => {
     await chain.insertContract(CMA_ADDRESS, controlContract, {
       maxBid: ethers.parseEther('0.001'),
-      enabled: true,
+      biddingEnabled: true,
       autoActivate: false,
       maxActivationCost: 0n,
       funding: ethers.parseEther('0.005'),

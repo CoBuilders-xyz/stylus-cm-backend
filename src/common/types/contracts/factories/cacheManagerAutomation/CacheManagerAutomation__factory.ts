@@ -42,12 +42,12 @@ const _abi = [
   },
   {
     inputs: [],
-    name: "ContractPaused",
+    name: "ExceedsMaxUserFunds",
     type: "error",
   },
   {
     inputs: [],
-    name: "ExceedsMaxUserFunds",
+    name: "IndexOutOfBounds",
     type: "error",
   },
   {
@@ -72,7 +72,62 @@ const _abi = [
   },
   {
     inputs: [],
+    name: "InvalidBidIncrement",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidCacheThreshold",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "InvalidFundAmount",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidHorizonSeconds",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMaxActivationsPerIteration",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMaxBidsPerIteration",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMaxContractsPerUser",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMaxUserFunds",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMaxUsersPerPage",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMinFundAmount",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMinMaxBidAmount",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "OwnershipRenunciationDisabled",
     type: "error",
   },
   {
@@ -217,86 +272,6 @@ const _abi = [
       },
     ],
     name: "BalanceUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "user",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "contractAddress",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "bid",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "bool",
-        name: "success",
-        type: "bool",
-      },
-    ],
-    name: "BidAttempted",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "user",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "contractAddress",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "bidAmount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "minBid",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "maxBid",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "userBalance",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "bool",
-        name: "success",
-        type: "bool",
-      },
-    ],
-    name: "BidDetails",
     type: "event",
   },
   {
@@ -472,12 +447,12 @@ const _abi = [
       },
       {
         indexed: false,
-        internalType: "uint256",
-        name: "maxActivationCost",
-        type: "uint256",
+        internalType: "bool",
+        name: "biddingEnabled",
+        type: "bool",
       },
     ],
-    name: "ContractMaxActivationCostUpdated",
+    name: "ContractBiddingEnabledUpdated",
     type: "event",
   },
   {
@@ -497,18 +472,12 @@ const _abi = [
       },
       {
         indexed: false,
-        internalType: "string",
-        name: "operation",
-        type: "string",
-      },
-      {
-        indexed: false,
         internalType: "uint256",
-        name: "timestamp",
+        name: "maxActivationCost",
         type: "uint256",
       },
     ],
-    name: "ContractOperationPerformed",
+    name: "ContractMaxActivationCostUpdated",
     type: "event",
   },
   {
@@ -553,56 +522,6 @@ const _abi = [
       },
     ],
     name: "ContractUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "user",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "contractAddress",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "string",
-        name: "step",
-        type: "string",
-      },
-    ],
-    name: "DebugBidCheck",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "contractAddress",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint192",
-        name: "minBid",
-        type: "uint192",
-      },
-      {
-        indexed: false,
-        internalType: "bool",
-        name: "success",
-        type: "bool",
-      },
-    ],
-    name: "DebugMinBidFetch",
     type: "event",
   },
   {
@@ -723,25 +642,6 @@ const _abi = [
     anonymous: false,
     inputs: [
       {
-        indexed: true,
-        internalType: "address",
-        name: "contractAddress",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "minBid",
-        type: "uint256",
-      },
-    ],
-    name: "MinBidCheck",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
         indexed: false,
         internalType: "uint256",
         name: "oldValue",
@@ -792,102 +692,34 @@ const _abi = [
         type: "address",
       },
     ],
+    name: "OwnershipTransferStarted",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "previousOwner",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "newOwner",
+        type: "address",
+      },
+    ],
     name: "OwnershipTransferred",
     type: "event",
   },
   {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "account",
-        type: "address",
-      },
-    ],
-    name: "Paused",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "account",
-        type: "address",
-      },
-    ],
-    name: "Unpaused",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "totalContracts",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "successfulBids",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "failedBids",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "timestamp",
-        type: "uint256",
-      },
-    ],
-    name: "UpkeepPerformed",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "user",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "string",
-        name: "operation",
-        type: "string",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "newBalance",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "timestamp",
-        type: "uint256",
-      },
-    ],
-    name: "UserBalanceOperation",
-    type: "event",
+    inputs: [],
+    name: "acceptOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
     inputs: [],
@@ -993,19 +825,19 @@ const _abi = [
                 type: "address",
               },
               {
-                internalType: "uint256",
-                name: "maxBid",
-                type: "uint256",
-              },
-              {
                 internalType: "bool",
-                name: "enabled",
+                name: "biddingEnabled",
                 type: "bool",
               },
               {
                 internalType: "bool",
                 name: "autoActivate",
                 type: "bool",
+              },
+              {
+                internalType: "uint256",
+                name: "maxBid",
+                type: "uint256",
               },
               {
                 internalType: "uint256",
@@ -1019,7 +851,7 @@ const _abi = [
           },
         ],
         internalType: "struct ICacheManagerAutomation.UserContractsData[]",
-        name: "",
+        name: "allUserContracts",
         type: "tuple[]",
       },
     ],
@@ -1056,19 +888,19 @@ const _abi = [
                 type: "address",
               },
               {
-                internalType: "uint256",
-                name: "maxBid",
-                type: "uint256",
-              },
-              {
                 internalType: "bool",
-                name: "enabled",
+                name: "biddingEnabled",
                 type: "bool",
               },
               {
                 internalType: "bool",
                 name: "autoActivate",
                 type: "bool",
+              },
+              {
+                internalType: "uint256",
+                name: "maxBid",
+                type: "uint256",
               },
               {
                 internalType: "uint256",
@@ -1151,19 +983,19 @@ const _abi = [
             type: "address",
           },
           {
-            internalType: "uint256",
-            name: "maxBid",
-            type: "uint256",
-          },
-          {
             internalType: "bool",
-            name: "enabled",
+            name: "biddingEnabled",
             type: "bool",
           },
           {
             internalType: "bool",
             name: "autoActivate",
             type: "bool",
+          },
+          {
+            internalType: "uint256",
+            name: "maxBid",
+            type: "uint256",
           },
           {
             internalType: "uint256",
@@ -1206,7 +1038,7 @@ const _abi = [
       },
       {
         internalType: "bool",
-        name: "_enabled",
+        name: "_biddingEnabled",
         type: "bool",
       },
       {
@@ -1330,6 +1162,19 @@ const _abi = [
     type: "function",
   },
   {
+    inputs: [],
+    name: "pendingOwner",
+    outputs: [
+      {
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [
       {
         components: [
@@ -1403,7 +1248,7 @@ const _abi = [
     inputs: [],
     name: "renounceOwnership",
     outputs: [],
-    stateMutability: "nonpayable",
+    stateMutability: "view",
     type: "function",
   },
   {
@@ -1563,7 +1408,7 @@ const _abi = [
       },
       {
         internalType: "bool",
-        name: "_enabled",
+        name: "_biddingEnabled",
         type: "bool",
       },
       {
@@ -1586,7 +1431,7 @@ const _abi = [
     inputs: [
       {
         internalType: "address",
-        name: "",
+        name: "user",
         type: "address",
       },
       {
@@ -1603,19 +1448,19 @@ const _abi = [
         type: "address",
       },
       {
-        internalType: "uint256",
-        name: "maxBid",
-        type: "uint256",
-      },
-      {
         internalType: "bool",
-        name: "enabled",
+        name: "biddingEnabled",
         type: "bool",
       },
       {
         internalType: "bool",
         name: "autoActivate",
         type: "bool",
+      },
+      {
+        internalType: "uint256",
+        name: "maxBid",
+        type: "uint256",
       },
       {
         internalType: "uint256",

@@ -78,16 +78,14 @@ export default () => ({
     'SetCacheSize',
     'SetDecayRate',
     'Initialized',
-    // CacheManagerAutomation
+    // CacheManagerAutomation (v2.0 ABI, contracts commit 82f963a)
     'ContractAdded',
     'ContractUpdated',
     'ContractRemoved',
-    'BidAttempted',
+    'ContractBiddingEnabledUpdated',
     'BidPlaced',
     'BidError',
     'BalanceUpdated',
-    'UpkeepPerformed',
-    'UserBalanceOperation',
     // CacheManagerAutomation - Activation
     'ActivationPerformed',
     'ActivationError',

@@ -58,6 +58,17 @@ export interface ContractRemovedEventData extends BaseEventData {
 }
 
 /**
+ * ContractBiddingEnabledUpdated event data structure
+ * Solidity: ContractBiddingEnabledUpdated(address indexed user, address indexed contractAddress, bool biddingEnabled)
+ */
+export interface ContractBiddingEnabledUpdatedEventData extends BaseEventData {
+  eventName: 'ContractBiddingEnabledUpdated';
+  user: string;
+  contractAddress: string;
+  biddingEnabled: boolean;
+}
+
+/**
  * ActivationPerformed event data structure
  * Solidity: ActivationPerformed(address indexed user, address indexed contractAddress,
  *           uint16 version, uint256 dataFee, uint256 spent, uint256 refund, uint256 userBalance)
@@ -133,6 +144,7 @@ export type EventData =
   | ContractAddedEventData
   | ContractUpdatedEventData
   | ContractRemovedEventData
+  | ContractBiddingEnabledUpdatedEventData
   | ActivationPerformedEventData
   | ActivationErrorEventData
   | ContractAutoActivateUpdatedEventData
@@ -228,6 +240,20 @@ export const EventDataGuards = {
       Array.isArray(data) &&
       data.length === 2 &&
       data.every((item) => typeof item === 'string') &&
+      isValidEthereumAddress(data[0]) && // user
+      isValidEthereumAddress(data[1]) // contractAddress
+    );
+  },
+
+  isContractBiddingEnabledUpdatedEventData: (
+    data: unknown[],
+  ): data is [string, string, boolean] => {
+    return (
+      Array.isArray(data) &&
+      data.length === 3 &&
+      typeof data[0] === 'string' &&
+      typeof data[1] === 'string' &&
+      typeof data[2] === 'boolean' &&
       isValidEthereumAddress(data[0]) && // user
       isValidEthereumAddress(data[1]) // contractAddress
     );

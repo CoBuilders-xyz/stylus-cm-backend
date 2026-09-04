@@ -207,6 +207,74 @@ export class AutomationService {
   }
 
   /**
+   * Process a ContractBiddingEnabledUpdated event for automation (CMA v2.0)
+   *
+   * @param blockchain The blockchain context
+   * @param event The ContractBiddingEnabledUpdated event to process
+   */
+  async processContractBiddingEnabledUpdatedEvent(
+    blockchain: Blockchain,
+    event: BlockchainEvent,
+  ): Promise<void> {
+    this.logger.debug(
+      `Processing Automation ContractBiddingEnabledUpdated event for blockchain ${blockchain.name}`,
+    );
+
+    try {
+      const eventDataArray = event.eventData as unknown[];
+
+      if (
+        !EventDataGuards.isContractBiddingEnabledUpdatedEventData(
+          eventDataArray,
+        )
+      ) {
+        this.logger.warn(
+          `ContractBiddingEnabledUpdated event data is not in the expected format: ${JSON.stringify(event.eventData)}`,
+        );
+        DataProcessingErrorHelpers.throwInvalidEventData(
+          event.id,
+          'ContractBiddingEnabledUpdated',
+          event.eventData,
+        );
+        return;
+      }
+
+      const [user, address, biddingEnabled] = eventDataArray;
+
+      this.logger.debug(
+        `Processing Automation ContractBiddingEnabledUpdated for user ${user}, address ${address} with biddingEnabled=${biddingEnabled}`,
+      );
+
+      const existingContract = await this.contractRepository.findOne({
+        where: { blockchain: { id: blockchain.id }, address },
+      });
+
+      if (!existingContract) {
+        this.logger.warn(
+          `No contract found for ${address} during ContractBiddingEnabledUpdated processing`,
+        );
+        return;
+      }
+
+      existingContract.biddingEnabled = biddingEnabled;
+      await this.contractRepository.save(existingContract);
+
+      this.logger.log(
+        `Successfully updated biddingEnabled=${biddingEnabled} for ${address}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error processing ContractBiddingEnabledUpdated event: ${error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      DataProcessingErrorHelpers.throwEventProcessingFailed(
+        event.id,
+        'ContractBiddingEnabledUpdated',
+      );
+    }
+  }
+
+  /**
    * Update contract for automation
    */
   private async updateContractForAutomation(

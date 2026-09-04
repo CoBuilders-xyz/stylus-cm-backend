@@ -9,7 +9,7 @@ export interface ContractSelectionCriteria {
   minBid: bigint;
   maxBid: bigint;
   contractAddress: string;
-  enabled: boolean;
+  biddingEnabled: boolean;
 }
 
 export interface ContractSelectionResult {

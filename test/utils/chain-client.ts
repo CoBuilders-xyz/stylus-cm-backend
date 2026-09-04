@@ -110,7 +110,7 @@ export class ChainClient {
     contractAddress: string,
     opts: {
       maxBid?: bigint;
-      enabled?: boolean;
+      biddingEnabled?: boolean;
       autoActivate?: boolean;
       maxActivationCost?: bigint;
       funding?: bigint;
@@ -120,7 +120,7 @@ export class ChainClient {
     const tx = await cma.insertContract(
       contractAddress,
       opts.maxBid ?? ethers.parseEther('0.001'),
-      opts.enabled ?? true,
+      opts.biddingEnabled ?? true,
       opts.autoActivate ?? false,
       opts.maxActivationCost ?? 0n,
       { value: opts.funding ?? ethers.parseEther('0.005') },
@@ -168,14 +168,14 @@ export class ChainClient {
 
   /**
    * Update a contract in CMA.
-   * Signature: updateContract(address, uint256 maxBid, bool enabled, bool autoActivate, uint256 maxActivationCost)
+   * Signature (CMA v2.0): updateContract(address, uint256 maxBid, bool biddingEnabled, bool autoActivate, uint256 maxActivationCost)
    */
   async updateContract(
     cmaAddress: string,
     contractAddress: string,
     opts: {
       maxBid: bigint;
-      enabled: boolean;
+      biddingEnabled: boolean;
       autoActivate: boolean;
       maxActivationCost: bigint;
     },
@@ -184,7 +184,7 @@ export class ChainClient {
     const tx = await cma.updateContract(
       contractAddress,
       opts.maxBid,
-      opts.enabled,
+      opts.biddingEnabled,
       opts.autoActivate,
       opts.maxActivationCost,
     );

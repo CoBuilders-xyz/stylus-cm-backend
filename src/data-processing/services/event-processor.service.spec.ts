@@ -16,6 +16,7 @@ describe('EventProcessorService', () => {
   let mockBlockchainRepository: jest.Mocked<Repository<Blockchain>>;
   let mockBlockchainEventRepository: jest.Mocked<Repository<BlockchainEvent>>;
   let mockInsertBidService: jest.Mocked<InsertBidService>;
+  let mockAutomationService: jest.Mocked<AutomationService>;
 
   beforeEach(async () => {
     const mockRepositories = {
@@ -29,6 +30,7 @@ describe('EventProcessorService', () => {
       processDeleteBidEvent: jest.fn(),
       processContractAddedEvent: jest.fn(),
       processContractUpdatedEvent: jest.fn(),
+      processContractBiddingEnabledUpdatedEvent: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -79,6 +81,7 @@ describe('EventProcessorService', () => {
       getRepositoryToken(BlockchainEvent),
     );
     mockInsertBidService = module.get(InsertBidService);
+    mockAutomationService = module.get(AutomationService);
   });
 
   afterEach(() => {
@@ -115,6 +118,39 @@ describe('EventProcessorService', () => {
       expect(
         mockBlockchainEventRepository.find.mock.calls.length,
       ).toBeGreaterThan(0);
+    });
+
+    it('should route ContractBiddingEnabledUpdated events to the automation service', async () => {
+      // Arrange
+      const mockBlockchain = {
+        id: 'test-id',
+        name: 'Test',
+        enabled: true,
+        lastProcessedBlockNumber: 0,
+      } as Blockchain;
+      const mockEvent = {
+        id: 'event-id',
+        eventName: 'ContractBiddingEnabledUpdated',
+        blockNumber: 1,
+        logIndex: 0,
+      } as BlockchainEvent;
+
+      mockBlockchainRepository.find.mockResolvedValue([mockBlockchain]);
+      mockBlockchainEventRepository.find.mockResolvedValue([mockEvent]);
+      mockAutomationService.processContractBiddingEnabledUpdatedEvent.mockResolvedValue();
+
+      // Act
+      await service.processAllEvents();
+
+      // Assert (repositories share one mock object in this spec, so only the
+      // event argument is asserted)
+      const calls =
+        mockAutomationService.processContractBiddingEnabledUpdatedEvent.mock
+          .calls;
+      expect(calls).toHaveLength(1);
+      expect(calls[0][1]).toMatchObject({
+        eventName: 'ContractBiddingEnabledUpdated',
+      });
     });
 
     it('should handle no enabled blockchains', async () => {

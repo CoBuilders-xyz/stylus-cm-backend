@@ -144,7 +144,10 @@ export class ActivationSelectionService {
     const addresses: string[] = [];
     for (const userConfig of allUserConfigs) {
       for (const contractConfig of userConfig.contracts) {
-        if (contractConfig.enabled && contractConfig.autoActivate) {
+        // CMA v2: activation is controlled by autoActivate only.
+        // biddingEnabled gates automated bidding and must not block activation
+        // (mirrors the contract's _shouldActivate).
+        if (contractConfig.autoActivate) {
           addresses.push(contractConfig.contractAddress);
         }
       }
@@ -197,7 +200,7 @@ export class ActivationSelectionService {
     const usersToCheck = new Map<string, string[]>();
     for (const userConfig of allUserConfigs) {
       for (const contractConfig of userConfig.contracts) {
-        if (!contractConfig.enabled || !contractConfig.autoActivate) continue;
+        if (!contractConfig.autoActivate) continue;
         const addr = contractConfig.contractAddress.toLowerCase();
         if (!eligibleMap.has(addr)) continue;
 
