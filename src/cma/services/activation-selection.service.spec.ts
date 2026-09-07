@@ -235,4 +235,77 @@ describe('ActivationSelectionService', () => {
       maxActivationsPerIteration: 5,
     });
   });
+
+  it.each<{ label: string; error: Error; expected: string[] }>([
+    {
+      label: 'upgrade-required name',
+      error: new Error(
+        'execution reverted: ProgramNeedsUpgrade(uint16,uint16)',
+      ),
+      expected: [CONTRACT_A, CONTRACT_B],
+    },
+    {
+      label: 'upgrade-required selector',
+      error: new Error(
+        'execution reverted (unknown custom error; data=0x637d968f)',
+      ),
+      expected: [CONTRACT_A, CONTRACT_B],
+    },
+    {
+      label: 'expired program',
+      error: new Error('execution reverted: ProgramExpired(uint64)'),
+      expected: [CONTRACT_A, CONTRACT_B],
+    },
+    {
+      label: 'expired selector',
+      error: new Error(
+        'execution reverted (unknown custom error; data=0xc9b12e52)',
+      ),
+      expected: [CONTRACT_A, CONTRACT_B],
+    },
+    {
+      label: 'never activated',
+      error: new Error('execution reverted: ProgramNotActivated()'),
+      expected: [CONTRACT_B],
+    },
+    { label: 'RPC failure', error: new Error('RPC unavailable'), expected: [] },
+  ])('handles $label consistently with CMA v2', async ({ error, expected }) => {
+    const cma = createCmaMock(1_000n);
+    cma.getContractsPaginated.mockResolvedValue(
+      decodePaginated([
+        [
+          USER,
+          [
+            {
+              contractAddress: CONTRACT_A,
+              biddingEnabled: false,
+              autoActivate: true,
+              maxBid: 111n,
+              maxActivationCost: 400n,
+            },
+            {
+              contractAddress: CONTRACT_B,
+              biddingEnabled: true,
+              autoActivate: true,
+              maxBid: 222n,
+              maxActivationCost: 400n,
+            },
+          ],
+        ],
+      ]),
+    );
+    const arbWasm = createArbWasmMock(0n);
+    arbWasm.programTimeLeft.mockRejectedValueOnce(error);
+    mockProviderManager.getContract
+      .mockReturnValueOnce(cma)
+      .mockReturnValueOnce(arbWasm);
+    mockContractRepository.find.mockResolvedValue([
+      dbContract(CONTRACT_A, '400'),
+      dbContract(CONTRACT_B, '400'),
+    ]);
+    const result = await service.selectOptimalActivations(blockchain);
+    expect(
+      result.selectedContracts.map((c) => c.address.toLowerCase()),
+    ).toEqual(expected);
+  });
 });

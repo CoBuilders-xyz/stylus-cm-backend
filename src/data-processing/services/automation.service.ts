@@ -189,6 +189,7 @@ export class AutomationService {
       }
 
       existingContract.isAutomated = false;
+      existingContract.biddingEnabled = false;
       await this.contractRepository.save(existingContract);
 
       this.logger.log(
