@@ -150,4 +150,19 @@ describe('AutomationService', () => {
       expect(saved.maxBid).toBe('123');
     });
   });
+  it('clears biddingEnabled when a registered contract is removed', async () => {
+    const contract = {
+      address: CONTRACT_ADDRESS,
+      isAutomated: true,
+      biddingEnabled: true,
+    } as Contract;
+    mockContractRepository.findOne.mockResolvedValue(contract);
+    await service.processContractRemovedEvent(
+      blockchain,
+      makeEvent('ContractRemoved', [USER, CONTRACT_ADDRESS]),
+    );
+    expect(mockContractRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isAutomated: false, biddingEnabled: false }),
+    );
+  });
 });

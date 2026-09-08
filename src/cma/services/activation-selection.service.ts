@@ -255,7 +255,12 @@ export class ActivationSelectionService {
       return timeLeft <= 0n;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('ProgramExpired') || msg.includes('0xc9b12e52')) {
+      if (
+        msg.includes('ProgramExpired') ||
+        msg.includes('0xc9b12e52') ||
+        msg.includes('ProgramNeedsUpgrade') ||
+        msg.includes('0x637d968f')
+      ) {
         return true;
       }
       if (msg.includes('ProgramNotActivated')) {
