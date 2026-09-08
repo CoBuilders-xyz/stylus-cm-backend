@@ -49,6 +49,11 @@ export class Contract {
   @Column('varchar', { length: 78, default: '0' })
   maxBid: string;
 
+  // CMA v2.0: mirrors ContractConfig.biddingEnabled (automated bidding only).
+  // Kept in sync by the ContractBiddingEnabledUpdated event.
+  @Column({ default: false })
+  biddingEnabled: boolean;
+
   @Column({ default: false })
   autoActivate: boolean;
 

@@ -47,6 +47,7 @@ export const EVENT_TYPES = {
   CONTRACT_ADDED: 'ContractAdded',
   CONTRACT_UPDATED: 'ContractUpdated',
   CONTRACT_REMOVED: 'ContractRemoved',
+  CONTRACT_BIDDING_ENABLED_UPDATED: 'ContractBiddingEnabledUpdated',
   ACTIVATION_PERFORMED: 'ActivationPerformed',
   ACTIVATION_ERROR: 'ActivationError',
   CONTRACT_AUTO_ACTIVATE_UPDATED: 'ContractAutoActivateUpdated',

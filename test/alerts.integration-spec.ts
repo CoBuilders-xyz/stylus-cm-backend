@@ -108,14 +108,14 @@ describe('Alerts Integration Tests', () => {
     // Register both in CMA
     await chain.insertContract(CMA_ADDRESS, contract1, {
       maxBid: ethers.parseEther('0.001'),
-      enabled: true,
+      biddingEnabled: true,
       autoActivate: false,
       maxActivationCost: 0n,
       funding: ethers.parseEther('0.005'),
     });
     await chain.insertContract(CMA_ADDRESS, contract2, {
       maxBid: ethers.parseEther('0.001'),
-      enabled: true,
+      biddingEnabled: true,
       autoActivate: false,
       maxActivationCost: 0n,
       funding: ethers.parseEther('0.005'),
@@ -667,7 +667,7 @@ describe('Alerts Integration Tests', () => {
       // Register in CMA with autoActivate=true and fund escrow for re-activation
       await chain.insertContract(CMA_ADDRESS, activationContract, {
         maxBid: ethers.parseEther('0.001'),
-        enabled: true,
+        biddingEnabled: true,
         autoActivate: true,
         maxActivationCost: ethers.parseEther('0.1'),
         funding: ethers.parseEther('0.2'),

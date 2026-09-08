@@ -100,7 +100,7 @@ export class ContractSelectionService {
           const shouldBid = await this.shouldBid(
             auc.user,
             contract.contractAddress,
-            contract.enabled,
+            contract.biddingEnabled,
             contract.maxBid,
             bidIndex,
             cacheUtilization,
@@ -141,7 +141,7 @@ export class ContractSelectionService {
   private async shouldBid(
     user: string,
     contractAddress: string,
-    enabled: boolean,
+    biddingEnabled: boolean,
     maxBid: bigint,
     bidIndex: number,
     cacheUtilization: number,
@@ -174,8 +174,9 @@ export class ContractSelectionService {
         return false;
       }
 
-      // 3. Is contract enabled?
-      if (!enabled) {
+      // 3. Is automated bidding enabled for this contract?
+      // (CMA v2: biddingEnabled controls bidding only; autoActivate is independent)
+      if (!biddingEnabled) {
         return false;
       }
 

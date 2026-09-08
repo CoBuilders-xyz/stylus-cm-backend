@@ -80,7 +80,7 @@ describe('CMA Caching - Full User Journey', () => {
   it('should register contract in CMA and backend picks up ContractAdded event', async () => {
     await chain.insertContract(CMA_ADDRESS, dummy1, {
       maxBid: ethers.parseEther('0.001'),
-      enabled: true,
+      biddingEnabled: true,
       autoActivate: false,
       maxActivationCost: 0n,
       funding: ethers.parseEther('0.005'),
@@ -140,7 +140,7 @@ describe('CMA Caching - Full User Journey', () => {
     const AUTOMATION_TIMEOUT = 120_000;
 
     // The backend automation cron (@Cron EVERY_MINUTE) should select dummy1
-    // (enabled, not cached, maxBid >= minBid, funded) and call placeBids via
+    // (biddingEnabled, not cached, maxBid >= minBid, funded) and call placeBids via
     // the automation orchestrator. Any InsertBid event is proof the automation
     // engine executed successfully.
 
@@ -176,7 +176,7 @@ describe('CMA Caching - Full User Journey', () => {
 
     await chain.updateContract(CMA_ADDRESS, dummy1, {
       maxBid: newMaxBid,
-      enabled: true,
+      biddingEnabled: true,
       autoActivate: false,
       maxActivationCost: 0n,
     });
@@ -216,7 +216,7 @@ describe('CMA Caching - Full User Journey', () => {
 
     await chain.insertContract(CMA_ADDRESS, dummy2, {
       maxBid: ethers.parseEther('0.001'),
-      enabled: true,
+      biddingEnabled: true,
       autoActivate: false,
       maxActivationCost: 0n,
       funding: ethers.parseEther('0.005'),
