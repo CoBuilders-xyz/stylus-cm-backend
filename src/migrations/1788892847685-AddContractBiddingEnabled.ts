@@ -3,9 +3,11 @@ import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 /**
  * CMA v2.0: adds Contract.biddingEnabled (see PR #85).
  *
- * First migration in the repository. Every environment before this point was
- * created by TypeORM synchronize, so the column may already exist on
- * databases that ran with sync on. `up` is therefore idempotent.
+ * First migration in the repository. Databases that run with synchronize on
+ * (local, develop) do not run migrations, so this is only ever applied to a
+ * database without the column. If it is run against a synced database by
+ * mistake, it fails on the duplicate column instead of recording a migration
+ * it did not perform.
  */
 export class AddContractBiddingEnabled1788892847685
   implements MigrationInterface
@@ -13,11 +15,6 @@ export class AddContractBiddingEnabled1788892847685
   name = 'AddContractBiddingEnabled1788892847685';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    const hasColumn = await queryRunner.hasColumn('contract', 'biddingEnabled');
-    if (hasColumn) {
-      return;
-    }
-
     await queryRunner.addColumn(
       'contract',
       new TableColumn({
