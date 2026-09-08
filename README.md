@@ -104,6 +104,34 @@ The backend processes and delivers:
 - `docs/`: Documentation for each module
 - `test/`: Test files
 
+### Database migrations
+
+Schema management depends on `ENVIRONMENT`:
+
+| Environment             | Schema source                                         |
+| ----------------------- | ----------------------------------------------------- |
+| `local`, `develop`      | TypeORM `synchronize` (entities alter the DB at boot) |
+| `staging`, `production` | Migrations in `src/migrations` run at boot            |
+
+Every change to an entity must ship with a migration, or it never reaches staging and production.
+
+Generate a migration from the entity diff. Point the CLI at a database that has sync off, for example a local Postgres with `ENVIRONMENT=staging`, so the diff is real:
+
+```bash
+ENVIRONMENT=staging npm run migration:generate -- src/migrations/<Name>
+```
+
+Other commands:
+
+```bash
+npm run migration:show                        # list applied and pending
+npm run migration:run                         # apply pending
+npm run migration:revert                      # roll back the last one
+npm run migration:create -- src/migrations/<Name>   # empty migration file
+```
+
+The CLI reads connection settings from `.env` through `src/common/config/data-source.ts`. Review generated SQL before committing. The application also applies pending migrations on startup when sync is off, so a normal deploy is enough to migrate staging and production.
+
 ### Key Technologies
 
 - **NestJS**: Backend framework
