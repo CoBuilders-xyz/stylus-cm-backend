@@ -7,10 +7,10 @@ import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
  * created by TypeORM synchronize, so the column may already exist on
  * databases that ran with sync on. `up` is therefore idempotent.
  */
-export class AddContractBiddingEnabled1757300000000
+export class AddContractBiddingEnabled1788892847685
   implements MigrationInterface
 {
-  name = 'AddContractBiddingEnabled1757300000000';
+  name = 'AddContractBiddingEnabled1788892847685';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     const hasColumn = await queryRunner.hasColumn('contract', 'biddingEnabled');
