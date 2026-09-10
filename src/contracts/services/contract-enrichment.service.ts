@@ -131,7 +131,10 @@ export class ContractEnrichmentService {
     if (includeBiddingHistory) {
       const [biddingHistory, activationHistory] = await Promise.all([
         this.historyService.getBiddingHistory(contract.address),
-        this.historyService.getActivationHistory(contract.address),
+        this.historyService.getActivationHistory(
+          contract.address,
+          contract.blockchain.id,
+        ),
       ]);
 
       return {

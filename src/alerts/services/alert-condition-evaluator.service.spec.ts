@@ -219,6 +219,20 @@ describe('AlertConditionEvaluatorService', () => {
       jest.restoreAllMocks();
     });
 
+    it('should not trigger and not read the escrow when the alert has no user', async () => {
+      const alert = {
+        ...createGasAlert(AlertType.NO_GAS),
+        user: null,
+      } as unknown as Alert;
+      const blockchain = createMockBlockchain();
+      const { mockCmaContract, mockDepositsOf } = createMockCmaAndEscrow(0n);
+      mockProviderManager.getContract.mockReturnValue(mockCmaContract);
+
+      const result = await service.evaluateGasCondition(alert, blockchain);
+      expect(result).toBe(false);
+      expect(mockDepositsOf).not.toHaveBeenCalled();
+    });
+
     it('should trigger noGas when balance is zero', async () => {
       const alert = createGasAlert(AlertType.NO_GAS);
       const blockchain = createMockBlockchain();
@@ -317,6 +331,40 @@ describe('AlertConditionEvaluatorService', () => {
         blockchain,
       );
       expect(result).toBe(true);
+    });
+
+    it('should accept a fractional approachingExpiration threshold', async () => {
+      const alert = createExpirationAlert(
+        AlertType.APPROACHING_EXPIRATION,
+        '7.5',
+      ); // 7.5 days = 648000 seconds
+      const blockchain = createMockBlockchain();
+      mockProviderManager.getContract.mockReturnValue({
+        programTimeLeft: jest.fn().mockResolvedValue(647999n),
+      });
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should not trigger approachingExpiration on a non-numeric threshold', async () => {
+      const alert = createExpirationAlert(
+        AlertType.APPROACHING_EXPIRATION,
+        'soon',
+      );
+      const blockchain = createMockBlockchain();
+      mockProviderManager.getContract.mockReturnValue({
+        programTimeLeft: jest.fn().mockResolvedValue(1n),
+      });
+
+      const result = await service.evaluateExpirationCondition(
+        alert,
+        blockchain,
+      );
+      expect(result).toBe(false);
     });
 
     it('should NOT trigger approachingExpiration when timeLeft >= threshold', async () => {
