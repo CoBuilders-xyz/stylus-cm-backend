@@ -51,6 +51,102 @@ describe('ContractHistoryService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('getActivationHistory', () => {
+    const contractAddress = '0xABCDEF1234567890ABCDEF1234567890ABCDEF12';
+    const blockchainId = 'blockchain-one';
+
+    const buildQueryBuilder = (events: unknown[]) => ({
+      innerJoin: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(events),
+    });
+
+    it('scopes the query to the given blockchain and lowercases the address', async () => {
+      const qb = buildQueryBuilder([]);
+      mockBlockchainEventRepository.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.getActivationHistory(
+        contractAddress,
+        blockchainId,
+      );
+
+      expect(result).toEqual([]);
+      expect(qb.innerJoin).toHaveBeenCalledWith(
+        'event.blockchain',
+        'blockchain',
+      );
+      expect(qb.where).toHaveBeenCalledWith('blockchain.id = :blockchainId', {
+        blockchainId,
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'event.eventName IN (:...eventNames)',
+        { eventNames: ['ActivationPerformed', 'ActivationError'] },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('LOWER(CAST(event."eventData"->>1 AS TEXT))'),
+        { contractAddress: contractAddress.toLowerCase() },
+      );
+    });
+
+    it('maps ActivationPerformed and ActivationError events', async () => {
+      const timestamp = new Date('2026-09-10T00:00:00Z');
+      const qb = buildQueryBuilder([
+        {
+          eventName: 'ActivationPerformed',
+          blockTimestamp: timestamp,
+          blockNumber: 100,
+          transactionHash: '0xperformed',
+          eventData: ['0xuser', contractAddress, '3', '10', '8', '2', '90'],
+        },
+        {
+          eventName: 'ActivationError',
+          blockTimestamp: timestamp,
+          blockNumber: 99,
+          transactionHash: '0xerror',
+          eventData: ['0xuser', contractAddress, '10', 'Insufficient balance'],
+        },
+      ]);
+      mockBlockchainEventRepository.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.getActivationHistory(
+        contractAddress,
+        blockchainId,
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        eventType: 'ActivationPerformed',
+        user: '0xuser',
+        contractAddress,
+        blockNumber: 100,
+        transactionHash: '0xperformed',
+        version: '3',
+        dataFee: '10',
+        spent: '8',
+        refund: '2',
+        userBalance: '90',
+      });
+      expect(result[1]).toMatchObject({
+        eventType: 'ActivationError',
+        transactionHash: '0xerror',
+        reason: 'Insufficient balance',
+      });
+    });
+
+    it('returns an empty list when the query fails', async () => {
+      const qb = buildQueryBuilder([]);
+      qb.getMany.mockRejectedValue(new Error('db down'));
+      mockBlockchainEventRepository.createQueryBuilder.mockReturnValue(qb);
+
+      await expect(
+        service.getActivationHistory(contractAddress, blockchainId),
+      ).resolves.toEqual([]);
+    });
+  });
+
   describe('getBiddingHistory', () => {
     it('should get bidding history for a contract address', async () => {
       // Arrange
