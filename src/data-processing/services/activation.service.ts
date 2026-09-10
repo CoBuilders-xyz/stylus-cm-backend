@@ -110,7 +110,8 @@ export class ActivationService {
 
       if (contract) {
         contract.activationStatus = 'error';
-        contract.activationRetryCount = (contract.activationRetryCount || 0) + 1;
+        contract.activationRetryCount =
+          (contract.activationRetryCount || 0) + 1;
         await this.contractRepository.save(contract);
       }
     } catch (error) {

@@ -16,7 +16,11 @@ export enum ContractSortFieldNumeric {
 }
 
 export class ContractSortingDto extends BaseSortingDto<ContractSortField> {
-  @ApiPropertyOptional({ enum: ContractSortField, isArray: true, description: 'Fields to sort by' })
+  @ApiPropertyOptional({
+    enum: ContractSortField,
+    isArray: true,
+    description: 'Fields to sort by',
+  })
   @IsOptional()
   @IsEnum(ContractSortField, { each: true })
   sortBy?: ContractSortField[] = [ContractSortField.LAST_BID];

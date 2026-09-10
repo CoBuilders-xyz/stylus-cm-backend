@@ -107,7 +107,9 @@ describe('AutomationOrchestratorService', () => {
 
   describe('executeCachingAutomation', () => {
     it('should return success when caching automation is disabled', async () => {
-      mockConfigService.get.mockReturnValue({ cachingAutomationEnabled: false });
+      mockConfigService.get.mockReturnValue({
+        cachingAutomationEnabled: false,
+      });
 
       const result = await service.executeCachingAutomation();
 
@@ -217,10 +219,12 @@ describe('AutomationOrchestratorService', () => {
         activationAutomationEnabled: true,
       });
       mockBlockchainRepository.find.mockResolvedValue([blockchain]);
-      mockActivationSelectionService.selectOptimalActivations.mockResolvedValue({
-        selectedContracts,
-        maxActivationsPerIteration: 5,
-      });
+      mockActivationSelectionService.selectOptimalActivations.mockResolvedValue(
+        {
+          selectedContracts,
+          maxActivationsPerIteration: 5,
+        },
+      );
       mockBatchProcessorService.processActivationBatches.mockResolvedValue(
         batchResult,
       );

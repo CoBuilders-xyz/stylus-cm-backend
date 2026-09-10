@@ -17,8 +17,13 @@ export class AuthController {
 
   @Public()
   @Get('generate-nonce/:address')
-  @ApiOperation({ summary: 'Generate a nonce for wallet signature authentication' })
-  @ApiParam({ name: 'address', description: 'Ethereum wallet address (EIP-55 checksum)' })
+  @ApiOperation({
+    summary: 'Generate a nonce for wallet signature authentication',
+  })
+  @ApiParam({
+    name: 'address',
+    description: 'Ethereum wallet address (EIP-55 checksum)',
+  })
   @ApiResponse({ status: 200, description: 'Nonce generated successfully' })
   async generateNonce(@Param() params: GenerateNonceDto) {
     const nonce = await this.authService.generateNonce(params.address);
@@ -37,7 +42,10 @@ export class AuthController {
   @Public()
   @Post('login')
   @ApiOperation({ summary: 'Verify wallet signature and obtain a JWT token' })
-  @ApiResponse({ status: 201, description: 'Authentication successful, JWT returned' })
+  @ApiResponse({
+    status: 201,
+    description: 'Authentication successful, JWT returned',
+  })
   @ApiResponse({ status: 401, description: 'Invalid signature' })
   verifySignature(@Body() body: VerifySignatureDto) {
     return this.authService.verifySignature(body.address, body.signature);

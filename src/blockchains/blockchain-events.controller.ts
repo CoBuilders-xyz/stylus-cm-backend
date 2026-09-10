@@ -29,8 +29,14 @@ export class BlockchainEventsController {
    */
   @Public()
   @Get()
-  @ApiOperation({ summary: 'List blockchain events (bids, activations) with pagination and filtering' })
-  @ApiResponse({ status: 200, description: 'Paginated list of blockchain events' })
+  @ApiOperation({
+    summary:
+      'List blockchain events (bids, activations) with pagination and filtering',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of blockchain events',
+  })
   async findAll(
     @Query() queryDto: BlockchainEventsQueryDto,
     @Query() paginationDto: PaginationDto,

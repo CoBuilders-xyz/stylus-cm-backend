@@ -12,7 +12,10 @@ export enum SortOrder {
 }
 
 export class BlockchainEventsSortingDto {
-  @ApiPropertyOptional({ enum: BlockchainEventSortField, default: BlockchainEventSortField.BLOCK_TIMESTAMP })
+  @ApiPropertyOptional({
+    enum: BlockchainEventSortField,
+    default: BlockchainEventSortField.BLOCK_TIMESTAMP,
+  })
   @IsOptional()
   @IsEnum(BlockchainEventSortField)
   sortBy?: BlockchainEventSortField = BlockchainEventSortField.BLOCK_TIMESTAMP;

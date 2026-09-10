@@ -28,7 +28,9 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('alerts-settings')
-  @ApiOperation({ summary: 'Get notification channel settings for the authenticated user' })
+  @ApiOperation({
+    summary: 'Get notification channel settings for the authenticated user',
+  })
   @ApiResponse({ status: 200, description: 'Current alerts settings' })
   async getAlertsSettings(@Request() req: AuthenticatedRequest) {
     const settings = await this.usersService.getAlertsSettings(

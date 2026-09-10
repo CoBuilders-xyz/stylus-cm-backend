@@ -48,7 +48,11 @@ export class GetUserContractsDto {
   @Type(() => String)
   search?: string;
 
-  @ApiPropertyOptional({ enum: ContractSortField, isArray: true, description: 'Sort fields' })
+  @ApiPropertyOptional({
+    enum: ContractSortField,
+    isArray: true,
+    description: 'Sort fields',
+  })
   @IsOptional()
   @IsArray({ message: 'SortBy must be an array' })
   @IsEnum(ContractSortField, {
@@ -63,7 +67,11 @@ export class GetUserContractsDto {
   })
   sortBy?: ContractSortField[] = [ContractSortField.LAST_BID];
 
-  @ApiPropertyOptional({ enum: SortDirection, isArray: true, description: 'Sort directions' })
+  @ApiPropertyOptional({
+    enum: SortDirection,
+    isArray: true,
+    description: 'Sort directions',
+  })
   @IsOptional()
   @IsArray({ message: 'SortDirection must be an array' })
   @IsEnum(SortDirection, {

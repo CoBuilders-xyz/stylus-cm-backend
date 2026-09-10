@@ -15,7 +15,10 @@ export class BlockchainEventsQueryDto {
   @Type(() => String)
   blockchainId: string;
 
-  @ApiPropertyOptional({ enum: BlockchainEventType, description: 'Filter by event type' })
+  @ApiPropertyOptional({
+    enum: BlockchainEventType,
+    description: 'Filter by event type',
+  })
   @IsOptional()
   @IsEnum(BlockchainEventType)
   eventType?: BlockchainEventType;
