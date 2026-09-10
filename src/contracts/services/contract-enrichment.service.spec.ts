@@ -344,7 +344,7 @@ describe('ContractEnrichmentService', () => {
       );
       expect(
         mockContractHistoryService.getActivationHistory,
-      ).toHaveBeenCalledWith(mockContract.address);
+      ).toHaveBeenCalledWith(mockContract.address, mockContract.blockchain.id);
     });
   });
 

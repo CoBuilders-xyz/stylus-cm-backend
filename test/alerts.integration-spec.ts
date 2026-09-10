@@ -633,51 +633,45 @@ describe('Alerts Integration Tests', () => {
   let reactivationSucceededAlertId: string;
   let reactivationFailedAlertId: string;
 
-  it(
-    'should setup activation test: deploy, activate, register with autoActivate',
-    async () => {
-      // Set short expiry: 1 day, no keepalive protection
-      console.log('Setting WasmExpiryDays=1, WasmKeepaliveDays=0...');
-      await chain.setWasmExpiryDays(1);
-      await chain.setWasmKeepaliveDays(0);
+  it('should setup activation test: deploy, activate, register with autoActivate', async () => {
+    // Set short expiry: 1 day, no keepalive protection
+    console.log('Setting WasmExpiryDays=1, WasmKeepaliveDays=0...');
+    await chain.setWasmExpiryDays(1);
+    await chain.setWasmKeepaliveDays(0);
 
-      // Deploy and activate a fresh WASM contract
-      console.log('Deploying 1 WASM contract for activation alerts...');
-      const addresses = chain.deployDummyWASM(1);
-      activationContract = addresses[0];
-      console.log(`Deployed activationContract=${activationContract}`);
+    // Deploy and activate a fresh WASM contract
+    console.log('Deploying 1 WASM contract for activation alerts...');
+    const addresses = chain.deployDummyWASM(1);
+    activationContract = addresses[0];
+    console.log(`Deployed activationContract=${activationContract}`);
 
-      console.log('Activating program via ArbWasm...');
-      await chain.activateProgram(activationContract);
+    console.log('Activating program via ArbWasm...');
+    await chain.activateProgram(activationContract);
 
-      const timeLeft = await chain.programTimeLeft(activationContract);
-      console.log(`programTimeLeft = ${timeLeft}s`);
-      expect(timeLeft).toBeGreaterThan(0n);
+    const timeLeft = await chain.programTimeLeft(activationContract);
+    console.log(`programTimeLeft = ${timeLeft}s`);
+    expect(timeLeft).toBeGreaterThan(0n);
 
-      // Register in backend
-      const resp = await api.post('/user-contracts', {
-        address: activationContract,
-        blockchainId,
-      });
-      activationUserContractId = resp.data.id;
-      console.log(
-        `Registered activationContract userContractId=${activationUserContractId}`,
-      );
+    // Register in backend
+    const resp = await api.post('/user-contracts', {
+      address: activationContract,
+      blockchainId,
+    });
+    activationUserContractId = resp.data.id;
+    console.log(
+      `Registered activationContract userContractId=${activationUserContractId}`,
+    );
 
-      // Register in CMA with autoActivate=true and fund escrow for re-activation
-      await chain.insertContract(CMA_ADDRESS, activationContract, {
-        maxBid: ethers.parseEther('0.001'),
-        biddingEnabled: true,
-        autoActivate: true,
-        maxActivationCost: ethers.parseEther('0.1'),
-        funding: ethers.parseEther('0.2'),
-      });
-      console.log(
-        'Registered in CMA with autoActivate=true, funded escrow',
-      );
-    },
-    120_000,
-  );
+    // Register in CMA with autoActivate=true and fund escrow for re-activation
+    await chain.insertContract(CMA_ADDRESS, activationContract, {
+      maxBid: ethers.parseEther('0.001'),
+      biddingEnabled: true,
+      autoActivate: true,
+      maxActivationCost: ethers.parseEther('0.1'),
+      funding: ethers.parseEther('0.2'),
+    });
+    console.log('Registered in CMA with autoActivate=true, funded escrow');
+  }, 120_000);
 
   // --- CRUD ---
 
@@ -800,19 +794,15 @@ describe('Alerts Integration Tests', () => {
 
   // --- Time advance to expire the program ---
 
-  it(
-    'should advance VM time by 25 hours to expire the program',
-    async () => {
-      console.log('Advancing VM time by 25 hours...');
-      await advanceVmTime(MULTIPASS_VM_NAME, 25, chain);
-      console.log('VM time advanced');
+  it('should advance VM time by 25 hours to expire the program', async () => {
+    console.log('Advancing VM time by 25 hours...');
+    await advanceVmTime(MULTIPASS_VM_NAME, 25, chain);
+    console.log('VM time advanced');
 
-      const timeLeft = await chain.programTimeLeft(activationContract);
-      console.log(`programTimeLeft after advance = ${timeLeft}s`);
-      expect(timeLeft).toBeLessThanOrEqual(0n);
-    },
-    60_000,
-  );
+    const timeLeft = await chain.programTimeLeft(activationContract);
+    console.log(`programTimeLeft after advance = ${timeLeft}s`);
+    expect(timeLeft).toBeLessThanOrEqual(0n);
+  }, 60_000);
 
   // --- Trigger: expired ---
 

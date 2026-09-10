@@ -93,7 +93,10 @@ export function shouldAllowOrigin(
     config.allowedOriginPrefix &&
     origin
   ) {
-    const prefixes = config.allowedOriginPrefix.split(',').map((p) => p.trim());
+    const prefixes = config.allowedOriginPrefix
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
     if (prefixes.some((prefix) => origin.startsWith(prefix))) {
       return true;
     }

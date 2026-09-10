@@ -22,7 +22,9 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Post('test/send')
-  @ApiOperation({ summary: 'Send a test notification to verify channel configuration' })
+  @ApiOperation({
+    summary: 'Send a test notification to verify channel configuration',
+  })
   @ApiResponse({ status: 201, description: 'Mock notification sent' })
   async sendMockNotification(
     @Body() payload: SendMockNotificationDto,

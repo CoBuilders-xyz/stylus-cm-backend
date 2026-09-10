@@ -11,7 +11,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { USER_CONTRACT_DEFAULTS } from '../constants';
 
 export class CreateUserContractDto {
-  @ApiProperty({ description: 'Ethereum contract address', example: '0x1234567890abcdef1234567890abcdef12345678' })
+  @ApiProperty({
+    description: 'Ethereum contract address',
+    example: '0x1234567890abcdef1234567890abcdef12345678',
+  })
   @IsString({ message: 'Address must be a string' })
   @IsNotEmpty({ message: 'Address cannot be empty' })
   @Matches(USER_CONTRACT_DEFAULTS.VALIDATION.ADDRESS_REGEX, {
@@ -23,7 +26,9 @@ export class CreateUserContractDto {
   )
   address: string;
 
-  @ApiProperty({ description: 'Blockchain UUID where the contract is deployed' })
+  @ApiProperty({
+    description: 'Blockchain UUID where the contract is deployed',
+  })
   @IsString({ message: 'BlockchainId must be a string' })
   @IsNotEmpty({ message: 'BlockchainId cannot be empty' })
   @IsUUID(4, { message: 'BlockchainId must be a valid UUID v4' })

@@ -233,9 +233,7 @@ export const EventDataGuards = {
     );
   },
 
-  isContractRemovedEventData: (
-    data: unknown[],
-  ): data is [string, string] => {
+  isContractRemovedEventData: (data: unknown[]): data is [string, string] => {
     return (
       Array.isArray(data) &&
       data.length === 2 &&

@@ -6,7 +6,10 @@ import {
 } from '../interfaces/notification-channels.interface';
 
 export class SendMockNotificationDto {
-  @ApiProperty({ description: 'Channel to send test notification to', enum: NOTIFICATION_CHANNEL_TYPES })
+  @ApiProperty({
+    description: 'Channel to send test notification to',
+    enum: NOTIFICATION_CHANNEL_TYPES,
+  })
   @IsString()
   @IsIn(NOTIFICATION_CHANNEL_TYPES)
   notificationChannel: NotificationChannelType;

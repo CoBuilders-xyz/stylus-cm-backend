@@ -117,7 +117,10 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .setContact('CoBuilders', 'https://cobuilders.xyz', '')
-    .setExternalDoc('Documentation', 'https://cobuilders-xyz.github.io/stylus-cm-deploy')
+    .setExternalDoc(
+      'Documentation',
+      'https://cobuilders-xyz.github.io/stylus-cm-deploy',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   const theme = new SwaggerTheme();

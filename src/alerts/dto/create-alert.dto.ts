@@ -18,7 +18,11 @@ export class CreateAlertDto {
   @IsNotEmpty()
   type: AlertType;
 
-  @ApiPropertyOptional({ description: 'Threshold value (required for bidSafety, lowGas, approachingExpiration)', type: Number })
+  @ApiPropertyOptional({
+    description:
+      'Threshold value (required for bidSafety, lowGas, approachingExpiration)',
+    type: Number,
+  })
   @ValidateIf(
     (o: CreateAlertDto) =>
       o.type === AlertType.BID_SAFETY ||
@@ -50,17 +54,23 @@ export class CreateAlertDto {
   @IsUUID()
   userContractId: string;
 
-  @ApiPropertyOptional({ description: 'Enable Slack notifications for this alert' })
+  @ApiPropertyOptional({
+    description: 'Enable Slack notifications for this alert',
+  })
   @IsOptional()
   @IsBoolean()
   slackChannelEnabled?: boolean;
 
-  @ApiPropertyOptional({ description: 'Enable Telegram notifications for this alert' })
+  @ApiPropertyOptional({
+    description: 'Enable Telegram notifications for this alert',
+  })
   @IsOptional()
   @IsBoolean()
   telegramChannelEnabled?: boolean;
 
-  @ApiPropertyOptional({ description: 'Enable Webhook notifications for this alert' })
+  @ApiPropertyOptional({
+    description: 'Enable Webhook notifications for this alert',
+  })
   @IsOptional()
   @IsBoolean()
   webhookChannelEnabled?: boolean;

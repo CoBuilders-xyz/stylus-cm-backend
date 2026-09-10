@@ -185,12 +185,16 @@ export class ContractHistoryService {
    */
   async getActivationHistory(
     contractAddress: string,
+    blockchainId: string,
   ): Promise<ActivationHistoryItem[]> {
     try {
       const normalizedAddress = contractAddress.toLowerCase();
 
+      // The same address can exist on several chains, so the address alone
+      // does not identify the contract; scope the events to its blockchain.
       const events = await this.blockchainEventRepository
         .createQueryBuilder('event')
+        .innerJoin('event.blockchain', 'blockchain')
         .select([
           'event.id',
           'event.eventName',
@@ -199,7 +203,8 @@ export class ContractHistoryService {
           'event.transactionHash',
           'event.eventData',
         ])
-        .where('event.eventName IN (:...eventNames)', {
+        .where('blockchain.id = :blockchainId', { blockchainId })
+        .andWhere('event.eventName IN (:...eventNames)', {
           eventNames: ['ActivationPerformed', 'ActivationError'],
         })
         .andWhere(
@@ -240,9 +245,7 @@ export class ContractHistoryService {
       });
     } catch (error) {
       const err = error as Error;
-      this.logger.error(
-        `Error fetching activation history: ${err.message}`,
-      );
+      this.logger.error(`Error fetching activation history: ${err.message}`);
       return [];
     }
   }

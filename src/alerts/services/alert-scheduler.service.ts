@@ -197,9 +197,7 @@ export class AlertSchedulerService {
    * Process approachingExpiration and expired alerts for a blockchain.
    * Reads programTimeLeft from ArbWasm for each alert's contract.
    */
-  private async processExpirationAlerts(
-    blockchain: Blockchain,
-  ): Promise<void> {
+  private async processExpirationAlerts(blockchain: Blockchain): Promise<void> {
     const expirationAlerts = await this.alertsRepository.find({
       where: {
         type: In([AlertType.APPROACHING_EXPIRATION, AlertType.EXPIRED]),

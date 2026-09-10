@@ -33,7 +33,10 @@ export class BlockchainsController {
   @Public()
   @Get()
   @ApiOperation({ summary: 'List all enabled blockchains' })
-  @ApiResponse({ status: 200, description: 'Array of blockchain configurations' })
+  @ApiResponse({
+    status: 200,
+    description: 'Array of blockchain configurations',
+  })
   async findAll() {
     this.logger.log('GET /blockchains - Fetching all enabled blockchains');
     const result = await this.blockchainsService.findAll();
@@ -42,7 +45,9 @@ export class BlockchainsController {
   }
 
   @Get(':blockchainId')
-  @ApiOperation({ summary: 'Get comprehensive blockchain data including bytecode counts' })
+  @ApiOperation({
+    summary: 'Get comprehensive blockchain data including bytecode counts',
+  })
   @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
   @ApiResponse({ status: 200, description: 'Blockchain data with statistics' })
   async getBlockchainData(
@@ -82,7 +87,9 @@ export class BlockchainsController {
 
   @Public()
   @Get(':blockchainId/cache-stats')
-  @ApiOperation({ summary: 'Get cache statistics (size, utilization, minimum bid)' })
+  @ApiOperation({
+    summary: 'Get cache statistics (size, utilization, minimum bid)',
+  })
   @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
   @ApiResponse({ status: 200, description: 'Cache statistics' })
   async getCacheStats(@Param(new ValidationPipe()) params: GetBlockchainDto) {
@@ -102,7 +109,10 @@ export class BlockchainsController {
   @Get(':blockchainId/bid-trends')
   @ApiOperation({ summary: 'Get bid placement trends over a time period' })
   @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
-  @ApiResponse({ status: 200, description: 'Bid trend data with insert/delete counts' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bid trend data with insert/delete counts',
+  })
   async getBidTrends(
     @Param('blockchainId', ParseUUIDPipe) blockchainId: string,
     @Query(new ValidationPipe({ transform: true })) query: BidTrendsQueryDto,
@@ -122,7 +132,10 @@ export class BlockchainsController {
 
   @Public()
   @Get(':blockchainId/bid-average')
-  @ApiOperation({ summary: 'Get average bid amount over a time period with optional size filter' })
+  @ApiOperation({
+    summary:
+      'Get average bid amount over a time period with optional size filter',
+  })
   @ApiParam({ name: 'blockchainId', description: 'Blockchain UUID' })
   @ApiResponse({ status: 200, description: 'Average bid data' })
   async getBidAverage(

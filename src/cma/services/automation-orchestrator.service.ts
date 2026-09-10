@@ -167,7 +167,9 @@ export class AutomationOrchestratorService {
     blockchain: Blockchain,
   ): Promise<BatchProcessingResult> {
     const result =
-      await this.activationSelectionService.selectOptimalActivations(blockchain);
+      await this.activationSelectionService.selectOptimalActivations(
+        blockchain,
+      );
 
     if (result.selectedContracts.length === 0) {
       this.logger.log(

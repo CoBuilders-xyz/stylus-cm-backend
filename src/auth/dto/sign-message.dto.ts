@@ -2,7 +2,10 @@ import { IsString, IsNotEmpty, Length, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SignMessageDto {
-  @ApiProperty({ description: 'Message to sign', example: 'Sign this nonce: abc123' })
+  @ApiProperty({
+    description: 'Message to sign',
+    example: 'Sign this nonce: abc123',
+  })
   @IsString({ message: 'Message must be a string' })
   @IsNotEmpty({ message: 'Message is required' })
   @Length(1, 1000, {

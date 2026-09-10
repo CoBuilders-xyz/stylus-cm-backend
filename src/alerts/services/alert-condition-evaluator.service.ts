@@ -86,6 +86,12 @@ export class AlertConditionEvaluatorService {
     alert: Alert,
     blockchain: Blockchain,
   ): Promise<boolean> {
+    // Alert.user is nullable; without it there is no escrow to read.
+    if (!alert.user?.address) {
+      this.logger.debug(`Alert ${alert.id} has no user, skipping gas check`);
+      return false;
+    }
+
     try {
       const cmaContract = this.providerManager.getContract(
         blockchain,
@@ -167,7 +173,18 @@ export class AlertConditionEvaluatorService {
       let shouldTrigger: boolean;
 
       if (alert.type === AlertType.APPROACHING_EXPIRATION) {
-        const thresholdSeconds = BigInt(alert.value) * 86400n;
+        // value is a number of days and may be fractional (the DTO only
+        // requires it to be positive); BigInt('7.5') would throw.
+        // Round to whole seconds first and require a safe integer: a huge
+        // value such as 1e308 overflows to Infinity, which BigInt rejects.
+        const roundedSeconds = Math.round(Number(alert.value) * 86400);
+        if (!Number.isSafeInteger(roundedSeconds) || roundedSeconds <= 0) {
+          this.logger.warn(
+            `Alert ${alert.id} has an invalid approachingExpiration threshold: ${alert.value}`,
+          );
+          return false;
+        }
+        const thresholdSeconds = BigInt(roundedSeconds);
         shouldTrigger = timeLeft > 0n && timeLeft < thresholdSeconds;
         this.logger.debug(
           `approachingExpiration evaluation for alert ${alert.id}: timeLeft=${timeLeft}s, threshold=${thresholdSeconds}s, shouldTrigger=${shouldTrigger}`,

@@ -37,7 +37,11 @@ export class AlertsController {
    */
   @Get()
   @ApiOperation({ summary: 'List all alerts for the authenticated user' })
-  @ApiQuery({ name: 'blockchainId', description: 'Filter by blockchain UUID', required: true })
+  @ApiQuery({
+    name: 'blockchainId',
+    description: 'Filter by blockchain UUID',
+    required: true,
+  })
   @ApiResponse({ status: 200, description: 'Array of user alerts' })
   async findAll(
     @Req() req: AuthenticatedRequest,
