@@ -175,14 +175,16 @@ export class AlertConditionEvaluatorService {
       if (alert.type === AlertType.APPROACHING_EXPIRATION) {
         // value is a number of days and may be fractional (the DTO only
         // requires it to be positive); BigInt('7.5') would throw.
-        const thresholdDays = Number(alert.value);
-        if (!Number.isFinite(thresholdDays) || thresholdDays <= 0) {
+        // Round to whole seconds first and require a safe integer: a huge
+        // value such as 1e308 overflows to Infinity, which BigInt rejects.
+        const roundedSeconds = Math.round(Number(alert.value) * 86400);
+        if (!Number.isSafeInteger(roundedSeconds) || roundedSeconds <= 0) {
           this.logger.warn(
             `Alert ${alert.id} has an invalid approachingExpiration threshold: ${alert.value}`,
           );
           return false;
         }
-        const thresholdSeconds = BigInt(Math.round(thresholdDays * 86400));
+        const thresholdSeconds = BigInt(roundedSeconds);
         shouldTrigger = timeLeft > 0n && timeLeft < thresholdSeconds;
         this.logger.debug(
           `approachingExpiration evaluation for alert ${alert.id}: timeLeft=${timeLeft}s, threshold=${thresholdSeconds}s, shouldTrigger=${shouldTrigger}`,

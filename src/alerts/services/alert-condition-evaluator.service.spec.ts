@@ -367,6 +367,21 @@ describe('AlertConditionEvaluatorService', () => {
       expect(result).toBe(false);
     });
 
+    it('should not trigger approachingExpiration on a threshold that overflows to Infinity', async () => {
+      const alert = createExpirationAlert(
+        AlertType.APPROACHING_EXPIRATION,
+        '1e308',
+      );
+      const blockchain = createMockBlockchain();
+      mockProviderManager.getContract.mockReturnValue({
+        programTimeLeft: jest.fn().mockResolvedValue(1n),
+      });
+
+      await expect(
+        service.evaluateExpirationCondition(alert, blockchain),
+      ).resolves.toBe(false);
+    });
+
     it('should NOT trigger approachingExpiration when timeLeft >= threshold', async () => {
       const alert = createExpirationAlert(
         AlertType.APPROACHING_EXPIRATION,
