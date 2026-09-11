@@ -1,9 +1,31 @@
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ContractEnrichmentService } from './contract-enrichment.service';
 import { ContractBidCalculatorService } from './contract-bid-calculator.service';
 import { ContractBidAssessmentService } from './contract-bid-assessment.service';
 import { ContractHistoryService } from './contract-history.service';
+import { ProviderManager } from '../../common/utils/provider.util';
 import { Contract } from '../entities/contract.entity';
+
+// Fake selectors matching the ABI error names — only used to exercise the
+// selector-matching branch of decodeProgramTimeLeftRevert.
+const SELECTORS = {
+  ProgramNotActivated: '0xaaaaaaaa',
+  ProgramExpired: '0xbbbbbbbb',
+  ProgramNeedsUpgrade: '0xcccccccc',
+} as const;
+
+function makeMockArbWasm(programTimeLeftImpl: jest.Mock) {
+  return {
+    programTimeLeft: programTimeLeftImpl,
+    interface: {
+      getError: jest.fn((name: keyof typeof SELECTORS) => ({
+        selector: SELECTORS[name],
+      })),
+    },
+  };
+}
 
 describe('ContractEnrichmentService', () => {
   let service: ContractEnrichmentService;
@@ -16,10 +38,17 @@ describe('ContractEnrichmentService', () => {
   };
   let mockContractHistoryService: {
     getBiddingHistory: jest.Mock;
+    getActivationHistory: jest.Mock;
+  };
+  let mockProviderManager: {
+    getContract: jest.Mock;
+  };
+  let mockCacheManager: {
+    get: jest.Mock;
+    set: jest.Mock;
   };
 
   beforeEach(async () => {
-    // Create service mocks
     mockContractBidCalculatorService = {
       calculateCurrentContractEffectiveBid: jest.fn(),
     };
@@ -31,6 +60,16 @@ describe('ContractEnrichmentService', () => {
 
     mockContractHistoryService = {
       getBiddingHistory: jest.fn(),
+      getActivationHistory: jest.fn(),
+    };
+
+    mockProviderManager = {
+      getContract: jest.fn(),
+    };
+
+    mockCacheManager = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -48,6 +87,14 @@ describe('ContractEnrichmentService', () => {
           provide: ContractHistoryService,
           useValue: mockContractHistoryService,
         },
+        {
+          provide: ProviderManager,
+          useValue: mockProviderManager,
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: mockCacheManager,
+        },
       ],
     }).compile();
 
@@ -55,7 +102,7 @@ describe('ContractEnrichmentService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
@@ -63,8 +110,7 @@ describe('ContractEnrichmentService', () => {
   });
 
   describe('processContract', () => {
-    it('should process cached contract with effective bid and eviction risk', async () => {
-      // Arrange
+    it('should process cached contract with effective bid, eviction risk, and programTimeLeft', async () => {
       const mockContract = {
         id: 'test-contract-id',
         address: '0x1234567890123456789012345678901234567890',
@@ -109,19 +155,21 @@ describe('ContractEnrichmentService', () => {
       mockContractBidAssessmentService.calculateEvictionRisk.mockResolvedValue(
         mockEvictionRisk,
       );
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockResolvedValue(3600n)),
+      );
 
-      // Act
       const result = await service.processContract(mockContract);
 
-      // Assert
       expect(result).toBeDefined();
       expect(result.id).toBe(mockContract.id);
       expect(result.address).toBe(mockContract.address);
       expect(result.effectiveBid).toBe(mockEffectiveBid);
       expect(result.evictionRisk).toEqual(mockEvictionRisk);
       expect(result.minBid).toBe(mockEvictionRisk.cacheStats.minBid);
+      expect(result.programTimeLeft).toBe('3600');
+      expect(result.programTimeLeftReason).toBeNull();
 
-      // Verify method calls
       expect(
         mockContractBidCalculatorService.calculateCurrentContractEffectiveBid,
       ).toHaveBeenCalledWith(mockContract);
@@ -133,10 +181,12 @@ describe('ContractEnrichmentService', () => {
       expect(
         mockContractHistoryService.getBiddingHistory,
       ).not.toHaveBeenCalled();
+      expect(
+        mockContractHistoryService.getActivationHistory,
+      ).not.toHaveBeenCalled();
     });
 
-    it('should process non-cached contract with suggested bids only', async () => {
-      // Arrange
+    it('should process non-cached contract with suggested bids and programTimeLeft', async () => {
       const mockContract = {
         id: 'test-contract-id-2',
         address: '0x9876543210987654321098765432109876543210',
@@ -170,11 +220,12 @@ describe('ContractEnrichmentService', () => {
       mockContractBidAssessmentService.getSuggestedBids.mockResolvedValue(
         mockSuggestedBidsResult,
       );
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockResolvedValue(7200n)),
+      );
 
-      // Act
       const result = await service.processContract(mockContract);
 
-      // Assert
       expect(result).toBeDefined();
       expect(result.id).toBe(mockContract.id);
       expect(result.address).toBe(mockContract.address);
@@ -183,17 +234,16 @@ describe('ContractEnrichmentService', () => {
         cacheStats: mockSuggestedBidsResult.cacheStats,
       });
       expect(result.minBid).toBe(mockSuggestedBidsResult.cacheStats.minBid);
+      expect(result.programTimeLeft).toBe('7200');
+      expect(result.programTimeLeftReason).toBeNull();
 
-      // Should not have effective bid or eviction risk for non-cached contracts
       expect(result.effectiveBid).toBeUndefined();
       expect(result.evictionRisk).toBeUndefined();
 
-      // Verify method calls
       expect(
         mockContractBidAssessmentService.getSuggestedBids,
       ).toHaveBeenCalledWith(2048, 'test-blockchain-id');
 
-      // Should not call cached contract methods
       expect(
         mockContractBidCalculatorService.calculateCurrentContractEffectiveBid,
       ).not.toHaveBeenCalled();
@@ -202,8 +252,7 @@ describe('ContractEnrichmentService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should include bidding history when requested', async () => {
-      // Arrange
+    it('should include bidding history and activation history when requested', async () => {
       const mockContract = {
         id: 'test-contract-id-3',
         address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef',
@@ -250,12 +299,16 @@ describe('ContractEnrichmentService', () => {
           transactionHash: '0x123',
           isAutomated: false,
         },
+      ];
+
+      const mockActivationHistory = [
         {
-          id: 'bid-2',
-          bidAmount: '800000',
-          timestamp: new Date('2022-12-15T00:00:00Z'),
-          transactionHash: '0x456',
-          isAutomated: true,
+          contractAddress: mockContract.address,
+          eventType: 'ActivationPerformed',
+          timestamp: new Date('2023-01-02T00:00:00Z'),
+          blockNumber: 100,
+          transactionHash: '0x789',
+          user: '0xuser',
         },
       ];
 
@@ -268,20 +321,293 @@ describe('ContractEnrichmentService', () => {
       mockContractHistoryService.getBiddingHistory.mockResolvedValue(
         mockBiddingHistory,
       );
+      mockContractHistoryService.getActivationHistory.mockResolvedValue(
+        mockActivationHistory,
+      );
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockResolvedValue(86400n)),
+      );
 
-      // Act
       const result = await service.processContract(mockContract, true);
 
-      // Assert
       expect(result).toBeDefined();
       expect(result.id).toBe(mockContract.id);
       expect(result.effectiveBid).toBe(mockEffectiveBid);
       expect(result.evictionRisk).toEqual(mockEvictionRisk);
       expect(result.biddingHistory).toEqual(mockBiddingHistory);
+      expect(result.activationHistory).toEqual(mockActivationHistory);
+      expect(result.programTimeLeft).toBe('86400');
+      expect(result.programTimeLeftReason).toBeNull();
 
-      // Verify method calls
       expect(mockContractHistoryService.getBiddingHistory).toHaveBeenCalledWith(
         mockContract.address,
+      );
+      expect(
+        mockContractHistoryService.getActivationHistory,
+      ).toHaveBeenCalledWith(mockContract.address, mockContract.blockchain.id);
+    });
+  });
+
+  describe('readProgramTimeLeft revert decoding', () => {
+    const baseContract = {
+      id: 'revert-test',
+      address: '0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa',
+      blockchain: { id: 'test-blockchain-id' },
+      bytecode: {
+        id: 'bytecode-revert',
+        size: '1024',
+        lastBid: '0',
+        bidBlockTimestamp: new Date('2023-01-01T00:00:00Z'),
+        isCached: false,
+      },
+    } as unknown as Contract;
+
+    beforeEach(() => {
+      mockContractBidAssessmentService.getSuggestedBids.mockResolvedValue({
+        suggestedBids: { highRisk: '0', midRisk: '0', lowRisk: '0' },
+        cacheStats: {
+          utilization: 0,
+          evictionRate: 0,
+          medianBidPerByte: '0',
+          competitiveness: 0,
+          cacheSizeBytes: '0',
+          usedCacheSizeBytes: '0',
+          minBid: '0',
+        },
+      });
+    });
+
+    it.each([
+      ['ProgramNotActivated', 'never_activated', SELECTORS.ProgramNotActivated],
+      ['ProgramExpired', 'expired', SELECTORS.ProgramExpired],
+      ['ProgramNeedsUpgrade', 'needs_upgrade', SELECTORS.ProgramNeedsUpgrade],
+    ])(
+      'maps %s revert (via selector) to reason %s',
+      async (errorName, expectedReason, selector) => {
+        const revertError = Object.assign(
+          new Error(`execution reverted: ${errorName}`),
+          { data: `${selector}00000000` },
+        );
+
+        mockProviderManager.getContract.mockReturnValue(
+          makeMockArbWasm(jest.fn().mockRejectedValue(revertError)),
+        );
+
+        const result = await service.processContract(baseContract);
+
+        expect(result.programTimeLeft).toBeNull();
+        expect(result.programTimeLeftReason).toBe(expectedReason);
+      },
+    );
+
+    it('falls back to error message matching when error data is not present', async () => {
+      const revertError = new Error(
+        'execution reverted (unknown custom error, unable to decode) ProgramNeedsUpgrade',
+      );
+
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockRejectedValue(revertError)),
+      );
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeft).toBeNull();
+      expect(result.programTimeLeftReason).toBe('needs_upgrade');
+    });
+
+    it('returns null reason and warns for unknown reverts', async () => {
+      const revertError = Object.assign(new Error('unknown revert'), {
+        data: '0xdeadbeef',
+      });
+
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockRejectedValue(revertError)),
+      );
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeft).toBeNull();
+      expect(result.programTimeLeftReason).toBeNull();
+    });
+
+    it('matches revert data even when the hex body is uppercased', async () => {
+      // Some RPC wrappers return the selector bytes as uppercase hex. Selector
+      // matching normalizes case on both sides so the reason still resolves.
+      const upperBody = SELECTORS.ProgramExpired.slice(2).toUpperCase();
+      const revertError = Object.assign(new Error('execution reverted'), {
+        data: `0x${upperBody}00000000`,
+      });
+
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(jest.fn().mockRejectedValue(revertError)),
+      );
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeftReason).toBe('expired');
+    });
+  });
+
+  describe('readProgramTimeLeft caching', () => {
+    const baseContract = {
+      id: 'cache-test',
+      address: '0xCCcCCCcCcCCcCCCCcCCCcccccccccCcCcCCCCCCC',
+      blockchain: { id: 'chain-1' },
+      bytecode: {
+        id: 'bytecode-cache',
+        size: '1024',
+        lastBid: '0',
+        bidBlockTimestamp: new Date('2023-01-01T00:00:00Z'),
+        isCached: false,
+      },
+    } as unknown as Contract;
+
+    beforeEach(() => {
+      mockContractBidAssessmentService.getSuggestedBids.mockResolvedValue({
+        suggestedBids: { highRisk: '0', midRisk: '0', lowRisk: '0' },
+        cacheStats: {
+          utilization: 0,
+          evictionRate: 0,
+          medianBidPerByte: '0',
+          competitiveness: 0,
+          cacheSizeBytes: '0',
+          usedCacheSizeBytes: '0',
+          minBid: '0',
+        },
+      });
+    });
+
+    it('returns the cached result and does not call the contract on cache hit', async () => {
+      mockCacheManager.get.mockResolvedValueOnce({
+        seconds: '4242',
+        reason: null,
+      });
+      const programTimeLeftFn = jest.fn();
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(programTimeLeftFn),
+      );
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeft).toBe('4242');
+      expect(result.programTimeLeftReason).toBeNull();
+      expect(programTimeLeftFn).not.toHaveBeenCalled();
+      expect(mockCacheManager.set).not.toHaveBeenCalled();
+    });
+
+    it('writes the on-chain result to the cache on cache miss', async () => {
+      const programTimeLeftFn = jest.fn().mockResolvedValue(1234n);
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(programTimeLeftFn),
+      );
+
+      await service.processContract(baseContract);
+
+      expect(programTimeLeftFn).toHaveBeenCalledWith(baseContract.address);
+      expect(mockCacheManager.set).toHaveBeenCalledWith(
+        `programTimeLeft:chain-1:${baseContract.address.toLowerCase()}`,
+        { seconds: '1234', reason: null },
+        expect.any(Number),
+      );
+    });
+
+    it('deduplicates concurrent reads for the same contract (single-flight)', async () => {
+      let resolveRpc: (value: bigint) => void = () => {};
+      const programTimeLeftFn = jest.fn().mockImplementation(
+        () =>
+          new Promise<bigint>((resolve) => {
+            resolveRpc = resolve;
+          }),
+      );
+      mockProviderManager.getContract.mockReturnValue(
+        makeMockArbWasm(programTimeLeftFn),
+      );
+
+      const p1 = service.processContract(baseContract);
+      const p2 = service.processContract(baseContract);
+
+      // Flush the microtask queue so both callers advance past cache.get()
+      // and the second one observes the in-flight entry from the first.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      resolveRpc(9999n);
+      const [r1, r2] = await Promise.all([p1, p2]);
+
+      expect(programTimeLeftFn).toHaveBeenCalledTimes(1);
+      expect(r1.programTimeLeft).toBe('9999');
+      expect(r2.programTimeLeft).toBe('9999');
+    });
+
+    it('resolves with null fields and warns when the RPC exceeds the timeout budget', async () => {
+      jest.useFakeTimers();
+      try {
+        const warnSpy = jest
+          .spyOn(Logger.prototype, 'warn')
+          .mockImplementation(() => {});
+
+        // RPC that never resolves — forces the race to hit the timeout branch.
+        const programTimeLeftFn = jest
+          .fn()
+          .mockImplementation(() => new Promise<bigint>(() => {}));
+        mockProviderManager.getContract.mockReturnValue(
+          makeMockArbWasm(programTimeLeftFn),
+        );
+
+        const resultPromise = service.processContract(baseContract);
+        // Advance past the exact 2s boundary to avoid depending on race
+        // ordering between the timer callback and the awaited microtask.
+        await jest.advanceTimersByTimeAsync(2_001);
+        const result = await resultPromise;
+
+        expect(result.programTimeLeft).toBeNull();
+        expect(result.programTimeLeftReason).toBeNull();
+        // Lock the observable contract: someone silently deleting the warn
+        // would otherwise turn a real regression into a green test.
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('timed out'),
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not cache the timeout sentinel so a transient hiccup does not pin the contract for a full TTL', async () => {
+      jest.useFakeTimers();
+      try {
+        jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+        const programTimeLeftFn = jest
+          .fn()
+          .mockImplementation(() => new Promise<bigint>(() => {}));
+        mockProviderManager.getContract.mockReturnValue(
+          makeMockArbWasm(programTimeLeftFn),
+        );
+
+        const resultPromise = service.processContract(baseContract);
+        await jest.advanceTimersByTimeAsync(2_001);
+        await resultPromise;
+
+        expect(mockCacheManager.set).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not surface unhandled rejections when the reader throws unexpectedly', async () => {
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => {});
+      mockCacheManager.get.mockRejectedValueOnce(new Error('cache down'));
+
+      const result = await service.processContract(baseContract);
+
+      expect(result.programTimeLeft).toBeNull();
+      expect(result.programTimeLeftReason).toBeNull();
+      // Escalation to error-level + stack is the whole point of the fix;
+      // lock it so a silent downgrade to warn is caught by CI.
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('cache down'),
+        expect.any(String),
       );
     });
   });

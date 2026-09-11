@@ -18,6 +18,7 @@ import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { UserContract } from '../user-contracts/entities/user-contract.entity';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
+import { ProviderManager } from '../common/utils/provider.util';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { UsersModule } from '../users/users.module';
     ContractEnrichmentService,
     CacheStatisticsService,
     ContractQueryBuilderService,
+    ProviderManager,
   ],
   exports: [
     ContractBidCalculatorService,

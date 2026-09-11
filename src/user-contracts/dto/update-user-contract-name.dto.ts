@@ -1,15 +1,10 @@
 import { IsNotEmpty, IsString, Length } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 import { USER_CONTRACT_DEFAULTS } from '../constants';
 
-/**
- * DTO for updating a user contract name
- */
 export class UpdateUserContractNameDto {
-  /**
-   * New name for the user contract
-   * @example "My Updated Contract Name"
-   */
+  @ApiProperty({ description: 'New display name for the contract' })
   @IsString({ message: 'Name must be a string' })
   @IsNotEmpty({ message: 'Name cannot be empty' })
   @Length(

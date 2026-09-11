@@ -8,7 +8,7 @@ import { createModuleLogger } from 'src/common/utils/logger.util';
 import { CacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 import { CacheManager } from 'src/common/types/contracts/CacheManager';
 import { ArbWasmCache } from 'src/common/types/contracts/ArbWasmCache';
-import { ICacheManagerAutomationV2 } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
+import { ICacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 
 import { CmaConfig } from '../cma.config';
 import { SelectedContract } from '../interfaces';
@@ -54,10 +54,12 @@ export class ContractSelectionService {
         this.getBidIncrement(cmaContract),
       ]);
 
-      this.logger.log(`Smart contract constants - Cache threshold: ${cacheThreshold}, Horizon seconds: ${horizonSeconds}, Bid increment: ${bidIncrement}`);
+      this.logger.log(
+        `Smart contract constants - Cache threshold: ${cacheThreshold}, Horizon seconds: ${horizonSeconds}, Bid increment: ${bidIncrement}`,
+      );
 
       // Fetch all contracts in batches until hasMore is false
-      let automatedUserConfigs: ICacheManagerAutomationV2.UserContractsDataStructOutput[] =
+      let automatedUserConfigs: ICacheManagerAutomation.UserContractsDataStructOutput[] =
         [];
       let offset = 0n;
       const limit = BigInt(config?.paginationLimit || 30);
@@ -100,7 +102,7 @@ export class ContractSelectionService {
           const shouldBid = await this.shouldBid(
             auc.user,
             contract.contractAddress,
-            contract.enabled,
+            contract.biddingEnabled,
             contract.maxBid,
             bidIndex,
             cacheUtilization,
@@ -141,7 +143,7 @@ export class ContractSelectionService {
   private async shouldBid(
     user: string,
     contractAddress: string,
-    enabled: boolean,
+    biddingEnabled: boolean,
     maxBid: bigint,
     bidIndex: number,
     cacheUtilization: number,
@@ -174,8 +176,9 @@ export class ContractSelectionService {
         return false;
       }
 
-      // 3. Is contract enabled?
-      if (!enabled) {
+      // 3. Is automated bidding enabled for this contract?
+      // (CMA v2: biddingEnabled controls bidding only; autoActivate is independent)
+      if (!biddingEnabled) {
         return false;
       }
 
@@ -202,9 +205,16 @@ export class ContractSelectionService {
 
       return true;
     } catch (error) {
-      this.logger.warn(
-        `Error checking if should bid for contract ${contractAddress}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('0xc9b12e52') || msg.includes('ProgramExpired')) {
+        this.logger.debug(
+          `Skipping bid for ${contractAddress}: program expired`,
+        );
+      } else {
+        this.logger.warn(
+          `Error checking if should bid for contract ${contractAddress}: ${msg}`,
+        );
+      }
       return false;
     }
   }
@@ -233,8 +243,7 @@ export class ContractSelectionService {
     const decayValue = minBid + decayRate * BigInt(horizonSeconds);
 
     // Add bid increment for uniqueness
-    const bidWithIncrement =
-      decayValue + BigInt(bidIndex) * bidIncrement;
+    const bidWithIncrement = decayValue + BigInt(bidIndex) * bidIncrement;
 
     // Return minimum of calculated bid and user's max bid
     return bidWithIncrement < userMaxBid ? bidWithIncrement : userMaxBid;
@@ -258,7 +267,9 @@ export class ContractSelectionService {
       this.logger.error(
         `Failed to get cache utilization: ${error instanceof Error ? error.message : String(error)}`,
       );
-      throw new Error(`Cannot retrieve cache utilization from contract: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Cannot retrieve cache utilization from contract: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -272,14 +283,18 @@ export class ContractSelectionService {
       this.logger.error(
         `Failed to get decay rate: ${error instanceof Error ? error.message : String(error)}`,
       );
-      throw new Error(`Cannot retrieve decay rate from contract: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Cannot retrieve decay rate from contract: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   /**
    * Get cache threshold from CacheManagerAutomation contract
    */
-  private async getCacheThreshold(cmaContract: CacheManagerAutomation): Promise<number> {
+  private async getCacheThreshold(
+    cmaContract: CacheManagerAutomation,
+  ): Promise<number> {
     try {
       // Using direct method call since TypeScript interface might be outdated
       const threshold = await (cmaContract as any).cacheThreshold();
@@ -288,14 +303,18 @@ export class ContractSelectionService {
       this.logger.error(
         `Failed to get cache threshold from contract: ${error instanceof Error ? error.message : String(error)}`,
       );
-      throw new Error(`Cannot retrieve cache threshold from contract: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Cannot retrieve cache threshold from contract: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   /**
    * Get horizon seconds from CacheManagerAutomation contract
    */
-  private async getHorizonSeconds(cmaContract: CacheManagerAutomation): Promise<number> {
+  private async getHorizonSeconds(
+    cmaContract: CacheManagerAutomation,
+  ): Promise<number> {
     try {
       // Using direct method call since TypeScript interface might be outdated
       const horizon = await (cmaContract as any).horizonSeconds();
@@ -304,14 +323,18 @@ export class ContractSelectionService {
       this.logger.error(
         `Failed to get horizon seconds from contract: ${error instanceof Error ? error.message : String(error)}`,
       );
-      throw new Error(`Cannot retrieve horizon seconds from contract: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Cannot retrieve horizon seconds from contract: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   /**
    * Get bid increment from CacheManagerAutomation contract
    */
-  private async getBidIncrement(cmaContract: CacheManagerAutomation): Promise<bigint> {
+  private async getBidIncrement(
+    cmaContract: CacheManagerAutomation,
+  ): Promise<bigint> {
     try {
       // Using direct method call since TypeScript interface might be outdated
       const increment = await (cmaContract as any).bidIncrement();
@@ -320,7 +343,9 @@ export class ContractSelectionService {
       this.logger.error(
         `Failed to get bid increment from contract: ${error instanceof Error ? error.message : String(error)}`,
       );
-      throw new Error(`Cannot retrieve bid increment from contract: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Cannot retrieve bid increment from contract: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 }

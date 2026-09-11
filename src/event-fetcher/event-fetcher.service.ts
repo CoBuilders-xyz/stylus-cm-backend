@@ -29,6 +29,20 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     this.logger.log('Initializing EventFetcherService...');
 
+    // Register fast sync access tokens from config (in-memory only, not persisted to DB)
+    const blockchainsConfig =
+      this.configService.get<
+        Array<{ chainId: number; fastSyncRpcAccessToken?: string }>
+      >('blockchains') || [];
+    for (const bc of blockchainsConfig) {
+      if (bc.fastSyncRpcAccessToken) {
+        this.providerManager.setFastSyncAccessToken(
+          bc.chainId,
+          bc.fastSyncRpcAccessToken,
+        );
+      }
+    }
+
     // Initialize blockchain configurations
     const blockchains = await this.blockchainService.findAll();
     const eventTypes = this.configService.get<string[]>('eventTypes') || [''];

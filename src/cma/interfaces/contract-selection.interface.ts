@@ -1,4 +1,4 @@
-import { ICacheManagerAutomationV2 } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
+import { ICacheManagerAutomation } from 'src/common/types/contracts/cacheManagerAutomation/CacheManagerAutomation';
 
 export interface SelectedContract {
   user: string;
@@ -9,7 +9,7 @@ export interface ContractSelectionCriteria {
   minBid: bigint;
   maxBid: bigint;
   contractAddress: string;
-  enabled: boolean;
+  biddingEnabled: boolean;
 }
 
 export interface ContractSelectionResult {
@@ -51,5 +51,10 @@ export interface ContractSelectionOptions {
   includeAnalysis?: boolean;
 }
 
+export interface ActivationSelectionResult {
+  selectedContracts: SelectedContract[];
+  maxActivationsPerIteration: number;
+}
+
 export type UserContractsData =
-  ICacheManagerAutomationV2.UserContractsDataStructOutput;
+  ICacheManagerAutomation.UserContractsDataStructOutput;

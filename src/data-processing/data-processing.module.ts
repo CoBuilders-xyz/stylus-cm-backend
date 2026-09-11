@@ -12,6 +12,8 @@ import { DecayRateService } from './services/decay-rate.service';
 import { ContractBytecodeService } from './services/contract-bytecode.service';
 import { BlockchainState } from 'src/blockchains/entities/blockchain-state.entity';
 import { AutomationService } from './services/automation.service';
+import { ActivationService } from './services/activation.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -30,6 +32,7 @@ import { AutomationService } from './services/automation.service';
     DecayRateService,
     ContractBytecodeService,
     AutomationService,
+    ActivationService,
   ],
   exports: [DataProcessingService],
 })

@@ -1,8 +1,57 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { AbiCoder, Interface } from 'ethers';
 import { ContractSelectionService } from './contract-selection.service';
 import { ProviderManager } from 'src/common/utils/provider.util';
 import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
+import { abi as cmaAbi } from 'src/common/abis/cacheManagerAutomation/CacheManagerAutomation.json';
+
+const coder = AbiCoder.defaultAbiCoder();
+const cmaIface = new Interface(cmaAbi);
+
+// Solidity layout of ICacheManagerAutomation.ContractConfig (CMA v2.0).
+const CONTRACT_CONFIG_V2 =
+  'tuple(address contractAddress, bool biddingEnabled, bool autoActivate, uint256 maxBid, uint256 maxActivationCost)';
+const USER_CONTRACTS_DATA_V2 = `tuple(address user, ${CONTRACT_CONFIG_V2}[] contracts)`;
+
+type ConfigInput = {
+  contractAddress: string;
+  biddingEnabled: boolean;
+  autoActivate: boolean;
+  maxBid: bigint;
+  maxActivationCost: bigint;
+};
+
+/**
+ * Builds the exact object ethers returns for getContractsPaginated by
+ * ABI-encoding the v2 tuple layout and decoding it with the real CMA ABI.
+ */
+const decodePaginated = (
+  users: Array<[string, ConfigInput[]]>,
+  hasMore = false,
+) => {
+  const data = coder.encode(
+    [`${USER_CONTRACTS_DATA_V2}[]`, 'bool'],
+    [
+      users.map(([user, contracts]) => [
+        user,
+        contracts.map((c) => [
+          c.contractAddress,
+          c.biddingEnabled,
+          c.autoActivate,
+          c.maxBid,
+          c.maxActivationCost,
+        ]),
+      ]),
+      hasMore,
+    ],
+  );
+  return cmaIface.decodeFunctionResult('getContractsPaginated', data);
+};
+
+const USER = '0x1111111111111111111111111111111111111111';
+const CONTRACT_A = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const CONTRACT_B = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
 describe('ContractSelectionService', () => {
   let service: ContractSelectionService;
@@ -128,7 +177,7 @@ describe('ContractSelectionService', () => {
             contracts: [
               {
                 contractAddress: '0xABC',
-                enabled: true,
+                biddingEnabled: true,
                 maxBid: 1000n,
               },
             ],
@@ -165,6 +214,146 @@ describe('ContractSelectionService', () => {
         user: '0x123',
         address: '0xABC',
       });
+    });
+  });
+
+  describe('selectOptimalBids with ABI-decoded ContractConfig (CMA v2.0)', () => {
+    // Shared "cache is full, bid is affordable" chain state.
+    const setupChain = (userConfigs: Array<[string, ConfigInput[]]>) => {
+      const mockCmaContract = createMockContract();
+      const mockCmContract = createMockContract();
+      const mockArbWasmCacheContract = { codehashIsCached: jest.fn() };
+      const mockProvider = createMockProvider();
+
+      mockCmaContract.getContractsPaginated.mockResolvedValue(
+        decodePaginated(userConfigs),
+      );
+      mockCmaContract.cacheThreshold.mockResolvedValue(98);
+      mockCmaContract.horizonSeconds.mockResolvedValue(2592000);
+      mockCmaContract.bidIncrement.mockResolvedValue(1);
+
+      mockCmContract['getMinBid(address)'].mockResolvedValue(500n);
+      mockCmContract.cacheSize.mockResolvedValue(100n);
+      mockCmContract.queueSize.mockResolvedValue(98n);
+      mockCmContract.decay.mockResolvedValue(1000n);
+      mockProvider.getCode.mockResolvedValue(
+        '0x608060405234801561001057600080fd5b50',
+      );
+      mockArbWasmCacheContract.codehashIsCached.mockResolvedValue(false);
+
+      mockProviderManager.getContract
+        .mockReturnValueOnce(mockCmaContract)
+        .mockReturnValueOnce(mockCmContract)
+        .mockReturnValueOnce(mockArbWasmCacheContract);
+      mockProviderManager.getProvider.mockReturnValue(mockProvider);
+    };
+
+    beforeEach(() => {
+      mockConfigService.get.mockReturnValue({ paginationLimit: 30 });
+    });
+
+    it('selects a contract with biddingEnabled=true (autoActivate=false, distinct amounts)', async () => {
+      setupChain([
+        [
+          USER,
+          [
+            {
+              contractAddress: CONTRACT_A,
+              biddingEnabled: true,
+              autoActivate: false,
+              maxBid: 1000n,
+              maxActivationCost: 7n,
+            },
+          ],
+        ],
+      ]);
+
+      const result = await service.selectOptimalBids(createMockBlockchain());
+
+      expect(result).toHaveLength(1);
+      expect(result[0].user.toLowerCase()).toBe(USER);
+      expect(result[0].address.toLowerCase()).toBe(CONTRACT_A);
+    });
+
+    it('skips a contract with biddingEnabled=false even when autoActivate=true', async () => {
+      // If the service read the wrong bool slot (autoActivate), this would be selected.
+      setupChain([
+        [
+          USER,
+          [
+            {
+              contractAddress: CONTRACT_B,
+              biddingEnabled: false,
+              autoActivate: true,
+              maxBid: 1000n,
+              maxActivationCost: 7n,
+            },
+          ],
+        ],
+      ]);
+
+      const result = await service.selectOptimalBids(createMockBlockchain());
+
+      expect(result).toEqual([]);
+    });
+
+    it('skips a contract whose maxBid slot is too low even though maxActivationCost is high', async () => {
+      // maxBid (7) < minBid (500) -> no bid. If the service read the
+      // maxActivationCost slot as maxBid (v1 order), it would bid.
+      setupChain([
+        [
+          USER,
+          [
+            {
+              contractAddress: CONTRACT_A,
+              biddingEnabled: true,
+              autoActivate: false,
+              maxBid: 7n,
+              maxActivationCost: 1000n,
+            },
+          ],
+        ],
+      ]);
+
+      const result = await service.selectOptimalBids(createMockBlockchain());
+
+      expect(result).toEqual([]);
+    });
+
+    it('does not select a legacy v1-shaped config that only has "enabled"', async () => {
+      const mockCmaContract = createMockContract();
+      mockCmaContract.getContractsPaginated.mockResolvedValue({
+        userData: [
+          {
+            user: USER,
+            contracts: [
+              { contractAddress: CONTRACT_A, enabled: true, maxBid: 1000n },
+            ],
+          },
+        ],
+        hasMore: false,
+      });
+      mockCmaContract.cacheThreshold.mockResolvedValue(98);
+      mockCmaContract.horizonSeconds.mockResolvedValue(2592000);
+      mockCmaContract.bidIncrement.mockResolvedValue(1);
+      const mockCmContract = createMockContract();
+      mockCmContract.cacheSize.mockResolvedValue(100n);
+      mockCmContract.queueSize.mockResolvedValue(98n);
+      mockCmContract.decay.mockResolvedValue(1000n);
+      const mockArbWasmCacheContract = {
+        codehashIsCached: jest.fn().mockResolvedValue(false),
+      };
+      const mockProvider = createMockProvider();
+      mockProvider.getCode.mockResolvedValue('0x6080');
+      mockProviderManager.getContract
+        .mockReturnValueOnce(mockCmaContract)
+        .mockReturnValueOnce(mockCmContract)
+        .mockReturnValueOnce(mockArbWasmCacheContract);
+      mockProviderManager.getProvider.mockReturnValue(mockProvider);
+
+      const result = await service.selectOptimalBids(createMockBlockchain());
+
+      expect(result).toEqual([]);
     });
   });
 });

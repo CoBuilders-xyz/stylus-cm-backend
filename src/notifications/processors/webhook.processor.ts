@@ -59,9 +59,10 @@ export class WebhookNotificationProcessor extends WorkerHost {
         triggeredCount: alert.triggeredCount,
       });
 
-      // Update lastNotified timestamp
-      const updatedAlert = this.timingService.updateLastNotified(alert);
-      await this.alertsRepository.save(updatedAlert);
+      // Update only lastNotified to avoid overwriting triggeredCount/lastTriggered
+      await this.alertsRepository.update(alertId, {
+        lastNotified: new Date(),
+      });
 
       this.logger.log(
         `Successfully sent Webhook notification for alert: ${alertId}`,

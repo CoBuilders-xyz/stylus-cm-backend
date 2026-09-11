@@ -1,5 +1,7 @@
+import { join } from 'path';
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { DataSourceOptions } from 'typeorm';
 import { validatePort } from '../utils/validation.util';
 import { DEFAULT_POSTGRES_PORT } from './constants';
 
@@ -25,7 +27,25 @@ const entities = [
   Alert,
 ];
 
-export default registerAs('database', (): TypeOrmModuleOptions => {
+/**
+ * Schema management strategy, decided by ENVIRONMENT:
+ *
+ * - local, develop: TypeORM `synchronize` alters the schema from the entities
+ *   at startup. Migrations are not run.
+ * - staging, production: `synchronize` is off. Pending migrations from
+ *   `src/migrations` run automatically at startup (`migrationsRun`).
+ *
+ * Any schema change must therefore ship with a migration, or it never reaches
+ * staging and production. See README "Database migrations".
+ */
+export const isSchemaSyncEnabled = (environment: string): boolean =>
+  environment === 'local' || environment === 'develop';
+
+/**
+ * Builds the TypeORM DataSource options from environment variables.
+ * Shared by the Nest application and the TypeORM CLI (see data-source.ts).
+ */
+export const buildDataSourceOptions = (): DataSourceOptions => {
   // Validate required environment variables
   const validateConfig = () => {
     if (process.env.DATABASE_URL) {
@@ -66,15 +86,19 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
   // Run validation
   validateConfig();
 
-  // Get synchronize setting (default to false for production safety)
   const environment = process.env.ENVIRONMENT || 'local';
-  const synchronize = environment === 'local' || environment === 'develop';
+  const synchronize = isSchemaSyncEnabled(environment);
 
   // Build base configuration
-  const baseConfig: TypeOrmModuleOptions = {
+  const baseConfig: DataSourceOptions = {
     type: 'postgres',
     entities,
     synchronize,
+    // Works from both src/ (ts-node) and dist/src/ (compiled) because the
+    // migrations folder sits next to this file's parent in both trees.
+    migrations: [join(__dirname, '../../migrations/*.{ts,js}')],
+    migrationsRun: !synchronize,
+    migrationsTableName: 'migrations',
     logging: environment === 'local' ? ['error', 'warn'] : ['error'],
   };
 
@@ -96,4 +120,9 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
       database: process.env.POSTGRES_DB,
     };
   }
-});
+};
+
+export default registerAs(
+  'database',
+  (): TypeOrmModuleOptions => buildDataSourceOptions(),
+);

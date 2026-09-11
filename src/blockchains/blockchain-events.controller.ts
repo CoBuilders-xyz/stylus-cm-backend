@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BlockchainEventsService } from './services/blockchain-events.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { SearchDto } from '../common/dto/search.dto';
@@ -9,6 +10,7 @@ import { Public } from '../auth/auth.guard';
 import { createControllerLogger } from '../common/utils/logger.util';
 import { MODULE_NAME } from './constants';
 
+@ApiTags('Blockchain Events')
 @Controller('blockchain-events')
 export class BlockchainEventsController {
   private readonly logger = createControllerLogger(
@@ -27,6 +29,14 @@ export class BlockchainEventsController {
    */
   @Public()
   @Get()
+  @ApiOperation({
+    summary:
+      'List blockchain events (bids, activations) with pagination and filtering',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of blockchain events',
+  })
   async findAll(
     @Query() queryDto: BlockchainEventsQueryDto,
     @Query() paginationDto: PaginationDto,

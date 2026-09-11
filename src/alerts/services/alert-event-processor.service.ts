@@ -21,6 +21,10 @@ export class AlertEventProcessorService {
     (event: BlockchainEvent) => void | Promise<void>
   > = {
     DeleteBid: (event: BlockchainEvent) => this.processDeleteBidEvent(event),
+    ActivationPerformed: (event: BlockchainEvent) =>
+      this.processActivationEvent(event, AlertType.REACTIVATION_SUCCEEDED),
+    ActivationError: (event: BlockchainEvent) =>
+      this.processActivationEvent(event, AlertType.REACTIVATION_FAILED),
     Default: (event: BlockchainEvent) => {
       this.logger.debug(
         `No event alert processor found for event ${event.eventName}, skipping`,
@@ -134,6 +138,64 @@ export class AlertEventProcessorService {
     } catch (error) {
       this.logger.error(
         `Error processing DeleteBid event ${event.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Process ActivationPerformed / ActivationError events for
+   * reactivationSucceeded / reactivationFailed alerts.
+   * Both event shapes have contractAddress at eventData[1].
+   */
+  private async processActivationEvent(
+    event: BlockchainEvent,
+    alertType: AlertType,
+  ): Promise<void> {
+    try {
+      this.logger.debug(
+        `Processing ${event.eventName} event ${event.id} for ${alertType} alerts`,
+      );
+
+      const contractAddress = (event.eventData[1] as string)?.toLowerCase();
+      if (!contractAddress) {
+        this.logger.warn(
+          `${event.eventName} event ${event.id} missing contractAddress at index 1`,
+        );
+        return;
+      }
+
+      const alerts = await this.alertsRepository
+        .createQueryBuilder('alert')
+        .innerJoinAndSelect('alert.userContract', 'userContract')
+        .where('alert.isActive = :isActive', { isActive: true })
+        .andWhere('alert.type = :type', { type: alertType })
+        .andWhere('LOWER(userContract.address) = :address', {
+          address: contractAddress,
+        })
+        .getMany();
+
+      this.logger.log(
+        `Found ${alerts.length} active ${alertType} alerts for contract ${contractAddress}`,
+      );
+
+      for (const alert of alerts) {
+        await this.alertsQueue.add('alert-triggered', {
+          alertId: alert.id,
+        });
+      }
+
+      if (alerts.length > 0) {
+        this.logger.log(
+          `Successfully queued ${alerts.length} ${alertType} alerts for processing`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error processing ${event.eventName} event ${event.id}: ${
           error instanceof Error ? error.message : String(error)
         }`,
         error instanceof Error ? error.stack : undefined,

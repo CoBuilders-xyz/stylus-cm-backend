@@ -48,4 +48,27 @@ export class Contract {
 
   @Column('varchar', { length: 78, default: '0' })
   maxBid: string;
+
+  // CMA v2.0: mirrors ContractConfig.biddingEnabled (automated bidding only).
+  // Kept in sync by the ContractBiddingEnabledUpdated event.
+  @Column({ default: false })
+  biddingEnabled: boolean;
+
+  @Column({ default: false })
+  autoActivate: boolean;
+
+  @Column('varchar', { length: 78, nullable: true })
+  maxActivationCost: string;
+
+  @Column({ type: 'bigint', nullable: true })
+  lastActivationBlockNumber: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastActivationTimestamp: Date;
+
+  @Column({ type: 'varchar', nullable: true, default: 'unknown' })
+  activationStatus: string;
+
+  @Column({ type: 'int', default: 0 })
+  activationRetryCount: number;
 }

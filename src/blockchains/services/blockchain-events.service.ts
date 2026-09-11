@@ -49,7 +49,7 @@ export class BlockchainEventsService {
         .createQueryBuilder('event')
         .leftJoinAndSelect('event.blockchain', 'blockchain')
         .where('event.eventName IN (:...eventNames)', {
-          eventNames: [BlockchainEventType.INSERT, BlockchainEventType.DELETE],
+          eventNames: Object.values(BlockchainEventType),
         });
 
       // Apply blockchain filter if provided

@@ -7,9 +7,18 @@ import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { createModuleLogger } from 'src/common/utils/logger.util';
 import { CmaConfig } from '../cma.config';
 import { ContractSelectionService } from './contract-selection.service';
+import { ActivationSelectionService } from './activation-selection.service';
 import { BatchProcessorService } from './batch-processor.service';
-import { AutomationResult, AutomationStats } from '../interfaces';
+import {
+  AutomationResult,
+  AutomationStats,
+  BatchProcessingResult,
+} from '../interfaces';
 import { MODULE_NAME } from '../constants';
+
+type BlockchainProcessor = (
+  blockchain: Blockchain,
+) => Promise<BatchProcessingResult>;
 
 @Injectable()
 export class AutomationOrchestratorService {
@@ -23,59 +32,53 @@ export class AutomationOrchestratorService {
     private readonly blockchainRepository: Repository<Blockchain>,
     private readonly configService: ConfigService,
     private readonly contractSelectionService: ContractSelectionService,
+    private readonly activationSelectionService: ActivationSelectionService,
     private readonly batchProcessorService: BatchProcessorService,
   ) {}
 
-  async executeAutomation(): Promise<AutomationResult> {
+  async executeCachingAutomation(): Promise<AutomationResult> {
     const config = this.configService.get<CmaConfig>('cma');
-    const startTime = new Date();
 
-    this.logger.log('Starting automation execution...');
-
-    if (!config?.automationEnabled) {
-      this.logger.log('Automation is disabled via configuration');
-      return {
-        success: true,
-        stats: {
-          totalBlockchains: 0,
-          processedBlockchains: 0,
-          totalContracts: 0,
-          processedContracts: 0,
-          successfulBatches: 0,
-          failedBatches: 0,
-          startTime,
-          endTime: new Date(),
-          duration: 0,
-        },
-        errors: [],
-      };
+    if (!config?.cachingAutomationEnabled) {
+      this.logger.log('Caching automation is disabled');
+      return this.emptyResult();
     }
+
+    return this.runForAllBlockchains('caching', (blockchain) =>
+      this.processCaching(blockchain),
+    );
+  }
+
+  async executeActivationAutomation(): Promise<AutomationResult> {
+    const config = this.configService.get<CmaConfig>('cma');
+
+    if (!config?.activationAutomationEnabled) {
+      this.logger.log('Activation automation is disabled');
+      return this.emptyResult();
+    }
+
+    return this.runForAllBlockchains('activation', (blockchain) =>
+      this.processActivation(blockchain),
+    );
+  }
+
+  private async runForAllBlockchains(
+    label: string,
+    processor: BlockchainProcessor,
+  ): Promise<AutomationResult> {
+    const startTime = new Date();
 
     const blockchains = await this.blockchainRepository.find({
       where: { enabled: true },
     });
 
     if (blockchains.length === 0) {
-      this.logger.log('No enabled blockchains found');
-      return {
-        success: true,
-        stats: {
-          totalBlockchains: 0,
-          processedBlockchains: 0,
-          totalContracts: 0,
-          processedContracts: 0,
-          successfulBatches: 0,
-          failedBatches: 0,
-          startTime,
-          endTime: new Date(),
-          duration: 0,
-        },
-        errors: [],
-      };
+      this.logger.log(`No enabled blockchains for ${label} automation`);
+      return this.emptyResult();
     }
 
     this.logger.log(
-      `Processing automation for ${blockchains.length} blockchains`,
+      `Running ${label} automation for ${blockchains.length} blockchains`,
     );
 
     let totalContracts = 0;
@@ -91,7 +94,7 @@ export class AutomationOrchestratorService {
 
     for (const blockchain of blockchains) {
       try {
-        const result = await this.processCmaAutomation(blockchain);
+        const result = await processor(blockchain);
 
         totalContracts += result.totalContracts;
         processedContracts += result.processedContracts;
@@ -109,7 +112,7 @@ export class AutomationOrchestratorService {
           }
         }
       } catch (error) {
-        const errorMessage = `Failed to process automation for blockchain ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`;
+        const errorMessage = `${label} automation failed for ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`;
         this.logger.error(errorMessage);
         errors.push({
           blockchain: blockchain.name,
@@ -135,38 +138,83 @@ export class AutomationOrchestratorService {
     };
 
     this.logger.log(
-      `Automation execution completed: ${processedContracts} contracts processed across ${processedBlockchains} blockchains`,
+      `${label} automation completed: ${processedContracts} contracts across ${processedBlockchains} blockchains`,
     );
 
-    return {
-      success: errors.length === 0,
-      stats,
-      errors,
-    };
+    return { success: errors.length === 0, stats, errors };
   }
 
-  private async processCmaAutomation(blockchain: Blockchain) {
+  private async processCaching(
+    blockchain: Blockchain,
+  ): Promise<BatchProcessingResult> {
     const selectedContracts =
       await this.contractSelectionService.selectOptimalBids(blockchain);
 
     if (selectedContracts.length === 0) {
       this.logger.log(
-        `No contracts selected for automation on ${blockchain.name}`,
+        `No contracts selected for caching on ${blockchain.name}`,
       );
-      return {
+      return this.emptyBatchResult();
+    }
+
+    return this.batchProcessorService.processContractBatches(
+      blockchain,
+      selectedContracts,
+    );
+  }
+
+  private async processActivation(
+    blockchain: Blockchain,
+  ): Promise<BatchProcessingResult> {
+    const result =
+      await this.activationSelectionService.selectOptimalActivations(
+        blockchain,
+      );
+
+    if (result.selectedContracts.length === 0) {
+      this.logger.log(
+        `No contracts selected for activation on ${blockchain.name}`,
+      );
+      return this.emptyBatchResult();
+    }
+
+    return this.batchProcessorService.processActivationBatches(
+      blockchain,
+      result.selectedContracts,
+      result.maxActivationsPerIteration,
+    );
+  }
+
+  private emptyResult(): AutomationResult {
+    return {
+      success: true,
+      stats: {
+        totalBlockchains: 0,
+        processedBlockchains: 0,
         totalContracts: 0,
         processedContracts: 0,
         successfulBatches: 0,
         failedBatches: 0,
-        errors: [],
-      };
-    }
+        startTime: new Date(),
+        endTime: new Date(),
+        duration: 0,
+      },
+      errors: [],
+    };
+  }
 
-    const batchResult = await this.batchProcessorService.processContractBatches(
-      blockchain,
-      selectedContracts,
-    );
-
-    return batchResult;
+  private emptyBatchResult(): BatchProcessingResult {
+    return {
+      totalBatches: 0,
+      successfulBatches: 0,
+      failedBatches: 0,
+      totalContracts: 0,
+      processedContracts: 0,
+      results: [],
+      startTime: new Date(),
+      endTime: new Date(),
+      totalDuration: 0,
+      errors: [],
+    };
   }
 }

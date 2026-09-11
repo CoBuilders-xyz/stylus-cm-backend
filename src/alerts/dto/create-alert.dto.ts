@@ -8,48 +8,69 @@ import {
   ValidateIf,
   IsNumber,
   IsPositive,
-  Min,
-  Max,
 } from 'class-validator';
-import { AlertType, ALERT_THRESHOLDS } from '../constants';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { AlertType } from '../constants';
 
 export class CreateAlertDto {
+  @ApiProperty({ enum: AlertType, description: 'Type of alert to create' })
   @IsEnum(AlertType)
   @IsNotEmpty()
   type: AlertType;
 
-  @ValidateIf((o: CreateAlertDto) => o.type === AlertType.BID_SAFETY)
-  @IsNotEmpty({ message: 'Value is required when alert type is bidSafety' })
+  @ApiPropertyOptional({
+    description:
+      'Threshold value (required for bidSafety, lowGas, approachingExpiration)',
+    type: Number,
+  })
+  @ValidateIf(
+    (o: CreateAlertDto) =>
+      o.type === AlertType.BID_SAFETY ||
+      o.type === AlertType.LOW_GAS ||
+      o.type === AlertType.APPROACHING_EXPIRATION,
+  )
+  @IsNotEmpty({
+    message:
+      'Value is required when alert type is bidSafety, lowGas, or approachingExpiration',
+  })
   @IsNumber(
     {},
-    { message: 'Value must be a number when alert type is bidSafety' },
+    {
+      message:
+        'Value must be a number when alert type is bidSafety, lowGas, or approachingExpiration',
+    },
   )
-  @IsPositive({ message: 'Value must be positive for bidSafety alerts' })
-  @Min(ALERT_THRESHOLDS.MIN_BID_SAFETY_VALUE, {
-    message: `Minimum bid safety value is ${ALERT_THRESHOLDS.MIN_BID_SAFETY_VALUE}%`,
-  })
-  @Max(ALERT_THRESHOLDS.MAX_BID_SAFETY_VALUE, {
-    message: `Maximum bid safety value is ${ALERT_THRESHOLDS.MAX_BID_SAFETY_VALUE}%`,
-  })
-  value: string; // validated as number saved as string for more generic values
+  @IsPositive({ message: 'Value must be positive' })
+  value: string;
 
+  @ApiProperty({ description: 'Whether the alert is active' })
   @IsBoolean()
   @IsNotEmpty()
   isActive: boolean;
 
+  @ApiProperty({ description: 'UUID of the user contract to monitor' })
   @IsString()
   @IsNotEmpty()
   @IsUUID()
   userContractId: string;
 
+  @ApiPropertyOptional({
+    description: 'Enable Slack notifications for this alert',
+  })
   @IsOptional()
   @IsBoolean()
   slackChannelEnabled?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Enable Telegram notifications for this alert',
+  })
   @IsOptional()
   @IsBoolean()
   telegramChannelEnabled?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Enable Webhook notifications for this alert',
+  })
   @IsOptional()
   @IsBoolean()
   webhookChannelEnabled?: boolean;

@@ -104,6 +104,54 @@ The backend processes and delivers:
 - `docs/`: Documentation for each module
 - `test/`: Test files
 
+### Database migrations
+
+Schema management depends on `ENVIRONMENT`:
+
+| Environment             | Schema source                                         |
+| ----------------------- | ----------------------------------------------------- |
+| `local`, `develop`      | TypeORM `synchronize` (entities alter the DB at boot) |
+| `staging`, `production` | Migrations in `src/migrations` run at boot            |
+
+Every change to an entity must ship with a migration, or it never reaches staging and production.
+
+Generate a migration from the entity diff. Point the CLI at a database that has sync off, for example a local Postgres with `ENVIRONMENT=staging`, so the diff is real:
+
+```bash
+ENVIRONMENT=staging npm run migration:generate -- src/migrations/<Name>
+```
+
+Other commands:
+
+```bash
+npm run migration:show                        # list applied and pending
+npm run migration:run                         # apply pending
+npm run migration:revert                      # roll back the last one
+npm run migration:create -- src/migrations/<Name>   # empty migration file
+```
+
+The CLI reads connection settings from `.env` through `src/common/config/data-source.ts`. Review generated SQL before committing. The application also applies pending migrations on startup when sync is off, so a normal deploy is enough to migrate staging and production.
+
+#### Baselining a database that was synchronized
+
+Staging ran with `synchronize` on before migrations existed, so its schema already contains everything the first migrations add. Running those migrations there fails on the first duplicate column, and the application does not boot. Do not drop the columns. Mark the migrations as applied instead, once, before deploying a build that carries them:
+
+```sql
+CREATE TABLE IF NOT EXISTS "migrations" (
+  "id" SERIAL NOT NULL,
+  "timestamp" bigint NOT NULL,
+  "name" character varying NOT NULL,
+  CONSTRAINT "PK_8c82d7f526340ab734260ea46be" PRIMARY KEY ("id")
+);
+INSERT INTO "migrations" ("timestamp", "name") VALUES
+  (1788892847685, 'AddContractBiddingEnabled1788892847685'),
+  (1789067652021, 'AddContractActivationColumns1789067652021');
+```
+
+Only insert the rows for migrations whose changes the database already has. `npm run migration:show` must then list them as applied and leave nothing pending. Production never ran with sync on, so it needs no baseline: the migrations apply at boot.
+
+Startup migrations assume a single application instance per environment. TypeORM has no cross-instance lock, so before running more than one instance, move migrations to a pre-deploy step or guard them with a Postgres advisory lock. Keep migrations additive (add columns with defaults, never rename or drop in the same release that stops using them) so the previous build keeps working while the new one starts.
+
 ### Key Technologies
 
 - **NestJS**: Backend framework
