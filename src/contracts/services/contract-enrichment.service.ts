@@ -14,6 +14,10 @@ import {
   ContractType,
   ProviderManager,
 } from '../../common/utils/provider.util';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from '../../common/utils/log-sanitizer.util';
 
 type ProgramTimeLeftResult = {
   seconds: string | null;
@@ -74,10 +78,10 @@ export class ContractEnrichmentService {
         // itself blew up (cache down, DI misconfig, TypeError, ...), not a
         // known revert or timeout. Anything reported here should page.
         this.logger.error(
-          `programTimeLeft read threw unexpectedly for ${contract.address}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-          error instanceof Error ? error.stack : undefined,
+          `programTimeLeft read threw unexpectedly for ${contract.address}: ${sanitizeForLog(
+            error,
+          )}`,
+          sanitizeStackForLog(error),
         );
         return PROGRAM_TIME_LEFT_TIMEOUT_RESULT;
       },
@@ -298,7 +302,7 @@ export class ContractEnrichmentService {
     }
 
     this.logger.warn(
-      `Failed to read programTimeLeft for ${contract.address}: ${message}`,
+      `Failed to read programTimeLeft for ${contract.address}: ${sanitizeForLog(error)}`,
     );
     return { seconds: null, reason: null };
   }

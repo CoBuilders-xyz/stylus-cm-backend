@@ -11,6 +11,10 @@ import {
 } from '../../common/utils/provider.util';
 import { CacheManagerContract } from '../interfaces/contract.interfaces';
 import { ContractErrorHelpers } from '../contracts.errors';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from '../../common/utils/log-sanitizer.util';
 
 /**
  * Service responsible for core bid calculations and decay rate operations.
@@ -81,8 +85,8 @@ export class ContractBidCalculatorService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to get cache manager contract for blockchain ${blockchainId}: ${err.message}`,
-        err.stack,
+        `Failed to get cache manager contract for blockchain ${blockchainId}: ${sanitizeForLog(err)}`,
+        sanitizeStackForLog(err),
       );
 
       // Re-throw known contract errors
@@ -142,7 +146,7 @@ export class ContractBidCalculatorService {
       return '0';
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Error fetching decay rate: ${err.message}`);
+      this.logger.error(`Error fetching decay rate: ${sanitizeForLog(err)}`);
       // If there's an error, return 0 as a safe default
       return '0';
     }
@@ -192,7 +196,9 @@ export class ContractBidCalculatorService {
       return effectiveBid.toString();
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Error calculating effective bid: ${err.message}`);
+      this.logger.error(
+        `Error calculating effective bid: ${sanitizeForLog(err)}`,
+      );
       // In case of an error, return 0 as a safe default
       return '0';
     }
@@ -244,8 +250,8 @@ export class ContractBidCalculatorService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to calculate current effective bid for contract ${contract.id}: ${err.message}`,
-        err.stack,
+        `Failed to calculate current effective bid for contract ${contract.id}: ${sanitizeForLog(err)}`,
+        sanitizeStackForLog(err),
       );
 
       // Re-throw known contract errors

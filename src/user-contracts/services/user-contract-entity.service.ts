@@ -12,6 +12,10 @@ import {
 import { UserContractsErrorHelpers } from '../user-contracts.errors';
 import { MODULE_NAME, USER_CONTRACT_DEFAULTS } from '../constants';
 import { createModuleLogger } from '../../common/utils/logger.util';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from '../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class UserContractEntityService {
@@ -83,8 +87,8 @@ export class UserContractEntityService {
       return contract;
     } catch (error) {
       this.logger.error(
-        `Failed to create contract entity for ${address}`,
-        error,
+        `Failed to create contract entity for ${address}: ${sanitizeForLog(error)}`,
+        sanitizeStackForLog(error),
       );
       UserContractsErrorHelpers.throwContractEntityCreationFailed(
         error instanceof Error ? error.message : 'Unknown error',
@@ -162,8 +166,8 @@ export class UserContractEntityService {
       return bytecode;
     } catch (error) {
       this.logger.error(
-        `Failed to create bytecode entity for blockchain ${blockchain.id}`,
-        error,
+        `Failed to create bytecode entity for blockchain ${blockchain.id}: ${sanitizeForLog(error)}`,
+        sanitizeStackForLog(error),
       );
       UserContractsErrorHelpers.throwBytecodeCreationFailed(
         error instanceof Error ? error.message : 'Unknown error',

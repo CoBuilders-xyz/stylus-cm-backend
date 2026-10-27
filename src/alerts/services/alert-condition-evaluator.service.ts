@@ -6,6 +6,10 @@ import { Blockchain } from 'src/blockchains/entities/blockchain.entity';
 import { Alert } from '../entities/alert.entity';
 import { createModuleLogger } from 'src/common/utils/logger.util';
 import { MODULE_NAME, ALERT_THRESHOLDS, AlertType } from '../constants';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from 'src/common/utils/log-sanitizer.util';
 
 const ESCROW_ABI = ['function depositsOf(address) view returns (uint256)'];
 
@@ -68,10 +72,10 @@ export class AlertConditionEvaluatorService {
       return shouldTrigger;
     } catch (error) {
       this.logger.error(
-        `Error evaluating bid safety condition for alert ${alert.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        error instanceof Error ? error.stack : undefined,
+        `Error evaluating bid safety condition for alert ${alert.id}: ${sanitizeForLog(
+          error,
+        )}`,
+        sanitizeStackForLog(error),
       );
       throw error;
     }
@@ -129,10 +133,10 @@ export class AlertConditionEvaluatorService {
       return shouldTrigger;
     } catch (error) {
       this.logger.error(
-        `Error evaluating gas condition for alert ${alert.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        error instanceof Error ? error.stack : undefined,
+        `Error evaluating gas condition for alert ${alert.id}: ${sanitizeForLog(
+          error,
+        )}`,
+        sanitizeStackForLog(error),
       );
       throw error;
     }
@@ -200,10 +204,10 @@ export class AlertConditionEvaluatorService {
       return shouldTrigger;
     } catch (error) {
       this.logger.error(
-        `Error evaluating expiration condition for alert ${alert.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        error instanceof Error ? error.stack : undefined,
+        `Error evaluating expiration condition for alert ${alert.id}: ${sanitizeForLog(
+          error,
+        )}`,
+        sanitizeStackForLog(error),
       );
       throw error;
     }

@@ -8,6 +8,7 @@ import { ProviderManager } from '../../../common/utils/provider.util';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
 import { RedisConfig } from '../../../common/config/redis.config';
+import { sanitizeForLog } from '../../../common/utils/log-sanitizer.util';
 
 export interface EventQueueItem {
   blockchain: Blockchain;
@@ -169,7 +170,7 @@ export class EventQueueService implements OnModuleDestroy {
 
     worker.on('failed', (job, err) => {
       this.logger.error(
-        `Failed processing ${job?.data?.eventType} for block ${job?.data?.blockNumber}: ${err.message}`,
+        `Failed processing ${job?.data?.eventType} for block ${job?.data?.blockNumber}: ${sanitizeForLog(err)}`,
       );
     });
 

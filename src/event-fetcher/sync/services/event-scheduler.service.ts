@@ -6,6 +6,7 @@ import { ProviderManager } from '../../../common/utils/provider.util';
 import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
+import { sanitizeForLog } from '../../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class EventSchedulerService {
@@ -76,18 +77,14 @@ export class EventSchedulerService {
           );
         } catch (error) {
           this.logger.error(
-            `Error during periodic resync for blockchain ${blockchain.id}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            `Error during periodic resync for blockchain ${blockchain.id}: ${sanitizeForLog(
+              error,
+            )}`,
           );
         }
       }
     } catch (error) {
-      this.logger.error(
-        `Error in periodic resync: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      this.logger.error(`Error in periodic resync: ${sanitizeForLog(error)}`);
     }
   }
 

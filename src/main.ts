@@ -9,17 +9,29 @@ import appConfig, {
   AppConfig,
   shouldAllowOrigin,
 } from './common/config/app.config';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from './common/utils/log-sanitizer.util';
+import { installLogSanitizer } from './common/utils/log-sanitizer-install.util';
+
+// Patch Nest's ConsoleLogger once, before the first log line, so every line
+// of the process is sanitized right before it is written.
+installLogSanitizer();
 
 function setupGlobalExceptionHandlers(logger: Logger): void {
   process.on('unhandledRejection', (reason) => {
     logger.error(
-      `Unhandled Promise Rejection: ${reason instanceof Error ? reason.message : String(reason)}`,
-      reason instanceof Error ? reason.stack : undefined,
+      `Unhandled Promise Rejection: ${sanitizeForLog(reason)}`,
+      sanitizeStackForLog(reason),
     );
   });
 
   process.on('uncaughtException', (error) => {
-    logger.error(`Uncaught Exception: ${error.message}`, error.stack);
+    logger.error(
+      `Uncaught Exception: ${sanitizeForLog(error)}`,
+      sanitizeStackForLog(error),
+    );
   });
 }
 
@@ -112,8 +124,9 @@ async function bootstrap() {
 
 bootstrap().catch((error) => {
   const logger = new Logger('Bootstrap');
-  const message = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? error.stack : undefined;
-  logger.error(`Failed to start application: ${message}`, stack);
+  logger.error(
+    `Failed to start application: ${sanitizeForLog(error)}`,
+    sanitizeStackForLog(error),
+  );
   process.exit(1);
 });
