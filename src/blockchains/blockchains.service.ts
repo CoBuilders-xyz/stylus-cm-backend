@@ -13,7 +13,7 @@ import {
   BidTrendsResponse,
   AverageBidResponse,
 } from './interfaces';
-import { Blockchain } from './entities/blockchain.entity';
+import { Blockchain, PublicBlockchain } from './entities/blockchain.entity';
 import { createModuleLogger } from '../common/utils/logger.util';
 
 @Injectable()
@@ -32,6 +32,16 @@ export class BlockchainsService {
   async findAll(): Promise<Blockchain[]> {
     this.logger.debug('Fetching all enabled blockchains');
     const blockchains = await this.crudService.findAll();
+    this.logger.log(`Retrieved ${blockchains.length} enabled blockchains`);
+    return blockchains;
+  }
+
+  /**
+   * Find all enabled blockchains without provider URLs (for HTTP responses)
+   */
+  async findAllPublic(): Promise<PublicBlockchain[]> {
+    this.logger.debug('Fetching all enabled blockchains (public columns only)');
+    const blockchains = await this.crudService.findAllPublic();
     this.logger.log(`Retrieved ${blockchains.length} enabled blockchains`);
     return blockchains;
   }

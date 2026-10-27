@@ -35,11 +35,12 @@ export class BlockchainsController {
   @ApiOperation({ summary: 'List all enabled blockchains' })
   @ApiResponse({
     status: 200,
-    description: 'Array of blockchain configurations',
+    description:
+      'Array of enabled blockchains. Provider RPC URLs are never included.',
   })
   async findAll() {
     this.logger.log('GET /blockchains - Fetching all enabled blockchains');
-    const result = await this.blockchainsService.findAll();
+    const result = await this.blockchainsService.findAllPublic();
     this.logger.log(`GET /blockchains - Returned ${result.length} blockchains`);
     return result;
   }

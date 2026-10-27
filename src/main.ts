@@ -1,21 +1,10 @@
 import { NestFactory } from '@nestjs/core';
-import {
-  ValidationPipe,
-  Logger,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { HttpAdapterHost } from '@nestjs/core';
 import { INestApplication } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { SwaggerTheme, SwaggerThemeNameEnum } from 'swagger-themes';
-import {
-  AllExceptionsFilter,
-  HttpExceptionFilter,
-  ValidationExceptionFilter,
-  RpcExceptionFilter,
-} from './common/filters';
+import { setupAppMiddleware } from './app.setup';
 import appConfig, {
   AppConfig,
   shouldAllowOrigin,
@@ -57,24 +46,6 @@ async function createNestApp(config: AppConfig): Promise<INestApplication> {
     cors: createCorsConfig(config),
     logger: config.loggerLevels,
   });
-}
-
-function setupAppMiddleware(app: INestApplication): void {
-  // Apply validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-    }),
-  );
-
-  // Apply exception filters in order from most specific to most general
-  const httpAdapterHost = app.get(HttpAdapterHost);
-  app.useGlobalFilters(
-    new ValidationExceptionFilter(),
-    new RpcExceptionFilter(),
-    new HttpExceptionFilter(),
-    new AllExceptionsFilter(httpAdapterHost),
-  );
 }
 
 async function startServer(

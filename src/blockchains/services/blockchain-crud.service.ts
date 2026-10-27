@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Blockchain } from '../entities/blockchain.entity';
+import {
+  Blockchain,
+  PublicBlockchain,
+  PUBLIC_BLOCKCHAIN_SELECT,
+} from '../entities/blockchain.entity';
 import { BlockchainsErrorHelpers } from '../blockchains.errors';
 import { createModuleLogger } from '../../common/utils/logger.util';
 import { MODULE_NAME } from '../constants';
@@ -40,6 +44,36 @@ export class BlockchainCrudService {
       const err = error as Error;
       this.logger.error(
         `Failed to fetch enabled blockchains: ${err.message}`,
+        err.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Find all enabled blockchains without provider URLs.
+   * Use this for HTTP responses. Internal callers that need RPC URLs
+   * (event fetcher, providers) keep using findAll().
+   */
+  async findAllPublic(): Promise<PublicBlockchain[]> {
+    try {
+      this.logger.debug(
+        'Querying database for all enabled blockchains (public columns only)',
+      );
+      const blockchains = await this.blockchainRepository.find({
+        select: PUBLIC_BLOCKCHAIN_SELECT,
+        where: { enabled: true },
+      });
+
+      this.logger.log(
+        `Successfully retrieved ${blockchains.length} enabled blockchains (public columns only)`,
+      );
+
+      return blockchains;
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Failed to fetch enabled blockchains (public columns only): ${err.message}`,
         err.stack,
       );
       throw error;
