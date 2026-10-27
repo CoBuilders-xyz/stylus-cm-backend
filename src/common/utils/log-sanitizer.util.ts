@@ -36,8 +36,10 @@ const BEARER_PATTERN =
 // x-api-key, token, key, secret, password, authorization, ...). Optional ANSI
 // color codes may sit between the separator and the value. A value that
 // opens an object or an array ({ or [) is not a secret and is not matched.
+// An auth scheme word (Basic, Digest, Token) is consumed together with the
+// credential that follows it; Bearer is handled by maskBearerTokens first.
 const SECRET_PAIR_PATTERN =
-  /\b([\w-]*(?:key|token|secret|password|authorization))\b(\\?["']?\s*[=:]\s*(?:\x1b\[[0-9;]*m)*\\?["']?)([^\s"'`<>&,;)\]}{[\\\x1b]+)/gi;
+  /\b([\w-]*(?:key|token|secret|password|authorization))\b(\\?["']?\s*[=:]\s*(?:\x1b\[[0-9;]*m)*\\?["']?)((?:(?:basic|digest|token)[ \t]+)?[^\s"'`<>&,;)\]}{[\\\x1b]+)/gi;
 // Unquoted JSON/JS scalars that are never secrets: numbers, null, booleans.
 const PLAIN_SCALAR = /^(?:-?\d+(?:\.\d+)?|null|true|false|undefined)$/i;
 /* eslint-enable no-control-regex */

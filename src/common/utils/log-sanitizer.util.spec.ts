@@ -117,6 +117,13 @@ describe('log-sanitizer.util', () => {
       ['key=FAKEKEY', `key=${REDACTED}`],
       ['x-api-key: FAKEKEY', `x-api-key: ${REDACTED}`],
       ['"accessToken": "FAKETOKEN"', `"accessToken": "${REDACTED}"`],
+      ['Authorization: Basic FAKECRED', `Authorization: ${REDACTED}`],
+      ['authorization: Digest FAKECRED', `authorization: ${REDACTED}`],
+      ['Authorization: Token FAKECRED', `Authorization: ${REDACTED}`],
+      [
+        '{\\"authorization\\":\\"Basic FAKECRED\\"}',
+        `{\\"authorization\\":\\"${REDACTED}\\"}`,
+      ],
       ["'password': 'FAKEPASS'", `'password': '${REDACTED}'`],
     ])('masks %s', (input, expected) => {
       expect(maskSecretPairs(input)).toBe(expected);
