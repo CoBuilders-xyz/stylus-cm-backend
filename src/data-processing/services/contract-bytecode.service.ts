@@ -9,6 +9,10 @@ import { abi } from '../../common/abis/arbWasmCache/arbWasmCache.json';
 import { DataProcessingErrorHelpers } from '../data-processing.errors';
 import { createModuleLogger } from '../../common/utils/logger.util';
 import { MODULE_NAME } from '../constants/module.constants';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from '../../common/utils/log-sanitizer.util';
 
 // Define interface for the ArbWasmCache contract methods we use
 interface ArbWasmCacheContract {
@@ -51,8 +55,8 @@ export class ContractBytecodeService {
           await this.processContractBytecode(blockchain, codeHash, state);
         } catch (error) {
           this.logger.error(
-            `Error processing contract bytecode ${codeHash}: ${error}`,
-            error instanceof Error ? error.stack : undefined,
+            `Error processing contract bytecode ${codeHash}: ${sanitizeForLog(error)}`,
+            sanitizeStackForLog(error),
           );
           // Continue processing other bytecodes even if one fails
         }
@@ -63,8 +67,8 @@ export class ContractBytecodeService {
       );
     } catch (error) {
       this.logger.error(
-        `Error updating contract bytecodes for blockchain ${blockchain.name}: ${error}`,
-        error instanceof Error ? error.stack : undefined,
+        `Error updating contract bytecodes for blockchain ${blockchain.name}: ${sanitizeForLog(error)}`,
+        sanitizeStackForLog(error),
       );
       DataProcessingErrorHelpers.throwDatabaseOperationFailed(
         'update contract bytecodes',
@@ -121,8 +125,8 @@ export class ContractBytecodeService {
           }
         } catch (error) {
           this.logger.error(
-            `Error verifying contract bytecode ${bytecode.bytecodeHash}: ${error}`,
-            error instanceof Error ? error.stack : undefined,
+            `Error verifying contract bytecode ${bytecode.bytecodeHash}: ${sanitizeForLog(error)}`,
+            sanitizeStackForLog(error),
           );
           // Continue verifying other bytecodes even if one fails
         }
@@ -133,8 +137,8 @@ export class ContractBytecodeService {
       );
     } catch (error) {
       this.logger.error(
-        `Error verifying contract bytecodes: ${error}`,
-        error instanceof Error ? error.stack : undefined,
+        `Error verifying contract bytecodes: ${sanitizeForLog(error)}`,
+        sanitizeStackForLog(error),
       );
       DataProcessingErrorHelpers.throwDatabaseOperationFailed(
         'verify contract bytecode cache status',
@@ -168,8 +172,8 @@ export class ContractBytecodeService {
       }
     } catch (error) {
       this.logger.error(
-        `Error processing contract bytecode ${codeHash}: ${error}`,
-        error instanceof Error ? error.stack : undefined,
+        `Error processing contract bytecode ${codeHash}: ${sanitizeForLog(error)}`,
+        sanitizeStackForLog(error),
       );
       DataProcessingErrorHelpers.throwDatabaseOperationFailed(
         `process contract bytecode: ${codeHash}`,
@@ -214,8 +218,8 @@ export class ContractBytecodeService {
       return false; // No mismatch
     } catch (error) {
       this.logger.error(
-        `Error verifying single bytecode ${bytecode.bytecodeHash}: ${error}`,
-        error instanceof Error ? error.stack : undefined,
+        `Error verifying single bytecode ${bytecode.bytecodeHash}: ${sanitizeForLog(error)}`,
+        sanitizeStackForLog(error),
       );
       DataProcessingErrorHelpers.throwDatabaseOperationFailed(
         `verify single bytecode: ${bytecode.bytecodeHash}`,
@@ -249,8 +253,8 @@ export class ContractBytecodeService {
       );
     } catch (error) {
       this.logger.error(
-        `Error updating existing bytecode ${bytecode.bytecodeHash}: ${error}`,
-        error instanceof Error ? error.stack : undefined,
+        `Error updating existing bytecode ${bytecode.bytecodeHash}: ${sanitizeForLog(error)}`,
+        sanitizeStackForLog(error),
       );
       DataProcessingErrorHelpers.throwDatabaseOperationFailed(
         `update existing bytecode: ${bytecode.bytecodeHash}`,

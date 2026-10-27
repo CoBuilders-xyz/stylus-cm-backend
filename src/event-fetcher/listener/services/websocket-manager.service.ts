@@ -9,6 +9,7 @@ import { WebSocketContracts } from '../interfaces';
 import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
+import { sanitizeForLog } from '../../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class WebSocketManagerService {
@@ -45,9 +46,9 @@ export class WebSocketManagerService {
       );
     } catch (error) {
       this.logger.error(
-        `Failed to create WebSocket contract for CacheManager on blockchain ${blockchain.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to create WebSocket contract for CacheManager on blockchain ${blockchain.id}: ${sanitizeForLog(
+          error,
+        )}`,
       );
       throw error;
     }
@@ -63,9 +64,9 @@ export class WebSocketManagerService {
       );
     } catch (error) {
       this.logger.error(
-        `Failed to create WebSocket contract for CacheManagerAutomation on blockchain ${blockchain.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to create WebSocket contract for CacheManagerAutomation on blockchain ${blockchain.id}: ${sanitizeForLog(
+          error,
+        )}`,
       );
       throw error;
     }
@@ -85,11 +86,7 @@ export class WebSocketManagerService {
       await contracts.cacheManagerAutomationContract.removeAllListeners();
       this.logger.debug('Removed all listeners from WebSocket contracts');
     } catch (error) {
-      this.logger.error(
-        `Failed to remove listeners: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      this.logger.error(`Failed to remove listeners: ${sanitizeForLog(error)}`);
       throw error;
     }
   }

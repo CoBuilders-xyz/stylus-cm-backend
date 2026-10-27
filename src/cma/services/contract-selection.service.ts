@@ -13,6 +13,7 @@ import { ICacheManagerAutomation } from 'src/common/types/contracts/cacheManager
 import { CmaConfig } from '../cma.config';
 import { SelectedContract } from '../interfaces';
 import { MODULE_NAME } from '../constants';
+import { sanitizeForLog } from 'src/common/utils/log-sanitizer.util';
 
 @Injectable()
 export class ContractSelectionService {
@@ -131,7 +132,7 @@ export class ContractSelectionService {
       return selectedContracts;
     } catch (error) {
       this.logger.error(
-        `Contract selection failed for ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`,
+        `Contract selection failed for ${blockchain.name}: ${sanitizeForLog(error)}`,
       );
       return [];
     }
@@ -212,7 +213,7 @@ export class ContractSelectionService {
         );
       } else {
         this.logger.warn(
-          `Error checking if should bid for contract ${contractAddress}: ${msg}`,
+          `Error checking if should bid for contract ${contractAddress}: ${sanitizeForLog(error)}`,
         );
       }
       return false;
@@ -265,7 +266,7 @@ export class ContractSelectionService {
       return Math.floor(utilization);
     } catch (error) {
       this.logger.error(
-        `Failed to get cache utilization: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to get cache utilization: ${sanitizeForLog(error)}`,
       );
       throw new Error(
         `Cannot retrieve cache utilization from contract: ${error instanceof Error ? error.message : String(error)}`,
@@ -280,9 +281,7 @@ export class ContractSelectionService {
     try {
       return await cmContract.decay();
     } catch (error) {
-      this.logger.error(
-        `Failed to get decay rate: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(`Failed to get decay rate: ${sanitizeForLog(error)}`);
       throw new Error(
         `Cannot retrieve decay rate from contract: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -301,7 +300,7 @@ export class ContractSelectionService {
       return Number(threshold);
     } catch (error) {
       this.logger.error(
-        `Failed to get cache threshold from contract: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to get cache threshold from contract: ${sanitizeForLog(error)}`,
       );
       throw new Error(
         `Cannot retrieve cache threshold from contract: ${error instanceof Error ? error.message : String(error)}`,
@@ -321,7 +320,7 @@ export class ContractSelectionService {
       return Number(horizon);
     } catch (error) {
       this.logger.error(
-        `Failed to get horizon seconds from contract: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to get horizon seconds from contract: ${sanitizeForLog(error)}`,
       );
       throw new Error(
         `Cannot retrieve horizon seconds from contract: ${error instanceof Error ? error.message : String(error)}`,
@@ -341,7 +340,7 @@ export class ContractSelectionService {
       return BigInt(increment.toString());
     } catch (error) {
       this.logger.error(
-        `Failed to get bid increment from contract: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to get bid increment from contract: ${sanitizeForLog(error)}`,
       );
       throw new Error(
         `Cannot retrieve bid increment from contract: ${error instanceof Error ? error.message : String(error)}`,

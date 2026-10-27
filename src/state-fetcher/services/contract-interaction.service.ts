@@ -6,6 +6,7 @@ import { StateFetcherErrorHelpers } from '../state-fetcher.errors';
 import { BlockchainStateData, ContractEntry } from '../interfaces';
 import { createModuleLogger } from '../../common/utils/logger.util';
 import { MODULE_NAME } from '../constants';
+import { sanitizeForLog } from '../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class ContractInteractionService {
@@ -66,7 +67,7 @@ export class ContractInteractionService {
       return stateData;
     } catch (error) {
       this.logger.error(
-        `Contract call failed for blockchain ${blockchain.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Contract call failed for blockchain ${blockchain.id}: ${sanitizeForLog(error)}`,
       );
       return StateFetcherErrorHelpers.throwContractCallFailed();
     }

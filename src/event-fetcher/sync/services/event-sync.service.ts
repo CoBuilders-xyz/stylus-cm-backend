@@ -11,6 +11,7 @@ import { EthersEvent } from '../../shared/interfaces';
 import { safeContractCall } from '../../utils/contract-call.util';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
+import { sanitizeForLog } from '../../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class EventSyncService {
@@ -45,9 +46,7 @@ export class EventSyncService {
         await this.syncBlockchainEvents(blockchain, provider, eventTypes);
       } catch (error) {
         this.logger.error(
-          `Error syncing blockchain ${blockchain.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Error syncing blockchain ${blockchain.id}: ${sanitizeForLog(error)}`,
         );
       }
     }
@@ -97,9 +96,9 @@ export class EventSyncService {
       }
     } catch (error) {
       this.logger.error(
-        `Failed to get latest block number for blockchain ${blockchain.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to get latest block number for blockchain ${blockchain.id}: ${sanitizeForLog(
+          error,
+        )}`,
       );
       return;
     }
@@ -282,7 +281,7 @@ export class EventSyncService {
         }
       } catch (error) {
         this.logger.error(
-          `Error fetching ${eventType} events: ${error instanceof Error ? error.message : String(error)}`,
+          `Error fetching ${eventType} events: ${sanitizeForLog(error)}`,
         );
       }
     }

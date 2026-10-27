@@ -8,6 +8,10 @@ import { Blockchain } from '../../blockchains/entities/blockchain.entity';
 import { UserContractsErrorHelpers } from '../user-contracts.errors';
 import { MODULE_NAME, BLOCKCHAIN_CONSTANTS } from '../constants';
 import { createModuleLogger } from '../../common/utils/logger.util';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from '../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class UserContractValidationService {
@@ -110,8 +114,8 @@ export class UserContractValidationService {
       return { verifiedAddress, onChainBytecode };
     } catch (error) {
       this.logger.error(
-        `Contract validation failed for ${address} on ${blockchain.name}`,
-        error,
+        `Contract validation failed for ${address} on ${blockchain.name}: ${sanitizeForLog(error)}`,
+        sanitizeStackForLog(error),
       );
       UserContractsErrorHelpers.throwContractValidationFailed(
         error instanceof Error ? error.message : 'Unknown error',

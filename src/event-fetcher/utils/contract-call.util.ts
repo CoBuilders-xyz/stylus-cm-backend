@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { EventFetcherErrorHelpers } from '../event-fetcher.errors';
 import { createContextLogger } from '../../common/utils/logger.util';
 import { MODULE_NAME } from '../constants/module.constants';
+import { sanitizeForLog } from '../../common/utils/log-sanitizer.util';
 
 const logger = createContextLogger('ContractCall', MODULE_NAME);
 
@@ -67,7 +68,7 @@ export async function safeContractCall<T = any>(
       // Log the error if configured to do so
       if (opts.logErrors) {
         logger.error(
-          `Error calling ${methodName} on contract ${contractAddress} (attempt ${attempt + 1}/${opts.retries! + 1}): ${lastError.message}`,
+          `Error calling ${methodName} on contract ${contractAddress} (attempt ${attempt + 1}/${opts.retries! + 1}): ${sanitizeForLog(lastError)}`,
         );
       }
 

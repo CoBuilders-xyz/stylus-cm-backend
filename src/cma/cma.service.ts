@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { createModuleLogger } from 'src/common/utils/logger.util';
 import { AutomationOrchestratorService } from './services';
 import { MODULE_NAME } from './constants';
+import { sanitizeForLog } from 'src/common/utils/log-sanitizer.util';
 
 @Injectable()
 export class CmaService implements OnModuleInit {
@@ -49,9 +50,7 @@ export class CmaService implements OnModuleInit {
         );
       }
     } catch (error) {
-      this.logger.error(
-        `${label} automation failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(`${label} automation failed: ${sanitizeForLog(error)}`);
     }
   }
 }
