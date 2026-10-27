@@ -34,7 +34,6 @@ export interface UserContractSummary {
 export interface BlockchainSummary {
   id: string;
   name: string;
-  rpcUrl: string;
   enabled: boolean;
 }
 
