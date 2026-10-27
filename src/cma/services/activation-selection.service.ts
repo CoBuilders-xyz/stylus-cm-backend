@@ -14,6 +14,7 @@ import { ArbWasm } from 'src/common/types/contracts/arbWasm/ArbWasm';
 import { CmaConfig } from '../cma.config';
 import { ActivationSelectionResult, SelectedContract } from '../interfaces';
 import { MODULE_NAME } from '../constants';
+import { sanitizeForLog } from 'src/common/utils/log-sanitizer.util';
 
 const ESCROW_ABI = ['function depositsOf(address) view returns (uint256)'];
 
@@ -108,7 +109,7 @@ export class ActivationSelectionService {
       return { selectedContracts, maxActivationsPerIteration };
     } catch (error) {
       this.logger.error(
-        `Activation selection failed for ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`,
+        `Activation selection failed for ${blockchain.name}: ${sanitizeForLog(error)}`,
       );
       return emptyResult;
     }

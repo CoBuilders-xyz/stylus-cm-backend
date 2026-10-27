@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BlockchainConfig } from '../interfaces';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
+import { sanitizeForLog } from '../../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class ListenerStateService {
@@ -165,11 +166,7 @@ export class ListenerStateService {
 
       return true;
     } catch (error) {
-      this.logger.error(
-        `State validation failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      this.logger.error(`State validation failed: ${sanitizeForLog(error)}`);
       return false;
     }
   }

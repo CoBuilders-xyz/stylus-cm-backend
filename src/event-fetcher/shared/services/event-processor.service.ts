@@ -9,6 +9,10 @@ import { Repository } from 'typeorm';
 import { BlockchainEvent } from '../../../blockchains/entities/blockchain-event.entity';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from '../../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class EventProcessorService {
@@ -64,8 +68,8 @@ export class EventProcessorService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to process real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${err.message}`,
-        err.stack,
+        `Failed to process real-time ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${sanitizeForLog(err)}`,
+        sanitizeStackForLog(err),
       );
       throw error; // Re-throw to be caught by the caller
     }
@@ -98,8 +102,8 @@ export class EventProcessorService {
       } catch (error) {
         const err = error as Error;
         this.logger.error(
-          `Failed to process batch event ${eventType} on blockchain ${blockchain.id}: ${err.message}`,
-          err.stack,
+          `Failed to process batch event ${eventType} on blockchain ${blockchain.id}: ${sanitizeForLog(err)}`,
+          sanitizeStackForLog(err),
         );
         errors++;
       }
@@ -135,8 +139,8 @@ export class EventProcessorService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to check for duplicate event on blockchain ${blockchain.id}: ${err.message}`,
-        err.stack,
+        `Failed to check for duplicate event on blockchain ${blockchain.id}: ${sanitizeForLog(err)}`,
+        sanitizeStackForLog(err),
       );
       throw error;
     }
@@ -167,8 +171,8 @@ export class EventProcessorService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to store event on blockchain ${blockchain.id}: ${err.message}`,
-        err.stack,
+        `Failed to store event on blockchain ${blockchain.id}: ${sanitizeForLog(err)}`,
+        sanitizeStackForLog(err),
       );
       throw error;
     }
@@ -189,8 +193,8 @@ export class EventProcessorService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to update sync status for blockchain ${blockchain.id}: ${err.message}`,
-        err.stack,
+        `Failed to update sync status for blockchain ${blockchain.id}: ${sanitizeForLog(err)}`,
+        sanitizeStackForLog(err),
       );
       throw error;
     }
@@ -232,8 +236,8 @@ export class EventProcessorService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to emit event stored notification for blockchain ${blockchain.id}: ${err.message}`,
-        err.stack,
+        `Failed to emit event stored notification for blockchain ${blockchain.id}: ${sanitizeForLog(err)}`,
+        sanitizeStackForLog(err),
       );
       throw error;
     }

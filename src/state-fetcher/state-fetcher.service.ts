@@ -11,6 +11,7 @@ import { StateFetcherErrorHelpers } from './state-fetcher.errors';
 import { ContractInteractionService, StateStorageService } from './services';
 import { createModuleLogger } from '../common/utils/logger.util';
 import { MODULE_NAME } from './constants';
+import { sanitizeForLog } from '../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class StateFetcherService implements OnModuleInit {
@@ -130,7 +131,7 @@ export class StateFetcherService implements OnModuleInit {
     } catch (error) {
       const duration = Date.now() - startTime;
       this.logger.error(
-        `Error during ${context} state polling for blockchain ${blockchain.id} (${duration}ms): ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Error during ${context} state polling for blockchain ${blockchain.id} (${duration}ms): ${sanitizeForLog(error)}`,
       );
 
       if (this.config.enableMetrics) {
@@ -155,7 +156,7 @@ export class StateFetcherService implements OnModuleInit {
   ): Promise<ethers.JsonRpcProvider> {
     try {
       this.logger.debug(
-        `Creating provider for blockchain ${blockchain.id}: ${blockchain.rpcUrl}`,
+        `Creating provider for blockchain ${blockchain.id}: ${sanitizeForLog(blockchain.rpcUrl)}`,
       );
 
       const provider = new ethers.JsonRpcProvider(blockchain.rpcUrl);
@@ -169,7 +170,7 @@ export class StateFetcherService implements OnModuleInit {
       return provider;
     } catch (error) {
       this.logger.error(
-        `Failed to create provider for blockchain ${blockchain.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to create provider for blockchain ${blockchain.id}: ${sanitizeForLog(error)}`,
       );
       return StateFetcherErrorHelpers.throwProviderCreationFailed();
     }

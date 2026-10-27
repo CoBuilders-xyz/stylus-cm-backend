@@ -4,6 +4,7 @@ import { ReconnectionCallbacks, BlockchainConfig } from '../interfaces';
 import { EventFetcherErrorHelpers } from '../../event-fetcher.errors';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
+import { sanitizeForLog } from '../../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class ReconnectionHandlerService {
@@ -65,9 +66,9 @@ export class ReconnectionHandlerService {
       this.validatePostReconnectionState(blockchainId);
     } catch (error) {
       this.logger.error(
-        `Failed to reconnect event listeners for blockchain ${blockchainId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to reconnect event listeners for blockchain ${blockchainId}: ${sanitizeForLog(
+          error,
+        )}`,
       );
 
       // Clean up failed reconnection state
@@ -111,9 +112,9 @@ export class ReconnectionHandlerService {
       await this.handleReconnection(blockchainId);
     } catch (error) {
       this.logger.error(
-        `Force reconnection failed for blockchain ${blockchainId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Force reconnection failed for blockchain ${blockchainId}: ${sanitizeForLog(
+          error,
+        )}`,
       );
       throw error;
     }
@@ -138,9 +139,9 @@ export class ReconnectionHandlerService {
       } catch (error) {
         failed.push(blockchainId);
         this.logger.error(
-          `Batch reconnection failed for ${blockchainId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Batch reconnection failed for ${blockchainId}: ${sanitizeForLog(
+            error,
+          )}`,
         );
       }
     }
@@ -203,9 +204,9 @@ export class ReconnectionHandlerService {
       );
     } catch (error) {
       this.logger.error(
-        `Error during reconnection cleanup for ${blockchainId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Error during reconnection cleanup for ${blockchainId}: ${sanitizeForLog(
+          error,
+        )}`,
       );
     }
   }

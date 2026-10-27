@@ -7,6 +7,7 @@ import {
   BidHistoryItem,
   ActivationHistoryItem,
 } from '../interfaces/contract.interfaces';
+import { sanitizeForLog } from '../../common/utils/log-sanitizer.util';
 
 /**
  * Service responsible for retrieving and processing contract bidding history.
@@ -154,7 +155,9 @@ export class ContractHistoryService {
           });
         } catch (err) {
           const error = err as Error;
-          this.logger.error(`Error parsing bid event data: ${error.message}`);
+          this.logger.error(
+            `Error parsing bid event data: ${sanitizeForLog(error)}`,
+          );
           // Skip this item if there's an error
         }
       }
@@ -174,7 +177,9 @@ export class ContractHistoryService {
       return processedItems;
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Error fetching bidding history: ${err.message}`);
+      this.logger.error(
+        `Error fetching bidding history: ${sanitizeForLog(err)}`,
+      );
       return [];
     }
   }
@@ -245,7 +250,9 @@ export class ContractHistoryService {
       });
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Error fetching activation history: ${err.message}`);
+      this.logger.error(
+        `Error fetching activation history: ${sanitizeForLog(err)}`,
+      );
       return [];
     }
   }

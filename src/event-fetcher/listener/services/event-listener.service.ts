@@ -14,6 +14,10 @@ import { EthersEvent } from '../../shared';
 import { createModuleLogger } from '../../../common/utils/logger.util';
 import { MODULE_NAME } from '../../constants/module.constants';
 import { serializeEventArgs, hasArgs } from '../../utils/event-parser.util';
+import {
+  sanitizeForLog,
+  sanitizeStackForLog,
+} from '../../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class EventListenerService {
@@ -133,8 +137,8 @@ export class EventListenerService {
 
       const err = error as Error;
       this.logger.error(
-        `Failed to setup WebSocket event listeners for blockchain ${blockchain.id}: ${err.message}`,
-        err.stack,
+        `Failed to setup WebSocket event listeners for blockchain ${blockchain.id}: ${sanitizeForLog(err)}`,
+        sanitizeStackForLog(err),
       );
 
       // Re-throw the error so reconnection logic can handle it
@@ -238,8 +242,8 @@ export class EventListenerService {
         } catch (err) {
           const error = err as Error;
           this.logger.error(
-            `Failed to enqueue ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${error.message}`,
-            error.stack,
+            `Failed to enqueue ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${sanitizeForLog(error)}`,
+            sanitizeStackForLog(error),
           );
         } finally {
           // Remove the event from the processing set when done
@@ -248,8 +252,8 @@ export class EventListenerService {
       } catch (error) {
         const err = error as Error;
         this.logger.error(
-          `Failed to handle event on blockchain ${blockchain.id}: ${err.message}`,
-          err.stack,
+          `Failed to handle event on blockchain ${blockchain.id}: ${sanitizeForLog(err)}`,
+          sanitizeStackForLog(err),
         );
       }
     });
@@ -307,7 +311,9 @@ export class EventListenerService {
       const ethersEvent = eventObj as EthersEvent;
       return hasArgs(ethersEvent) ? serializeEventArgs(ethersEvent.args) : {};
     } catch (error) {
-      this.logger.warn(`Failed to extract event data: ${error}`);
+      this.logger.warn(
+        `Failed to extract event data: ${sanitizeForLog(error)}`,
+      );
       return {};
     }
   }

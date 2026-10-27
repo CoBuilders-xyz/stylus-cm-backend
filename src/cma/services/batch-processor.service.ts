@@ -11,6 +11,7 @@ import {
   BatchResult,
 } from '../interfaces';
 import { MODULE_NAME } from '../constants';
+import { sanitizeText } from 'src/common/utils/log-sanitizer.util';
 
 @Injectable()
 export class BatchProcessorService {
@@ -112,7 +113,7 @@ export class BatchProcessorService {
           batchEndTime.getTime() - batchStartTime.getTime();
         const errorMessage = `Batch ${batchIndex + 1}/${batches.length} failed: ${error instanceof Error ? error.message : String(error)}`;
 
-        this.logger.error(errorMessage);
+        this.logger.error(sanitizeText(errorMessage));
         errors.push(errorMessage);
 
         results.push({
@@ -238,7 +239,7 @@ export class BatchProcessorService {
           batchEndTime.getTime() - batchStartTime.getTime();
         const errorMessage = `Activation batch ${batchIndex + 1}/${batches.length} failed: ${error instanceof Error ? error.message : String(error)}`;
 
-        this.logger.error(errorMessage);
+        this.logger.error(sanitizeText(errorMessage));
         errors.push(errorMessage);
 
         results.push({

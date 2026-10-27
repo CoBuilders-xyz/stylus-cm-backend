@@ -8,6 +8,7 @@ import { BlockchainStateData } from '../interfaces';
 import { STATE_FETCHER_CONSTANTS } from '../constants';
 import { createModuleLogger } from '../../common/utils/logger.util';
 import { MODULE_NAME } from '../constants';
+import { sanitizeForLog } from '../../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class StateStorageService {
@@ -49,7 +50,7 @@ export class StateStorageService {
       );
     } catch (error) {
       this.logger.error(
-        `Failed to save state for blockchain ${blockchain.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to save state for blockchain ${blockchain.id}: ${sanitizeForLog(error)}`,
       );
       StateFetcherErrorHelpers.throwStateSaveFailed();
     }
@@ -75,7 +76,7 @@ export class StateStorageService {
       return latestState;
     } catch (error) {
       this.logger.error(
-        `Failed to get latest state for blockchain ${blockchainId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to get latest state for blockchain ${blockchainId}: ${sanitizeForLog(error)}`,
       );
       return null;
     }

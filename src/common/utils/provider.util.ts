@@ -5,6 +5,7 @@ import { abi as cacheManagerAbi } from '../abis/cacheManager/cacheManager.json';
 import { abi as cacheManagerAutomationAbi } from '../abis/cacheManagerAutomation/CacheManagerAutomation.json';
 import { abi as arbWasmCacheAbi } from '../abis/arbWasmCache/arbWasmCache.json';
 import { abi as arbWasmAbi } from '../abis/arbWasm/ArbWasm.json';
+import { sanitizeForLog } from './log-sanitizer.util';
 
 const logger = new Logger('ProviderUtil');
 
@@ -114,9 +115,9 @@ export class ProviderManager {
       const reconnectionPromises = this.reconnectionCallbacks.map((callback) =>
         callback(blockchainId).catch((error) => {
           logger.error(
-            `Reconnection callback failed for blockchain ${blockchainId}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            `Reconnection callback failed for blockchain ${blockchainId}: ${sanitizeForLog(
+              error,
+            )}`,
           );
         }),
       );
@@ -129,9 +130,9 @@ export class ProviderManager {
         })
         .catch((error) => {
           logger.error(
-            `Reconnection attempt failed for blockchain ${blockchainId}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            `Reconnection attempt failed for blockchain ${blockchainId}: ${sanitizeForLog(
+              error,
+            )}`,
           );
 
           // Schedule next reconnection attempt
@@ -271,9 +272,9 @@ export class ProviderManager {
             })
             .catch((error) => {
               logger.error(
-                `WebSocket ping failed for blockchain ${blockchain.id}: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
+                `WebSocket ping failed for blockchain ${blockchain.id}: ${sanitizeForLog(
+                  error,
+                )}`,
               );
               // Connection failed, clean up
               clearInterval(pingInterval);
@@ -316,9 +317,9 @@ export class ProviderManager {
         provider.destroy();
       } catch (error) {
         logger.error(
-          `Error destroying WebSocket provider for blockchain ${blockchainId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Error destroying WebSocket provider for blockchain ${blockchainId}: ${sanitizeForLog(
+            error,
+          )}`,
         );
       }
     }
@@ -326,9 +327,9 @@ export class ProviderManager {
     // Remove associated contracts that use this provider
     this.removeAllListeners(blockchainId).catch((error) => {
       logger.error(
-        `Error removing listeners for blockchain ${blockchainId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Error removing listeners for blockchain ${blockchainId}: ${sanitizeForLog(
+          error,
+        )}`,
       );
     });
 
@@ -539,9 +540,9 @@ export class ProviderManager {
         );
       } catch (error) {
         logger.error(
-          `Error closing WebSocket for blockchain ${blockchainId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Error closing WebSocket for blockchain ${blockchainId}: ${sanitizeForLog(
+            error,
+          )}`,
         );
       }
     });
@@ -572,9 +573,9 @@ export class ProviderManager {
         await Promise.all(removePromises);
       } catch (error) {
         logger.error(
-          `Error removing listeners for blockchain ${blockchainId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Error removing listeners for blockchain ${blockchainId}: ${sanitizeForLog(
+            error,
+          )}`,
         );
       }
     }
@@ -598,9 +599,9 @@ export class ProviderManager {
           );
         } catch (error) {
           logger.error(
-            `Error removing listeners for ${String(contractType)} contract on blockchain ${blockchainId}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            `Error removing listeners for ${String(contractType)} contract on blockchain ${blockchainId}: ${sanitizeForLog(
+              error,
+            )}`,
           );
         }
       }

@@ -6,6 +6,7 @@ import { ProviderManager } from '../common/utils/provider.util';
 import { BlockchainsService } from 'src/blockchains/blockchains.service';
 import { createModuleLogger } from '../common/utils/logger.util';
 import { MODULE_NAME } from './constants/module.constants';
+import { sanitizeForLog } from '../common/utils/log-sanitizer.util';
 
 @Injectable()
 export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
@@ -52,9 +53,7 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
       await this.eventSyncService.syncHistoricalEvents(blockchains, eventTypes);
     } catch (error) {
       this.logger.error(
-        `Error during initial event synchronization: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Error during initial event synchronization: ${sanitizeForLog(error)}`,
       );
     }
 
@@ -71,9 +70,7 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error) {
       this.logger.error(
-        `Error setting up event listeners: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Error setting up event listeners: ${sanitizeForLog(error)}`,
       );
     }
 

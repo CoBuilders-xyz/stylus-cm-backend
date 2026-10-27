@@ -15,6 +15,7 @@ import {
   BatchProcessingResult,
 } from '../interfaces';
 import { MODULE_NAME } from '../constants';
+import { sanitizeText } from 'src/common/utils/log-sanitizer.util';
 
 type BlockchainProcessor = (
   blockchain: Blockchain,
@@ -113,7 +114,7 @@ export class AutomationOrchestratorService {
         }
       } catch (error) {
         const errorMessage = `${label} automation failed for ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`;
-        this.logger.error(errorMessage);
+        this.logger.error(sanitizeText(errorMessage));
         errors.push({
           blockchain: blockchain.name,
           error: errorMessage,
