@@ -151,6 +151,61 @@ test('SDK catches escaping scheduled and BullMQ failures once; explicit capture 
   assert.ok(!JSON.stringify(envelopes).includes(secret));
 });
 
+test('alert listener reports wrapped repository and nested processor failures once', async () => {
+  const {
+    AlertMonitoringService,
+  } = require('../dist/src/alerts/alert-monitoring.service');
+  const {
+    AlertEventProcessorService,
+  } = require('../dist/src/alerts/services/alert-event-processor.service');
+  const fail = async () => {
+    throw new Error(secret);
+  };
+  const quietLogger = { debug() {}, log() {}, warn() {}, error() {} };
+  for (const eventName of [null, 'DeleteBid', 'ActivationPerformed']) {
+    const event = {
+      id: 'test-event',
+      eventName,
+      eventData: ['test-hash', 'test-address'],
+    };
+    const query = {
+      innerJoinAndSelect() {
+        return this;
+      },
+      where() {
+        return this;
+      },
+      andWhere() {
+        return this;
+      },
+      getMany: fail,
+    };
+    const processor = new AlertEventProcessorService(
+      { find: fail, createQueryBuilder: () => query },
+      { findOne: eventName ? async () => event : fail },
+      {},
+    );
+    processor.logger = quietLogger;
+    const listener = new AlertMonitoringService(processor, {});
+    listener.logger = quietLogger;
+    const start = events().length;
+    await assert.rejects(
+      listener.handleBlockchainEventAlerts({
+        blockchainId: 'test-chain',
+        eventId: event.id,
+      }),
+    );
+    await Sentry.flush(2000);
+    const captured = events().slice(start);
+    assert.equal(
+      captured.length,
+      1,
+      `one capture for ${eventName ?? 'repository lookup'}`,
+    );
+    assert.ok(!JSON.stringify(captured).includes(secret));
+  }
+});
+
 test('compiled module frames keep their injected debug IDs after sanitization', async () => {
   const start = events().length;
   const {

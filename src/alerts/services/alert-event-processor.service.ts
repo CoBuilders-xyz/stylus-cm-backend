@@ -1,4 +1,3 @@
-import { captureFailure } from '../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -76,7 +75,6 @@ export class AlertEventProcessorService {
         `Successfully processed ${event.eventName} event ${payload.eventId} on blockchain ${payload.blockchainId}`,
       );
     } catch (error) {
-      captureFailure(error, 'alerts.event');
       this.logger.error(
         `Error processing blockchain event ${payload.eventId}: ${
           error instanceof Error ? error.message : String(error)
@@ -138,7 +136,6 @@ export class AlertEventProcessorService {
         );
       }
     } catch (error) {
-      captureFailure(error, 'alerts.event');
       this.logger.error(
         `Error processing DeleteBid event ${event.id}: ${
           error instanceof Error ? error.message : String(error)
@@ -197,7 +194,6 @@ export class AlertEventProcessorService {
         );
       }
     } catch (error) {
-      captureFailure(error, 'alerts.event');
       this.logger.error(
         `Error processing ${event.eventName} event ${event.id}: ${
           error instanceof Error ? error.message : String(error)
