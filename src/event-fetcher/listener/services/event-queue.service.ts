@@ -1,3 +1,5 @@
+import { withIsolationScope } from '@sentry/nestjs';
+import { captureFailure } from '../../../monitoring/sentry';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue, Worker, Job } from 'bullmq';
@@ -153,7 +155,9 @@ export class EventQueueService implements OnModuleDestroy {
     const worker = new Worker(
       `events-${blockchainId}`,
       async (job: Job<EventQueueItem>) => {
-        return this.processEventSequentially(job.data);
+        return withIsolationScope(() =>
+          this.processEventSequentially(job.data),
+        );
       },
       {
         connection: this.redisConfig.connection,
@@ -168,7 +172,17 @@ export class EventQueueService implements OnModuleDestroy {
       );
     });
 
+    worker.on('error', (error) => captureFailure(error, 'events.queue'));
+    queue.on('error', (error) => captureFailure(error, 'events.queue'));
+
     worker.on('failed', (job, err) => {
+      if (
+        !job ||
+        job.finishedOn ||
+        job.attemptsMade >= (job.opts.attempts ?? 1)
+      ) {
+        captureFailure(err, 'events.queue');
+      }
       this.logger.error(
         `Failed processing ${job?.data?.eventType} for block ${job?.data?.blockNumber}: ${sanitizeForLog(err)}`,
       );

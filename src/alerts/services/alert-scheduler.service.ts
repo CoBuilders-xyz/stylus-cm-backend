@@ -1,3 +1,4 @@
+import { captureFailure } from '../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -46,6 +47,7 @@ export class AlertSchedulerService {
         `Completed real-time alert processing for ${blockchains.length} blockchains`,
       );
     } catch (error) {
+      captureFailure(error, 'alerts.schedule');
       this.logger.error(
         `Error in scheduled real-time monitoring: ${
           error instanceof Error ? error.message : String(error)
@@ -104,6 +106,7 @@ export class AlertSchedulerService {
             triggeredCount++;
           }
         } catch (error) {
+          captureFailure(error, 'alerts.schedule');
           this.logger.error(
             `Error processing individual bid safety alert ${alert.id}: ${
               error instanceof Error ? error.message : String(error)
@@ -126,6 +129,7 @@ export class AlertSchedulerService {
       // Process approachingExpiration and expired alerts
       await this.processExpirationAlerts(blockchain);
     } catch (error) {
+      captureFailure(error, 'alerts.schedule');
       this.logger.error(
         `Error checking real-time alerts for blockchain ${blockchain.id}: ${
           error instanceof Error ? error.message : String(error)
@@ -176,6 +180,7 @@ export class AlertSchedulerService {
           triggeredCount++;
         }
       } catch (error) {
+        captureFailure(error, 'alerts.schedule');
         this.logger.error(
           `Error processing gas alert ${alert.id}: ${
             error instanceof Error ? error.message : String(error)
@@ -234,6 +239,7 @@ export class AlertSchedulerService {
           triggeredCount++;
         }
       } catch (error) {
+        captureFailure(error, 'alerts.schedule');
         this.logger.error(
           `Error processing expiration alert ${alert.id}: ${
             error instanceof Error ? error.message : String(error)

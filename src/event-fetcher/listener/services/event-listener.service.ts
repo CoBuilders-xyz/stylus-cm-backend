@@ -1,3 +1,4 @@
+import { captureFailure } from '../../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { WebSocketManagerService } from './websocket-manager.service';
@@ -240,6 +241,7 @@ export class EventListenerService {
             `Successfully enqueued ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}`,
           );
         } catch (err) {
+          captureFailure(err, 'events.queue');
           const error = err as Error;
           this.logger.error(
             `Failed to enqueue ${eventType} event on blockchain ${blockchain.id} at block ${eventLog.blockNumber}: ${sanitizeForLog(error)}`,
@@ -250,6 +252,7 @@ export class EventListenerService {
           this.listenerState.unmarkEventProcessing(eventKey);
         }
       } catch (error) {
+        captureFailure(error, 'events.queue');
         const err = error as Error;
         this.logger.error(
           `Failed to handle event on blockchain ${blockchain.id}: ${sanitizeForLog(err)}`,

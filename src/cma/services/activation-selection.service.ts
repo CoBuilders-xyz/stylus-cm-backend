@@ -1,3 +1,4 @@
+import { captureFailure } from '../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -108,6 +109,7 @@ export class ActivationSelectionService {
 
       return { selectedContracts, maxActivationsPerIteration };
     } catch (error) {
+      captureFailure(error, 'cma');
       this.logger.error(
         `Activation selection failed for ${blockchain.name}: ${sanitizeForLog(error)}`,
       );
@@ -216,7 +218,8 @@ export class ActivationSelectionService {
       let userBalance: bigint;
       try {
         userBalance = BigInt((await escrowContract.depositsOf(user)) as string);
-      } catch {
+      } catch (error) {
+        captureFailure(error, 'cma');
         this.logger.warn(`Failed to fetch escrow balance for user ${user}`);
         continue;
       }

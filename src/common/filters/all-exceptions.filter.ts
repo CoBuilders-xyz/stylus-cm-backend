@@ -1,3 +1,4 @@
+import { captureHttpFailure } from '../../monitoring/sentry';
 import {
   ExceptionFilter,
   Catch,
@@ -32,6 +33,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    captureHttpFailure(exception, status);
 
     // Get the message from the exception
     const message = this.extractMessage(exception);

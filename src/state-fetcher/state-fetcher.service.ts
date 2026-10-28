@@ -1,3 +1,4 @@
+import { captureFailure } from '../monitoring/sentry';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -129,6 +130,7 @@ export class StateFetcherService implements OnModuleInit {
         `${context} state fetched for blockchain ${blockchain.id} (${duration}ms)`,
       );
     } catch (error) {
+      captureFailure(error, 'state.poll');
       const duration = Date.now() - startTime;
       this.logger.error(
         `Error during ${context} state polling for blockchain ${blockchain.id} (${duration}ms): ${sanitizeForLog(error)}`,

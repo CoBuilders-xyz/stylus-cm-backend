@@ -1,3 +1,4 @@
+import { captureFailure } from '../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -113,6 +114,7 @@ export class AutomationOrchestratorService {
           }
         }
       } catch (error) {
+        captureFailure(error, 'cma');
         const errorMessage = `${label} automation failed for ${blockchain.name}: ${error instanceof Error ? error.message : String(error)}`;
         this.logger.error(sanitizeText(errorMessage));
         errors.push({

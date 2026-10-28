@@ -1,3 +1,4 @@
+import { captureFailure } from '../../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { EventConfigService } from '../../shared';
@@ -76,6 +77,7 @@ export class EventSchedulerService {
             `Completed periodic resync for blockchain ${blockchain.id}`,
           );
         } catch (error) {
+          captureFailure(error, 'events.resync');
           this.logger.error(
             `Error during periodic resync for blockchain ${blockchain.id}: ${sanitizeForLog(
               error,
@@ -84,6 +86,7 @@ export class EventSchedulerService {
         }
       }
     } catch (error) {
+      captureFailure(error, 'events.resync');
       this.logger.error(`Error in periodic resync: ${sanitizeForLog(error)}`);
     }
   }

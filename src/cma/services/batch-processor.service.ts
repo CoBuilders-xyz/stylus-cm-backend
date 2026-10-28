@@ -1,3 +1,4 @@
+import { captureFailure } from '../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -108,6 +109,7 @@ export class BatchProcessorService {
         successfulBatches++;
         processedContracts += batch.length;
       } catch (error) {
+        captureFailure(error, 'cma');
         const batchEndTime = new Date();
         const processingTime =
           batchEndTime.getTime() - batchStartTime.getTime();
@@ -234,6 +236,7 @@ export class BatchProcessorService {
         successfulBatches++;
         processedContracts += batch.length;
       } catch (error) {
+        captureFailure(error, 'cma');
         const batchEndTime = new Date();
         const processingTime =
           batchEndTime.getTime() - batchStartTime.getTime();
