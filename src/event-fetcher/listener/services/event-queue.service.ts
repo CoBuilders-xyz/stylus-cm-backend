@@ -172,8 +172,21 @@ export class EventQueueService implements OnModuleDestroy {
       );
     });
 
-    worker.on('error', (error) => captureFailure(error, 'events.queue'));
-    queue.on('error', (error) => captureFailure(error, 'events.queue'));
+    // Queue and worker reconnects share one report per minute for this blockchain.
+    let lastConnectionReport: number | undefined;
+    const reportConnectionError = (error: Error): void => {
+      const now = Date.now();
+      if (
+        lastConnectionReport !== undefined &&
+        now - lastConnectionReport < 60_000
+      ) {
+        return;
+      }
+      lastConnectionReport = now;
+      captureFailure(error, 'events.queue');
+    };
+    worker.on('error', reportConnectionError);
+    queue.on('error', reportConnectionError);
 
     worker.on('failed', (job, err) => {
       if (
