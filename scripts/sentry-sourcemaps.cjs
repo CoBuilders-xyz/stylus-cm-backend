@@ -36,7 +36,7 @@ function prepareSourceMaps(directory = 'dist', env = process.env) {
       throw new Error('Sentry upload requires SENTRY_ORG and SENTRY_PROJECT');
     }
     const release = env.SENTRY_RELEASE || env.RAILWAY_GIT_COMMIT_SHA;
-    const args = ['sourcemaps', 'upload', directory];
+    const args = ['sourcemaps', 'upload', '--wait-for', '60', directory];
     if (release) args.push('--release', release);
     runCli(args, { ...env, SENTRY_LOG_LEVEL: 'error' });
     console.log('Sentry source maps uploaded.');

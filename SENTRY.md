@@ -46,6 +46,7 @@ They do not recompile or recreate deleted source maps. Use `npm run start:dev` f
 
 `npm run build` compiles, injects deterministic debug IDs, optionally uploads source maps, and always deletes `.map` files.
 Missing upload credentials do not fail local or Railway builds. Misconfigured or failed authenticated uploads fail the build.
+Build maps include TypeScript source content for readable stack context. Upload waits up to 60 seconds for Sentry processing.
 CLI output is suppressed so errors cannot disclose credentials or remote URLs.
 
 The `Upload Sentry source maps` workflow runs on pushes to `main` and `staging`, and supports manual dispatch.
