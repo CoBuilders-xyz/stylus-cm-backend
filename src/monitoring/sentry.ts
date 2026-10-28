@@ -95,6 +95,8 @@ function safeBase(event: Event): Event {
     level: event.level,
     release: event.release,
     environment: event.environment,
+    // Prevent Relay from deriving a location from the ingestion connection.
+    user: { ip_address: '0.0.0.0' },
     contexts: trace
       ? {
           trace: {

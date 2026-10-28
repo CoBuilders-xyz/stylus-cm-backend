@@ -123,6 +123,7 @@ describe('Sentry privacy and configuration', () => {
     const sanitized = sanitizeErrorEvent(event, hint)!;
     expect(JSON.stringify(sanitized)).not.toContain(secret);
     expect(hint.attachments).toEqual([]);
+    expect(sanitized.user).toEqual({ ip_address: '0.0.0.0' });
     expect(sanitized.exception?.values?.[0]).toMatchObject({
       type: 'TypeError',
       stacktrace: {

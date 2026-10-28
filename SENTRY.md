@@ -32,6 +32,7 @@ Telemetry uses an allowlist. It preserves exception classes, stack module paths,
 It removes function names because computed names can include private values.
 It replaces exception messages with a fixed description. It removes request data, users, breadcrumbs, attachments, locals, and arbitrary metadata.
 This prevents authentication, cookies, tokens, wallet addresses, provider URLs, and job payloads from reaching Sentry.
+A fixed `0.0.0.0` IP placeholder prevents Sentry from inferring location from the ingestion connection.
 No outbound trace headers are propagated. Optional tracing retains aggregate root timing, without outbound spans or dynamic request names.
 
 Stack paths and debug image paths use the same `app:///dist/...` normalization.
