@@ -1,3 +1,4 @@
+import { captureFailure } from '../../monitoring/sentry';
 import { ethers } from 'ethers';
 import { EventFetcherErrorHelpers } from '../event-fetcher.errors';
 import { createContextLogger } from '../../common/utils/logger.util';
@@ -84,6 +85,7 @@ export async function safeContractCall<T = any>(
 
   // Return fallback value if provided
   if ('fallbackValue' in opts) {
+    if (lastError) captureFailure(lastError, 'events.resync');
     if (opts.logErrors) {
       logger.warn(
         `Using fallback value for ${methodName} on contract ${contractAddress} after ${opts.retries! + 1} failed attempts`,

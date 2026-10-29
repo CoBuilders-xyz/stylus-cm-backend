@@ -1,3 +1,5 @@
+import { withIsolationScope } from '@sentry/nestjs';
+import { captureFailure } from '../../../monitoring/sentry';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue, Worker, Job } from 'bullmq';
@@ -153,7 +155,9 @@ export class EventQueueService implements OnModuleDestroy {
     const worker = new Worker(
       `events-${blockchainId}`,
       async (job: Job<EventQueueItem>) => {
-        return this.processEventSequentially(job.data);
+        return withIsolationScope(() =>
+          this.processEventSequentially(job.data),
+        );
       },
       {
         connection: this.redisConfig.connection,
@@ -168,7 +172,30 @@ export class EventQueueService implements OnModuleDestroy {
       );
     });
 
+    // Queue and worker reconnects share one report per minute for this blockchain.
+    let lastConnectionReport: number | undefined;
+    const reportConnectionError = (error: Error): void => {
+      const now = Date.now();
+      if (
+        lastConnectionReport !== undefined &&
+        now - lastConnectionReport < 60_000
+      ) {
+        return;
+      }
+      lastConnectionReport = now;
+      captureFailure(error, 'events.queue');
+    };
+    worker.on('error', reportConnectionError);
+    queue.on('error', reportConnectionError);
+
     worker.on('failed', (job, err) => {
+      if (
+        !job ||
+        job.finishedOn ||
+        job.attemptsMade >= (job.opts.attempts ?? 1)
+      ) {
+        captureFailure(err, 'events.queue');
+      }
       this.logger.error(
         `Failed processing ${job?.data?.eventType} for block ${job?.data?.blockNumber}: ${sanitizeForLog(err)}`,
       );

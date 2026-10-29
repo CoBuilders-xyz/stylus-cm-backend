@@ -1,3 +1,6 @@
+import './instrument';
+import { captureFailure } from './monitoring/sentry';
+import { flush } from '@sentry/nestjs';
 import { NestFactory } from '@nestjs/core';
 import { Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { AppModule } from './app.module';
@@ -56,6 +59,8 @@ function createCorsConfig(config: AppConfig) {
 async function createNestApp(config: AppConfig): Promise<INestApplication> {
   return await NestFactory.create(AppModule, {
     cors: createCorsConfig(config),
+    // Let bootstrap report initialization failures before exiting.
+    abortOnError: false,
     logger: config.loggerLevels,
   });
 }
@@ -122,7 +127,9 @@ async function bootstrap() {
   await startServer(app, config, logger);
 }
 
-bootstrap().catch((error) => {
+bootstrap().catch(async (error) => {
+  captureFailure(error, 'bootstrap');
+  await flush(2000);
   const logger = new Logger('Bootstrap');
   logger.error(
     `Failed to start application: ${sanitizeForLog(error)}`,

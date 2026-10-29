@@ -1,3 +1,4 @@
+import { captureFailure } from '../monitoring/sentry';
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventListenerService } from './listener';
@@ -52,6 +53,7 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.eventSyncService.syncHistoricalEvents(blockchains, eventTypes);
     } catch (error) {
+      captureFailure(error, 'events.startup');
       this.logger.error(
         `Error during initial event synchronization: ${sanitizeForLog(error)}`,
       );
@@ -69,6 +71,7 @@ export class EventFetcherService implements OnModuleInit, OnModuleDestroy {
         );
       }
     } catch (error) {
+      captureFailure(error, 'events.startup');
       this.logger.error(
         `Error setting up event listeners: ${sanitizeForLog(error)}`,
       );

@@ -1,0 +1,27 @@
+name: Upload Sentry source maps
+
+on:
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0' # Match the Railway Docker image.
+          cache: npm
+      - run: npm ci
+      - name: Build, upload private source maps, and remove maps
+        run: npm run build
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: cobuilders
+          SENTRY_PROJECT: stylus-cm-backend
+          SENTRY_RELEASE: ${{ github.sha }}

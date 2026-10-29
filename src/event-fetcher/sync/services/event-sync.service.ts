@@ -1,3 +1,4 @@
+import { captureFailure } from '../../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { Blockchain } from '../../../blockchains/entities/blockchain.entity';
@@ -45,6 +46,7 @@ export class EventSyncService {
         const provider = this.providerManager.getFastSyncProvider(blockchain);
         await this.syncBlockchainEvents(blockchain, provider, eventTypes);
       } catch (error) {
+        captureFailure(error, 'events.resync');
         this.logger.error(
           `Error syncing blockchain ${blockchain.id}: ${sanitizeForLog(error)}`,
         );
@@ -95,6 +97,7 @@ export class EventSyncService {
         latestBlock = blockNumber;
       }
     } catch (error) {
+      captureFailure(error, 'events.resync');
       this.logger.error(
         `Failed to get latest block number for blockchain ${blockchain.id}: ${sanitizeForLog(
           error,
@@ -280,6 +283,7 @@ export class EventSyncService {
           );
         }
       } catch (error) {
+        captureFailure(error, 'events.resync');
         this.logger.error(
           `Error fetching ${eventType} events: ${sanitizeForLog(error)}`,
         );

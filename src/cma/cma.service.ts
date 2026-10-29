@@ -1,3 +1,4 @@
+import { captureFailure } from '../monitoring/sentry';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
@@ -50,6 +51,7 @@ export class CmaService implements OnModuleInit {
         );
       }
     } catch (error) {
+      captureFailure(error, 'cma');
       this.logger.error(`${label} automation failed: ${sanitizeForLog(error)}`);
     }
   }

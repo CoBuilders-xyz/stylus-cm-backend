@@ -1,3 +1,4 @@
+import { captureFailure } from '../monitoring/sentry';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { EventProcessorService } from './services/event-processor.service';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -49,11 +50,12 @@ export class DataProcessingService implements OnModuleInit {
     this.logger.log('Initializing blockchain event processor...');
     // TODO: Make a check instead of timeout
 
-    this.processAllEvents().catch((err: Error) =>
+    this.processAllEvents().catch((err: Error) => {
+      captureFailure(err, 'events.process');
       this.logger.error(
         `Failed during initial event processing: ${err.message}`,
-      ),
-    );
+      );
+    });
   }
 
   /**

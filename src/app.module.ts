@@ -1,3 +1,4 @@
+import { SentryModule } from '@sentry/nestjs/setup';
 import { Module } from '@nestjs/common';
 import config from './common/config/config';
 import databaseConfig from './common/config/database.config';
@@ -42,6 +43,7 @@ const appModules = [
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [config, databaseConfig, redisConfig, appConfig, authConfig],

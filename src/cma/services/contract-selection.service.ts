@@ -1,3 +1,4 @@
+import { captureFailure } from '../../monitoring/sentry';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
@@ -131,6 +132,7 @@ export class ContractSelectionService {
       );
       return selectedContracts;
     } catch (error) {
+      captureFailure(error, 'cma');
       this.logger.error(
         `Contract selection failed for ${blockchain.name}: ${sanitizeForLog(error)}`,
       );
@@ -212,6 +214,7 @@ export class ContractSelectionService {
           `Skipping bid for ${contractAddress}: program expired`,
         );
       } else {
+        captureFailure(error, 'cma');
         this.logger.warn(
           `Error checking if should bid for contract ${contractAddress}: ${sanitizeForLog(error)}`,
         );

@@ -1,3 +1,4 @@
+import { captureHttpFailure } from '../../monitoring/sentry';
 import {
   ExceptionFilter,
   Catch,
@@ -60,6 +61,8 @@ export class RpcExceptionFilter implements ExceptionFilter {
       default:
         httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
     }
+
+    captureHttpFailure(exception, httpStatus);
 
     const errorMessage =
       exception.error?.message ||
